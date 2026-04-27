@@ -1,0 +1,193 @@
+// Irian Motor — Database Schema
+// Multi-cabang bengkel motor management system
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================
+// BRANCHES — Data Cabang Bengkel
+// ============================================
+model Branch {
+  id        String   @id @default(cuid())
+  code      String   @unique // BRG-01, BRG-02, BRG-03
+  name      String
+  address   String
+  phone     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  users        User[]
+  customers    Customer[]
+  services     Service[]
+  spareparts   Sparepart[]
+  transactions Transaction[]
+
+  @@map("branches")
+}
+
+// ============================================
+// USERS — Data Pengguna (Admin & Kasir)
+// ============================================
+enum Role {
+  ADMIN
+  KASIR
+}
+
+model User {
+  id           String   @id @default(cuid())
+  branchId     String?  @map("branch_id") // null = admin (akses semua cabang)
+  name         String
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         Role     @default(KASIR)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  branch       Branch?       @relation(fields: [branchId], references: [id])
+  transactions Transaction[]
+
+  @@map("users")
+}
+
+// ============================================
+// CUSTOMERS — Data Pelanggan
+// ============================================
+model Customer {
+  id          String   @id @default(cuid())
+  branchId    String   @map("branch_id")
+  name        String
+  phone       String?
+  plateNumber String?  @map("plate_number")
+  vehicleType String?  @map("vehicle_type")
+  vehicleYear String?  @map("vehicle_year")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  branch       Branch        @relation(fields: [branchId], references: [id])
+  transactions Transaction[]
+
+  @@map("customers")
+}
+
+// ============================================
+// SERVICES — Master Jasa Servis
+// ============================================
+model Service {
+  id        String   @id @default(cuid())
+  branchId  String   @map("branch_id")
+  name      String
+  price     Float
+  category  String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  branch           Branch            @relation(fields: [branchId], references: [id])
+  transactionItems TransactionItem[]
+
+  @@map("services")
+}
+
+// ============================================
+// SPAREPARTS — Master Sparepart
+// ============================================
+model Sparepart {
+  id        String   @id @default(cuid())
+  branchId  String   @map("branch_id")
+  name      String
+  sku       String?
+  buyPrice  Float    @default(0) @map("buy_price")
+  sellPrice Float    @map("sell_price")
+  stock     Int      @default(0)
+  unit      String   @default("pcs")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  branch           Branch            @relation(fields: [branchId], references: [id])
+  transactionItems TransactionItem[]
+
+  @@map("spareparts")
+}
+
+// ============================================
+// TRANSACTIONS — Transaksi Harian
+// ============================================
+enum TransactionType {
+  SERVICE
+  SPAREPART
+  MIXED
+}
+
+enum PaymentMethod {
+  CASH
+  TRANSFER
+  QRIS
+}
+
+model Transaction {
+  id              String          @id @default(cuid())
+  branchId        String          @map("branch_id")
+  customerId      String?         @map("customer_id")
+  userId          String          @map("user_id")
+  invoiceNumber   String          @unique @map("invoice_number")
+  type            TransactionType
+  subtotal        Float           @default(0)
+  discount        Float           @default(0)
+  total           Float           @default(0)
+  paymentMethod   PaymentMethod   @default(CASH) @map("payment_method")
+  notes           String?
+  transactionDate DateTime        @map("transaction_date") @db.Date
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  // Relations
+  branch   Branch    @relation(fields: [branchId], references: [id])
+  customer Customer? @relation(fields: [customerId], references: [id])
+  user     User      @relation(fields: [userId], references: [id])
+  items    TransactionItem[]
+
+  @@index([branchId, transactionDate])
+  @@map("transactions")
+}
+
+// ============================================
+// TRANSACTION ITEMS — Detail Item Transaksi
+// ============================================
+enum ItemType {
+  SERVICE
+  SPAREPART
+}
+
+model TransactionItem {
+  id            String   @id @default(cuid())
+  transactionId String   @map("transaction_id")
+  itemType      ItemType @map("item_type")
+  serviceId     String?  @map("service_id")
+  sparepartId   String?  @map("sparepart_id")
+  itemName      String   @map("item_name")
+  quantity      Int      @default(1)
+  unitPrice     Float    @map("unit_price")
+  subtotal      Float    @default(0)
+  createdAt     DateTime @default(now())
+
+  // Relations
+  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  service     Service?    @relation(fields: [serviceId], references: [id])
+  sparepart   Sparepart?  @relation(fields: [sparepartId], references: [id])
+
+  @@map("transaction_items")
+}
