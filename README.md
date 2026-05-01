@@ -15,11 +15,14 @@ Aplikasi web modern untuk mengelola multi-cabang bengkel motor. Dilengkapi denga
 ## 🛠️ Panduan Instalasi & Menjalankan Proyek (Lokal)
 
 ### 1. Persyaratan Sistem
+
 Pastikan Anda sudah menginstal:
+
 - [Node.js](https://nodejs.org/) (versi 18.x atau yang lebih baru)
 - [PostgreSQL](https://www.postgresql.org/) (berjalan di lokal komputer Anda, atau menggunakan layanan cloud seperti Supabase/Neon)
 
 ### 2. Instalasi Dependensi
+
 Buka terminal/command prompt di dalam folder proyek ini, lalu jalankan:
 
 ```bash
@@ -27,6 +30,7 @@ npm install
 ```
 
 ### 3. Konfigurasi Environment Variables
+
 Di dalam root folder proyek, buat file baru bernama `.env` (Anda bisa meng-copy dari `.env.local` jika ada).
 Isi file `.env` dengan konfigurasi berikut:
 
@@ -39,6 +43,7 @@ SESSION_SECRET="ganti-dengan-secret-key-anda-yang-aman-minimal-32-karakter"
 ```
 
 ### 4. Setup Database & Generate Client
+
 Jalankan perintah-perintah berikut secara berurutan untuk menyiapkan database:
 
 ```bash
@@ -53,6 +58,7 @@ npx prisma db seed
 ```
 
 ### 5. Menjalankan Server Development
+
 Setelah database siap, Anda bisa menjalankan aplikasi:
 
 ```bash
@@ -68,13 +74,15 @@ Buka browser Anda dan akses **[http://localhost:3000](http://localhost:3000)**.
 Berikut adalah daftar akun yang terdaftar di sistem untuk pengujian aplikasi:
 
 **Admin (Owner — Bisa melihat semua cabang & laporan):**
-- Email: `admin@irianmotor.com`
+
+- Email: `[EMAIL_ADDRESS]`
 - Password: `admin123`
 
 **Kasir (Hanya bisa mengakses cabang masing-masing):**
-- **Irian Motor Indihiang**: `irian@indihiang` / `kasir123`
-- **Hidayah Auto Service**: `has@burujul` / `kasir123`
-- **Irian Motor Ciamis**: `irian@ciamis` / `kasir123`
+
+- **Irian Motor Indihiang**: `irian@indihiang.com` / `kasir123`
+- **Hidayah Auto Service**: `has@burujul.com` / `kasir123`
+- **Irian Motor Ciamis**: `irian@ciamis.com` / `kasir123`
 
 ---
 
