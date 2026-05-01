@@ -13,6 +13,7 @@ interface TransactionRow {
   id: string
   invoiceNumber: string
   type: string
+  status: string
   total: number
   paymentMethod: string
   createdAt: Date
@@ -37,12 +38,14 @@ export default function TransactionsClient({ initialTransactions }: Transactions
     )
   })
 
-  // Calculate true revenue from item subtotals
+  // Calculate true revenue from item subtotals (Exclude cancelled)
   const serviceRevenue = filteredData.reduce((acc, tx) => {
+    if (tx.status === 'CANCELLED') return acc
     return acc + tx.items.filter(i => i.itemType === 'SERVICE').reduce((sum, i) => sum + i.subtotal, 0)
   }, 0)
 
   const sparepartRevenue = filteredData.reduce((acc, tx) => {
+    if (tx.status === 'CANCELLED') return acc
     return acc + tx.items.filter(i => i.itemType === 'SPAREPART').reduce((sum, i) => sum + i.subtotal, 0)
   }, 0)
 
@@ -92,13 +95,20 @@ export default function TransactionsClient({ initialTransactions }: Transactions
     {
       key: 'type',
       header: 'Tipe',
-      render: (row: TransactionRow) => getTypeBadge(row.type),
+      render: (row: TransactionRow) => (
+        <div className="flex flex-col gap-1 items-start">
+          {getTypeBadge(row.type)}
+          {row.status === 'CANCELLED' && (
+            <span className="text-[10px] font-bold text-red-500 bg-red-50 px-1.5 py-0.5 rounded uppercase">Dibatalkan</span>
+          )}
+        </div>
+      ),
     },
     {
       key: 'total',
       header: 'Total',
       render: (row: TransactionRow) => (
-        <span className="text-sm font-semibold text-slate-900">
+        <span className={`text-sm font-semibold ${row.status === 'CANCELLED' ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
           {formatCurrency(row.total)}
         </span>
       ),

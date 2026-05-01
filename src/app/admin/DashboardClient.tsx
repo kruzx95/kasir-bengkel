@@ -15,6 +15,7 @@ interface DashboardClientProps {
     branchRevenueData: { name: string, revenue: number }[]
     topServices: { name: string, qty: number, revenue: number }[]
     topSpareparts: { name: string, qty: number, revenue: number }[]
+    lowStockItems: { name: string, stock: number, branch: { name: string } }[]
   }
 }
 
@@ -22,7 +23,7 @@ const COLORS = ['#0ea5e9', '#3b82f6', '#6366f1', '#8b5cf6', '#a855f7']
 
 export default function DashboardClient({ metrics }: DashboardClientProps) {
   
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  function CustomTooltip({ active, payload, label }: any) {
     if (active && payload && payload.length) {
       return (
         <div className="bg-slate-900 text-white p-3 rounded-lg shadow-xl border border-slate-800 text-sm">
@@ -199,6 +200,37 @@ export default function DashboardClient({ metrics }: DashboardClientProps) {
                     </div>
                   </div>
                   <span className="text-sm font-bold text-emerald-600">{formatCurrency(item.revenue)}</span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Low Stock Alerts */}
+        <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm lg:col-span-2">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center text-red-600">
+              <Package className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-slate-900">Peringatan Stok Menipis</h3>
+              <p className="text-xs text-slate-500">Sparepart dengan sisa stok di bawah 5 pcs</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {metrics.lowStockItems.length === 0 ? (
+              <p className="text-sm text-slate-500 col-span-full">Semua stok sparepart aman.</p>
+            ) : (
+              metrics.lowStockItems.map((item, idx) => (
+                <div key={idx} className="flex items-center justify-between p-3 rounded-xl border border-red-100 bg-red-50/30">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">{item.name}</p>
+                    <p className="text-xs text-slate-500">{item.branch.name}</p>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-lg font-black text-red-600">{item.stock}</span>
+                    <span className="text-xs text-red-400 ml-1">pcs</span>
+                  </div>
                 </div>
               ))
             )}

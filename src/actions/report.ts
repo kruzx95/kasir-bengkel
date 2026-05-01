@@ -27,7 +27,8 @@ export async function getReportData(startDateStr?: string, endDateStr?: string, 
         transactionDate: {
           gte: startDate,
           lte: endDate,
-        }
+        },
+        status: 'COMPLETED'
       },
       select: {
         id: true,

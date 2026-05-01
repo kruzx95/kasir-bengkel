@@ -6,9 +6,13 @@ import { ArrowLeft, Printer, Receipt, MapPin, Phone, User, Calendar } from 'luci
 import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
 import PrintButton from './PrintButton'
+import CancelButton from './CancelButton'
+import { getSession } from '@/lib/session'
 
-export default async function InvoicePage({ params }: { params: { id: string } }) {
-  const tx = await getTransactionDetails(params.id)
+export default async function InvoicePage({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = await params
+  const tx = await getTransactionDetails(resolvedParams.id)
+  const session = await getSession()
 
   if (!tx) {
     notFound()
@@ -30,7 +34,12 @@ export default async function InvoicePage({ params }: { params: { id: string } }
         <Link href="/kasir/transaksi">
           <Button variant="ghost" icon={ArrowLeft}>Kembali</Button>
         </Link>
-        <PrintButton />
+        <div className="flex items-center gap-2">
+          {session?.role === 'ADMIN' && tx.status !== 'CANCELLED' && (
+            <CancelButton id={tx.id} invoiceNumber={tx.invoiceNumber} />
+          )}
+          <PrintButton />
+        </div>
       </div>
 
       {/* Invoice Document */}
@@ -57,7 +66,14 @@ export default async function InvoicePage({ params }: { params: { id: string } }
           </div>
           
           <div className="text-right">
-            <h2 className="text-3xl font-black text-slate-200 uppercase tracking-wider mb-2">INVOICE</h2>
+            <div className="flex justify-end gap-2 mb-2">
+              {tx.status === 'CANCELLED' && (
+                <span className="px-3 py-1 bg-red-100 text-red-600 font-black text-sm rounded-lg tracking-widest border border-red-200 uppercase">
+                  Dibatalkan
+                </span>
+              )}
+              <h2 className="text-3xl font-black text-slate-200 uppercase tracking-wider">INVOICE</h2>
+            </div>
             <p className="text-lg font-bold text-slate-900 font-mono mb-2">{tx.invoiceNumber}</p>
             <div className="flex items-center justify-end gap-2 text-sm text-slate-500 mb-1">
               <Calendar className="w-4 h-4" />
@@ -66,6 +82,11 @@ export default async function InvoicePage({ params }: { params: { id: string } }
             <p className="text-sm text-slate-500">
               Kasir: <span className="font-medium text-slate-700">{tx.user.name}</span>
             </p>
+            {tx.mechanic && (
+              <p className="text-sm text-slate-500 mt-1">
+                Mekanik: <span className="font-medium text-slate-700">{tx.mechanic.name}</span>
+              </p>
+            )}
           </div>
         </div>
 

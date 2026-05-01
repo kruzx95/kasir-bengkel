@@ -15,6 +15,7 @@ const transactionItemSchema = z.object({
 
 const transactionSchema = z.object({
   customerId: z.string().optional().nullable(),
+  mechanicId: z.string().optional().nullable(),
   items: z.array(transactionItemSchema).min(1, 'Pilih minimal satu item'),
   discount: z.number().min(0).default(0),
   paymentMethod: z.enum(['CASH', 'TRANSFER', 'QRIS']).default('CASH'),
@@ -97,6 +98,7 @@ export async function createTransaction(payload: TransactionPayload): Promise<Tr
           branchId,
           userId,
           customerId: data.customerId || null,
+          mechanicId: data.mechanicId || null,
           invoiceNumber,
           type,
           subtotal,
@@ -178,6 +180,7 @@ export async function getTransactions(branchId?: string, dateStr?: string) {
         id: true,
         invoiceNumber: true,
         type: true,
+        status: true,
         total: true,
         paymentMethod: true,
         createdAt: true,
@@ -185,6 +188,9 @@ export async function getTransactions(branchId?: string, dateStr?: string) {
           select: { name: true, plateNumber: true }
         },
         user: {
+          select: { name: true }
+        },
+        mechanic: {
           select: { name: true }
         },
         branch: {
@@ -208,12 +214,18 @@ export async function getTransactionDetails(id: string) {
     const session = await getSession()
     if (!session) return null
 
-    const transaction = await prisma.transaction.findUnique({
-      where: { id },
+    const transaction = await prisma.transaction.findFirst({
+      where: {
+        OR: [
+          { id },
+          { invoiceNumber: id }
+        ]
+      },
       select: {
         id: true,
         invoiceNumber: true,
         type: true,
+        status: true,
         subtotal: true,
         discount: true,
         total: true,
@@ -224,6 +236,9 @@ export async function getTransactionDetails(id: string) {
           select: { id: true, name: true, phone: true, plateNumber: true, vehicleType: true }
         },
         user: {
+          select: { id: true, name: true }
+        },
+        mechanic: {
           select: { id: true, name: true }
         },
         branch: {
@@ -251,5 +266,46 @@ export async function getTransactionDetails(id: string) {
   } catch (error) {
     console.error('Get Transaction Details Error:', error)
     return null
+  }
+}
+
+export async function cancelTransaction(id: string) {
+  try {
+    const session = await getSession()
+    if (!session || session.role !== 'ADMIN') return { success: false, message: 'Unauthorized. Hanya admin yang bisa membatalkan transaksi.' }
+
+    const result = await prisma.$transaction(async (tx) => {
+      const transaction = await tx.transaction.findUnique({
+        where: { id },
+        include: { items: true }
+      })
+
+      if (!transaction) throw new Error('Transaksi tidak ditemukan')
+      if (transaction.status === 'CANCELLED') throw new Error('Transaksi sudah dibatalkan')
+
+      await tx.transaction.update({
+        where: { id },
+        data: { status: 'CANCELLED' }
+      })
+
+      for (const item of transaction.items) {
+        if (item.itemType === 'SPAREPART' && item.sparepartId) {
+          await tx.sparepart.update({
+            where: { id: item.sparepartId },
+            data: { stock: { increment: item.quantity } }
+          })
+        }
+      }
+      return transaction
+    })
+
+    revalidatePath('/kasir/transaksi')
+    revalidatePath('/admin/transaksi')
+    revalidatePath('/kasir/sparepart')
+    revalidatePath('/admin/master/spareparts')
+    
+    return { success: true, message: 'Transaksi berhasil dibatalkan dan stok dikembalikan.' }
+  } catch (error: any) {
+    return { success: false, message: error.message || 'Gagal membatalkan transaksi.' }
   }
 }

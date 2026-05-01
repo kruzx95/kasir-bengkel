@@ -24,7 +24,8 @@ export async function getDashboardMetrics() {
   const todayTransactions = await prisma.transaction.findMany({
     where: {
       ...(targetBranch ? { branchId: targetBranch } : {}),
-      transactionDate: { gte: today }
+      transactionDate: { gte: today },
+      status: 'COMPLETED'
     },
     select: { total: true }
   })
@@ -34,7 +35,8 @@ export async function getDashboardMetrics() {
   const monthTransactions = await prisma.transaction.findMany({
     where: {
       ...(targetBranch ? { branchId: targetBranch } : {}),
-      transactionDate: { gte: startOfMonth }
+      transactionDate: { gte: startOfMonth },
+      status: 'COMPLETED'
     },
     select: { total: true }
   })
@@ -56,7 +58,10 @@ export async function getDashboardMetrics() {
   let branchRevenueData: { name: string; revenue: number }[] = []
   if (session.role === 'ADMIN') {
     const allMonthTrans = await prisma.transaction.findMany({
-      where: { transactionDate: { gte: startOfMonth } },
+      where: { 
+        transactionDate: { gte: startOfMonth },
+        status: 'COMPLETED'
+      },
       select: { branch: { select: { name: true } }, total: true }
     })
     
@@ -72,7 +77,8 @@ export async function getDashboardMetrics() {
   const last7DaysTrans = await prisma.transaction.findMany({
     where: {
       ...(targetBranch ? { branchId: targetBranch } : {}),
-      transactionDate: { gte: sevenDaysAgo }
+      transactionDate: { gte: sevenDaysAgo },
+      status: 'COMPLETED'
     },
     select: { transactionDate: true, total: true }
   })
@@ -100,7 +106,8 @@ export async function getDashboardMetrics() {
     where: {
       transaction: {
         ...(targetBranch ? { branchId: targetBranch } : {}),
-        transactionDate: { gte: startOfMonth }
+        transactionDate: { gte: startOfMonth },
+        status: 'COMPLETED'
       }
     },
     select: { itemName: true, itemType: true, quantity: true, subtotal: true }
@@ -120,12 +127,25 @@ export async function getDashboardMetrics() {
   const topServices = sortedItems.filter(i => i.type === 'SERVICE').slice(0, 5)
   const topSpareparts = sortedItems.filter(i => i.type === 'SPAREPART').slice(0, 5)
 
+  // Low Stock Items (< 5)
+  const lowStockItems = await prisma.sparepart.findMany({
+    where: {
+      ...(targetBranch ? { branchId: targetBranch } : {}),
+      isActive: true,
+      stock: { lt: 5 } // Threshold is less than 5
+    },
+    select: { name: true, stock: true, branch: { select: { name: true } } },
+    orderBy: { stock: 'asc' },
+    take: 10
+  })
+
   return {
     dailyRevenue,
     monthlyRevenue,
     trendData,
     branchRevenueData,
     topServices,
-    topSpareparts
+    topSpareparts,
+    lowStockItems
   }
 }

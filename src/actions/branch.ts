@@ -18,3 +18,23 @@ export async function getBranchById(id: string) {
     where: { id },
   })
 }
+
+export async function updateBranch(id: string, data: { name: string; address: string; phone: string }) {
+  try {
+    const session = await getSession()
+    if (!session || session.role !== 'ADMIN') throw new Error('Unauthorized')
+
+    await prisma.branch.update({
+      where: { id },
+      data: {
+        name: data.name,
+        address: data.address,
+        phone: data.phone
+      }
+    })
+    
+    return { success: true }
+  } catch (error: any) {
+    return { success: false, message: error.message || 'Gagal mengubah data cabang' }
+  }
+}

@@ -8,6 +8,7 @@ import {
   Receipt,
   Users,
   Package,
+  PackagePlus,
   Wrench,
   BarChart3,
   Settings,
@@ -39,6 +40,8 @@ const adminMenuItems = [
   { href: '/admin/laporan', label: 'Laporan', icon: BarChart3 },
   { href: '/admin/master/services', label: 'Jasa Servis', icon: Wrench },
   { href: '/admin/master/spareparts', label: 'Sparepart', icon: Package },
+  { href: '/admin/restock', label: 'Barang Masuk', icon: PackagePlus },
+  { href: '/admin/master/mechanics', label: 'Mekanik', icon: Users },
   { href: '/admin/cabang', label: 'Cabang', icon: Building2 },
   { href: '/admin/users', label: 'Pengguna', icon: UserCog },
 ]

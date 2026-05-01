@@ -23,12 +23,14 @@ interface NewTransactionClientProps {
   customers: { id: string; name: string; plateNumber: string | null }[]
   services: { id: string; name: string; price: number }[]
   spareparts: { id: string; name: string; sellPrice: number; stock: number; sku: string | null }[]
+  mechanics?: { id: string; name: string }[]
 }
 
 export default function NewTransactionClient({
   customers,
   services,
   spareparts,
+  mechanics = [],
 }: NewTransactionClientProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -38,6 +40,7 @@ export default function NewTransactionClient({
   const [items, setItems] = useState<TransactionPayload['items']>([])
   const [discount, setDiscount] = useState<number>(0)
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'TRANSFER' | 'QRIS'>('CASH')
+  const [mechanicId, setMechanicId] = useState<string>('')
   const [notes, setNotes] = useState('')
   
   // Catalog search state
@@ -128,6 +131,7 @@ export default function NewTransactionClient({
     startTransition(async () => {
       const payload: TransactionPayload = {
         customerId: customerId || null,
+        mechanicId: mechanicId || null,
         items,
         discount,
         paymentMethod,
@@ -136,8 +140,7 @@ export default function NewTransactionClient({
       
       const res = await createTransaction(payload)
       if (res.success) {
-        router.push(`/kasir/transaksi/${res.invoiceNumber || ''}`) // Assuming we handle redirect based on ID if we return ID, actually I returned invoiceNumber. Let's redirect to list for now to be safe. Actually, better redirect to transaction list.
-        router.push('/kasir/transaksi')
+        router.push(`/kasir/transaksi/${res.invoiceNumber || ''}`)
       } else {
         setError(res.message || 'Gagal membuat transaksi')
       }
@@ -299,6 +302,18 @@ export default function NewTransactionClient({
               ]}
               value={customerId}
               onChange={(e) => setCustomerId(e.target.value)}
+            />
+
+            <Select
+              id="mechanic"
+              name="mechanic"
+              label="Mekanik Penanggung Jawab (Opsional)"
+              options={[
+                { label: 'Tidak ada / Hanya Beli Sparepart', value: '' },
+                ...mechanics.map(m => ({ label: m.name, value: m.id }))
+              ]}
+              value={mechanicId}
+              onChange={(e) => setMechanicId(e.target.value)}
             />
             
             <div className="pt-2 border-t border-slate-100 mt-4 space-y-4">

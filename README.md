@@ -65,16 +65,16 @@ Buka browser Anda dan akses **[http://localhost:3000](http://localhost:3000)**.
 
 ## 🔐 Kredensial Login (Testing)
 
-Setelah Anda menjalankan perintah `seed` di atas, beberapa akun default akan terbuat dan bisa digunakan untuk login:
+Berikut adalah daftar akun yang terdaftar di sistem untuk pengujian aplikasi:
 
 **Admin (Owner — Bisa melihat semua cabang & laporan):**
 - Email: `admin@irianmotor.com`
 - Password: `admin123`
 
 **Kasir (Hanya bisa mengakses cabang masing-masing):**
-- Kasir Cab. Irian Jaya: `kasir1@irianmotor.com` / `kasir123`
-- Kasir Cab. Irian Timur: `kasir2@irianmotor.com` / `kasir123`
-- Kasir Cab. Irian Barat: `kasir3@irianmotor.com` / `kasir123`
+- **Irian Motor Indihiang**: `irian@indihiang` / `kasir123`
+- **Hidayah Auto Service**: `has@burujul` / `kasir123`
+- **Irian Motor Ciamis**: `irian@ciamis` / `kasir123`
 
 ---
 
