@@ -34,7 +34,7 @@ export async function updateBranch(id: string, data: { name: string; address: st
     })
     
     return { success: true }
-  } catch (error: any) {
-    return { success: false, message: error.message || 'Gagal mengubah data cabang' }
+  } catch (error: unknown) {
+    return { success: false, message: (error as Error).message || 'Gagal mengubah data cabang' }
   }
 }

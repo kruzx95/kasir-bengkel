@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { UserCog, Shield, Store, Mail, Edit2 } from 'lucide-react'
+import { Shield, Store, Mail, Edit2 } from 'lucide-react'
 import Badge from '@/components/ui/Badge'
 import Modal, { ModalFooter } from '@/components/ui/Modal'
 import Input from '@/components/ui/Input'
@@ -67,8 +67,8 @@ export default function UsersClient({ users }: { users: UserData[] }) {
               <div className="flex items-center gap-3">
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
                   user.role === 'ADMIN'
-                    ? 'bg-gradient-to-br from-amber-400 to-amber-600'
-                    : 'bg-gradient-to-br from-primary-400 to-primary-600'
+                    ? 'bg-linear-to-br from-amber-400 to-amber-600'
+                    : 'bg-linear-to-br from-primary-400 to-primary-600'
                 }`}>
                   {user.role === 'ADMIN' ? (
                     <Shield className="w-5 h-5 text-white" />

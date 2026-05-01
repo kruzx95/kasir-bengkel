@@ -2,8 +2,7 @@
 
 import { formatCurrency } from '@/lib/utils'
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
-  LineChart, Line, PieChart, Pie, Cell, Legend
+  LineChart, Line, PieChart, Pie, Cell, Legend, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer
 } from 'recharts'
 import { TrendingUp, Wallet, Wrench, Package, ArrowUpRight } from 'lucide-react'
 
@@ -21,19 +20,25 @@ interface DashboardClientProps {
 
 const COLORS = ['#0ea5e9', '#3b82f6', '#6366f1', '#8b5cf6', '#a855f7']
 
-export default function DashboardClient({ metrics }: DashboardClientProps) {
-  
-  function CustomTooltip({ active, payload, label }: any) {
-    if (active && payload && payload.length) {
-      return (
-        <div className="bg-slate-900 text-white p-3 rounded-lg shadow-xl border border-slate-800 text-sm">
-          <p className="font-semibold mb-1">{label}</p>
-          <p className="text-emerald-400 font-bold">{formatCurrency(payload[0].value)}</p>
-        </div>
-      )
-    }
-    return null
+interface CustomTooltipProps {
+  active?: boolean
+  payload?: { value: number }[]
+  label?: string
+}
+
+const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-slate-900 text-white p-3 rounded-lg shadow-xl border border-slate-800 text-sm">
+        <p className="font-semibold mb-1">{label}</p>
+        <p className="text-emerald-400 font-bold">{formatCurrency(payload[0].value)}</p>
+      </div>
+    )
   }
+  return null
+}
+
+export default function DashboardClient({ metrics }: DashboardClientProps) {
 
   return (
     <div className="p-6 animate-fade-in space-y-6">
@@ -63,7 +68,7 @@ export default function DashboardClient({ metrics }: DashboardClientProps) {
         </div>
 
         <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm relative overflow-hidden group col-span-1 md:col-span-2">
-           <div className="absolute right-0 top-0 w-32 h-full bg-gradient-to-l from-slate-50 to-transparent" />
+           <div className="absolute right-0 top-0 w-32 h-full bg-linear-to-l from-slate-50 to-transparent" />
            <div className="relative z-10 flex justify-between items-center h-full">
              <div>
                <h3 className="text-lg font-bold text-slate-900 mb-1">Performa Bisnis</h3>

@@ -64,12 +64,12 @@ export default function CabangClient({ branches }: { branches: Branch[] }) {
             key={branch.id}
             className="bg-white rounded-2xl border border-slate-200/80 overflow-hidden hover:shadow-lg hover:shadow-slate-200/50 transition-all duration-300 relative group"
           >
-            <div className={`h-2 bg-gradient-to-r ${branchColors[index % 3]}`} />
+            <div className={`h-2 bg-linear-to-r ${branchColors[index % 3]}`} />
 
             <div className="p-5 space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 bg-gradient-to-br ${branchColors[index % 3]} rounded-xl flex items-center justify-center`}>
+                  <div className={`w-10 h-10 bg-linear-to-br ${branchColors[index % 3]} rounded-xl flex items-center justify-center`}>
                     <Building2 className="w-5 h-5 text-white" />
                   </div>
                   <div>
