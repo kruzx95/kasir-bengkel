@@ -27,7 +27,7 @@ export default async function AdminNewRestockPage() {
         title="Catat Barang Masuk"
         subtitle="Input PO baru untuk menambah stok sparepart di cabang"
       />
-      <div className="p-6 animate-fade-in max-w-5xl mx-auto">
+      <div className="p-4 sm:p-6 animate-fade-in max-w-5xl mx-auto">
         <NewRestockClient branches={branches} spareparts={spareparts} />
       </div>
     </>

@@ -148,14 +148,14 @@ export default function NewTransactionClient({
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
-      <div className="flex items-center gap-4">
+    <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6">
+      <div className="flex items-center gap-3 sm:gap-4">
         <Link href="/kasir/transaksi">
           <Button variant="ghost" icon={ArrowLeft} className="w-10 h-10 p-0" />
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Transaksi Baru</h1>
-          <p className="text-sm text-slate-500">Buat invoice untuk layanan atau penjualan</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Transaksi Baru</h1>
+          <p className="text-xs sm:text-sm text-slate-500">Buat invoice untuk layanan atau penjualan</p>
         </div>
       </div>
 
@@ -245,36 +245,38 @@ export default function NewTransactionClient({
             ) : (
               <div className="divide-y divide-slate-50">
                 {items.map((item, index) => (
-                  <div key={`${item.itemId}-${index}`} className="p-4 flex items-center gap-4 hover:bg-slate-50/50 transition-colors">
-                    <div className="flex-1">
-                      <p className="text-sm font-semibold text-slate-900">{item.itemName}</p>
+                  <div key={`${item.itemId}-${index}`} className="p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 hover:bg-slate-50/50 transition-colors">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-slate-900 truncate">{item.itemName}</p>
                       <p className="text-xs text-slate-500 mt-0.5">{formatCurrency(item.unitPrice)} / {item.itemType === 'SERVICE' ? 'jasa' : 'pcs'}</p>
                     </div>
                     
-                    <div className="flex items-center gap-3 bg-white border border-slate-200 rounded-lg p-1">
+                    <div className="flex items-center justify-between sm:justify-end gap-3">
+                      <div className="flex items-center gap-3 bg-white border border-slate-200 rounded-lg p-1">
+                        <button 
+                          onClick={() => handleUpdateQty(index, item.quantity - 1)}
+                          className="w-7 h-7 rounded-md hover:bg-slate-100 flex items-center justify-center text-slate-600 transition-colors"
+                        >-</button>
+                        <span className="w-6 text-center text-sm font-semibold text-slate-900">{item.quantity}</span>
+                        <button 
+                          onClick={() => handleUpdateQty(index, item.quantity + 1)}
+                          className="w-7 h-7 rounded-md hover:bg-slate-100 flex items-center justify-center text-slate-600 transition-colors"
+                        >+</button>
+                      </div>
+                      
+                      <div className="w-24 sm:w-32 text-right">
+                        <p className="text-sm font-bold text-slate-900">
+                          {formatCurrency(item.quantity * item.unitPrice)}
+                        </p>
+                      </div>
+                      
                       <button 
-                        onClick={() => handleUpdateQty(index, item.quantity - 1)}
-                        className="w-7 h-7 rounded-md hover:bg-slate-100 flex items-center justify-center text-slate-600 transition-colors"
-                      >-</button>
-                      <span className="w-6 text-center text-sm font-semibold text-slate-900">{item.quantity}</span>
-                      <button 
-                        onClick={() => handleUpdateQty(index, item.quantity + 1)}
-                        className="w-7 h-7 rounded-md hover:bg-slate-100 flex items-center justify-center text-slate-600 transition-colors"
-                      >+</button>
+                        onClick={() => handleRemoveItem(index)}
+                        className="w-8 h-8 flex items-center justify-center text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors shrink-0"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
-                    
-                    <div className="w-32 text-right">
-                      <p className="text-sm font-bold text-slate-900">
-                        {formatCurrency(item.quantity * item.unitPrice)}
-                      </p>
-                    </div>
-                    
-                    <button 
-                      onClick={() => handleRemoveItem(index)}
-                      className="w-8 h-8 flex items-center justify-center text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
                   </div>
                 ))}
               </div>

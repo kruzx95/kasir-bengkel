@@ -20,7 +20,7 @@ export default async function PelangganPage() {
         title="Daftar Pelanggan"
         subtitle={`Data pelanggan cabang ${session.branchName ?? ''}`}
       />
-      <div className="p-6 animate-fade-in">
+      <div className="p-4 sm:p-6 animate-fade-in">
         <CustomersClient
           initialCustomers={customers as Parameters<typeof CustomersClient>[0]['initialCustomers']}
           branchId={session.branchId}

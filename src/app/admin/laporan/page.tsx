@@ -30,7 +30,7 @@ export default async function AdminLaporanPage() {
         title="Laporan & Ekspor"
         subtitle="Unduh rekapitulasi data transaksi ke format CSV/Excel"
       />
-      <div className="p-6 animate-fade-in">
+      <div className="p-4 sm:p-6 animate-fade-in">
         <ReportClient 
           branches={branches} 
           initialData={initialReport.transactions} 

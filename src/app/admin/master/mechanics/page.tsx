@@ -25,7 +25,7 @@ export default async function MasterMechanicsPage() {
         title="Master Mekanik"
         subtitle="Kelola data mekanik dan teknisi untuk setiap cabang"
       />
-      <div className="p-6 animate-fade-in">
+      <div className="p-4 sm:p-6 animate-fade-in">
         <MechanicsClient initialData={mechanics} branches={branches} />
       </div>
     </>

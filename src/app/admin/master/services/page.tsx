@@ -20,7 +20,7 @@ export default async function ServicesPage() {
         title="Master Jasa Servis"
         subtitle="Kelola daftar jasa servis per cabang"
       />
-      <div className="p-6 animate-fade-in">
+      <div className="p-4 sm:p-6 animate-fade-in">
         <ServicesClient services={services} branches={branches} />
       </div>
     </>

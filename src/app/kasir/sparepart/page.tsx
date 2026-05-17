@@ -20,7 +20,7 @@ export default async function SparepartStockPage() {
         title="Stok Sparepart"
         subtitle={`Stok sparepart cabang ${session.branchName ?? ''}`}
       />
-      <div className="p-6 animate-fade-in">
+      <div className="p-4 sm:p-6 animate-fade-in">
         <StockClient
           initialSpareparts={spareparts.map((sp) => ({
             id: sp.id,

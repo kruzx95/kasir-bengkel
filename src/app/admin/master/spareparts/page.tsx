@@ -20,7 +20,7 @@ export default async function SparepartsPage() {
         title="Master Sparepart"
         subtitle="Kelola daftar sparepart dan stok per cabang"
       />
-      <div className="p-6 animate-fade-in">
+      <div className="p-4 sm:p-6 animate-fade-in">
         <SparepartsClient spareparts={spareparts} branches={branches} />
       </div>
     </>

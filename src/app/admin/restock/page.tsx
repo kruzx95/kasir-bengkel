@@ -23,7 +23,7 @@ export default async function AdminRestockPage() {
         title="Barang Masuk (PO)"
         subtitle="Riwayat pembelian stok sparepart dari supplier"
       />
-      <div className="p-6 animate-fade-in">
+      <div className="p-4 sm:p-6 animate-fade-in">
         <RestocksClient initialData={restocks} />
       </div>
     </>

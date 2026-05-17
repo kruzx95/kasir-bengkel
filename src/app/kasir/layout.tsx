@@ -1,6 +1,6 @@
 import { getSession } from '@/lib/session'
 import { redirect } from 'next/navigation'
-import Sidebar from '@/components/layout/Sidebar'
+import DashboardShell from '@/components/layout/DashboardShell'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -19,15 +19,12 @@ export default async function KasirLayout({
   }
 
   return (
-    <div className="flex min-h-screen bg-background">
-      <Sidebar
-        role="KASIR"
-        userName={session.name}
-        branchName={session.branchName}
-      />
-      <main className="flex-1 ml-64 transition-all duration-300">
-        {children}
-      </main>
-    </div>
+    <DashboardShell
+      role="KASIR"
+      userName={session.name}
+      branchName={session.branchName}
+    >
+      {children}
+    </DashboardShell>
   )
 }

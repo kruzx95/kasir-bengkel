@@ -21,7 +21,7 @@ export default async function KasirTransaksiPage() {
         title="Daftar Transaksi"
         subtitle={`Transaksi cabang ${session.branchName ?? ''} hari ini`}
       />
-      <div className="p-6 animate-fade-in">
+      <div className="p-4 sm:p-6 animate-fade-in">
         <TransactionsClient initialTransactions={transactions as any} />
       </div>
     </>

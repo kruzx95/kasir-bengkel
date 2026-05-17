@@ -28,9 +28,9 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
   }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto animate-fade-in">
+    <div className="p-4 sm:p-6 max-w-4xl mx-auto animate-fade-in">
       {/* Top Actions - Hide when printing */}
-      <div className="flex items-center justify-between mb-8 print:hidden">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 sm:mb-8 print:hidden">
         <Link href="/kasir/transaksi">
           <Button variant="ghost" icon={ArrowLeft}>Kembali</Button>
         </Link>
@@ -43,17 +43,17 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
       </div>
 
       {/* Invoice Document */}
-      <div className="bg-white p-10 rounded-2xl border border-slate-200/80 shadow-sm print:shadow-none print:border-none print:p-0">
+      <div className="bg-white p-5 sm:p-10 rounded-2xl border border-slate-200/80 shadow-sm print:shadow-none print:border-none print:p-0">
         
         {/* Header */}
-        <div className="flex justify-between items-start border-b border-slate-200 pb-8 mb-8">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start border-b border-slate-200 pb-6 sm:pb-8 mb-6 sm:mb-8 gap-4">
           <div>
             <div className="flex items-center gap-3 mb-2">
               <div className="w-12 h-12 bg-primary-600 rounded-xl flex items-center justify-center">
                 <Receipt className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-slate-900">Irian Motor</h1>
+                <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Irian Motor</h1>
                 <p className="text-sm text-slate-500 font-medium">Cabang {tx.branch.name}</p>
               </div>
             </div>
@@ -65,17 +65,17 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
             </div>
           </div>
           
-          <div className="text-right">
-            <div className="flex justify-end gap-2 mb-2">
+          <div className="sm:text-right">
+            <div className="flex sm:justify-end gap-2 mb-2">
               {tx.status === 'CANCELLED' && (
                 <span className="px-3 py-1 bg-red-100 text-red-600 font-black text-sm rounded-lg tracking-widest border border-red-200 uppercase">
                   Dibatalkan
                 </span>
               )}
-              <h2 className="text-3xl font-black text-slate-200 uppercase tracking-wider">INVOICE</h2>
+              <h2 className="text-2xl sm:text-3xl font-black text-slate-200 uppercase tracking-wider">INVOICE</h2>
             </div>
             <p className="text-lg font-bold text-slate-900 font-mono mb-2">{tx.invoiceNumber}</p>
-            <div className="flex items-center justify-end gap-2 text-sm text-slate-500 mb-1">
+            <div className="flex items-center sm:justify-end gap-2 text-sm text-slate-500 mb-1">
               <Calendar className="w-4 h-4" />
               <span>{new Date(tx.createdAt).toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
             </div>
@@ -91,7 +91,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
         </div>
 
         {/* Customer Info */}
-        <div className="bg-slate-50 rounded-xl p-5 mb-8 flex justify-between items-start">
+        <div className="bg-slate-50 rounded-xl p-4 sm:p-5 mb-6 sm:mb-8 flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
           <div>
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Ditagihkan Kepada</p>
             <div className="flex items-center gap-2 mb-1">
@@ -111,7 +111,8 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
         </div>
 
         {/* Items Table */}
-        <table className="w-full mb-8">
+        <div className="overflow-x-auto mb-6 sm:mb-8">
+        <table className="w-full min-w-[400px]">
           <thead>
             <tr className="border-b-2 border-slate-200">
               <th className="text-left py-3 text-sm font-semibold text-slate-500 w-1/2">Deskripsi Item</th>
@@ -134,10 +135,11 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
             ))}
           </tbody>
         </table>
+        </div>
 
         {/* Totals & Notes */}
-        <div className="flex justify-between items-start pt-6 border-t border-slate-200">
-          <div className="w-1/2 pr-8">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start pt-6 border-t border-slate-200 gap-6">
+          <div className="sm:w-1/2 sm:pr-8">
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Metode Pembayaran</p>
             <p className="text-sm font-bold text-slate-900 mb-6">{tx.paymentMethod}</p>
             
@@ -149,7 +151,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
             )}
           </div>
           
-          <div className="w-1/2 space-y-3">
+          <div className="sm:w-1/2 space-y-3">
             <div className="flex justify-between text-sm text-slate-600">
               <span>Subtotal</span>
               <span>{formatCurrency(tx.subtotal)}</span>

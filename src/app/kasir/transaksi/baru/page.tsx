@@ -23,7 +23,7 @@ export default async function TransaksiBaruPage() {
   ])
 
   return (
-    <div className="p-6 animate-fade-in max-w-7xl mx-auto">
+    <div className="p-4 sm:p-6 animate-fade-in max-w-7xl mx-auto">
       <NewTransactionClient
         customers={customers.map(c => ({ id: c.id, name: c.name, plateNumber: c.plateNumber }))}
         services={services.filter(s => s.isActive).map(s => ({ id: s.id, name: s.name, price: s.price }))}

@@ -139,8 +139,8 @@ export default function TransactionsClient({ initialTransactions }: Transactions
 
   return (
     <>
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3 flex-1 max-w-md">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+        <div className="flex items-center gap-2 sm:gap-3 flex-1 max-w-md">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
@@ -151,32 +151,32 @@ export default function TransactionsClient({ initialTransactions }: Transactions
               className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 transition-all duration-200 hover:border-slate-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none"
             />
           </div>
-          <div className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700">
+          <div className="hidden sm:flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 shrink-0">
             <Calendar className="w-4 h-4 text-slate-400" />
             Hari Ini
           </div>
         </div>
         
-        <Link href="/kasir/transaksi/baru">
-          <Button icon={Plus}>Transaksi Baru</Button>
+        <Link href="/kasir/transaksi/baru" className="shrink-0">
+          <Button icon={Plus} className="w-full sm:w-auto">Transaksi Baru</Button>
         </Link>
       </div>
 
       {/* Stats Summary */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6">
         <div className="bg-white p-4 rounded-xl border border-slate-200/80">
           <p className="text-xs text-slate-500 font-medium mb-1">Total Transaksi</p>
           <p className="text-xl font-bold text-slate-900">{filteredData.length}</p>
         </div>
         <div className="bg-white p-4 rounded-xl border border-slate-200/80">
           <p className="text-xs text-slate-500 font-medium mb-1">Pendapatan Servis</p>
-          <p className="text-xl font-bold text-primary-600">
+          <p className="text-lg sm:text-xl font-bold text-primary-600">
             {formatCurrency(serviceRevenue)}
           </p>
         </div>
         <div className="bg-white p-4 rounded-xl border border-slate-200/80">
           <p className="text-xs text-slate-500 font-medium mb-1">Pendapatan Sparepart</p>
-          <p className="text-xl font-bold text-warning-600">
+          <p className="text-lg sm:text-xl font-bold text-warning-600">
             {formatCurrency(sparepartRevenue)}
           </p>
         </div>

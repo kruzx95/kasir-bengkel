@@ -112,7 +112,7 @@ export default function StockClient({ initialSpareparts }: StockClientProps) {
       )}
 
       {/* Search & Filter */}
-      <div className="flex items-center gap-3 mb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
@@ -124,7 +124,7 @@ export default function StockClient({ initialSpareparts }: StockClientProps) {
           />
         </div>
 
-        <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-xl p-1">
+        <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-xl p-1 shrink-0 self-start sm:self-auto">
           {[
             { key: 'all' as const, label: 'Semua' },
             { key: 'low' as const, label: 'Menipis' },

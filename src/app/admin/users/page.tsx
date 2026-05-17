@@ -20,7 +20,7 @@ export default async function UsersPage() {
         title="Kelola Pengguna"
         subtitle="Daftar pengguna aplikasi"
       />
-      <div className="p-6 animate-fade-in">
+      <div className="p-4 sm:p-6 animate-fade-in">
         <p className="text-sm text-slate-500 mb-4">
           {users.length} pengguna aktif
         </p>

@@ -34,8 +34,8 @@ export default async function AdminTransaksiPage() {
         title="Semua Transaksi"
         subtitle="Riwayat transaksi dari semua cabang"
       />
-      <div className="p-6 animate-fade-in">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div className="p-4 sm:p-6 animate-fade-in">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 mb-6">
           <div className="bg-white p-5 rounded-2xl border border-slate-200/80">
             <p className="text-sm font-medium text-slate-500 mb-1">Total Transaksi (Hari Ini)</p>
             <p className="text-2xl font-bold text-slate-900">{transactions.length}</p>

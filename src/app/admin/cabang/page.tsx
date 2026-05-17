@@ -16,7 +16,7 @@ export default async function CabangPage() {
         title="Kelola Cabang"
         subtitle="Data cabang bengkel Irian Motor"
       />
-      <div className="p-6 animate-fade-in">
+      <div className="p-4 sm:p-6 animate-fade-in">
         <CabangClient branches={branches} />
       </div>
     </>
