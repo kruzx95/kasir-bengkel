@@ -1,13 +1,19 @@
 import { PrismaClient } from '@/generated/prisma/client'
-import { PrismaPg } from '@prisma/adapter-pg'
+import { PrismaMariaDb } from '@prisma/adapter-mariadb'
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
 
 function createPrismaClient() {
-  const connectionString = process.env.DATABASE_URL!
-  const adapter = new PrismaPg({ connectionString })
+  const url = new URL(process.env.DATABASE_URL!)
+  const adapter = new PrismaMariaDb({
+    host: url.hostname,
+    port: parseInt(url.port) || 3306,
+    user: url.username,
+    password: url.password,
+    database: url.pathname.replace('/', ''),
+  })
   return new PrismaClient({ adapter })
 }
 

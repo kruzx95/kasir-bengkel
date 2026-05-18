@@ -6,8 +6,8 @@ Aplikasi web modern untuk mengelola multi-cabang bengkel motor. Dilengkapi denga
 
 - **Framework**: Next.js 16 (App Router)
 - **Styling**: Tailwind CSS v4
-- **Database**: PostgreSQL
-- **ORM**: Prisma 7 (menggunakan `@prisma/adapter-pg`)
+- **Database**: MySQL 8.0
+- **ORM**: Prisma 7 (menggunakan `@prisma/adapter-mariadb`)
 - **Authentication**: Custom JWT Session (dengan library `jose`)
 
 ---
@@ -19,7 +19,7 @@ Aplikasi web modern untuk mengelola multi-cabang bengkel motor. Dilengkapi denga
 Pastikan Anda sudah menginstal:
 
 - [Node.js](https://nodejs.org/) (versi 18.x atau yang lebih baru)
-- [PostgreSQL](https://www.postgresql.org/) (berjalan di lokal komputer Anda, atau menggunakan layanan cloud seperti Supabase/Neon)
+- [MySQL](https://www.mysql.com/) (versi 8.0 atau yang lebih baru, berjalan di lokal komputer Anda)
 
 ### 2. Instalasi Dependensi
 
@@ -35,8 +35,8 @@ Di dalam root folder proyek, buat file baru bernama `.env` (Anda bisa meng-copy 
 Isi file `.env` dengan konfigurasi berikut:
 
 ```env
-# Sesuaikan dengan username, password, dan nama database PostgreSQL Anda
-DATABASE_URL="postgresql://postgres:password_anda@localhost:5432/irian_motor"
+# Sesuaikan dengan username, password, dan nama database MySQL Anda
+DATABASE_URL="mysql://root:@localhost:3306/irian_motor"
 
 # Secret key untuk mengenkripsi sesi login (bisa diganti dengan string acak apa saja)
 SESSION_SECRET="ganti-dengan-secret-key-anda-yang-aman-minimal-32-karakter"
