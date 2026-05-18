@@ -7,8 +7,9 @@ import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
 import { createRestock, type RestockPayload } from '@/actions/restock'
 import { formatCurrency } from '@/lib/utils'
-import { ArrowLeft, Trash2, Search, Package, Plus } from 'lucide-react'
+import { ArrowLeft, Trash2, Search, Package, Plus, Upload, X, ImageIcon } from 'lucide-react'
 import Link from 'next/link'
+import Image from 'next/image'
 
 interface NewRestockClientProps {
   branches: { id: string; name: string }[]
@@ -23,11 +24,46 @@ export default function NewRestockClient({ branches, spareparts }: NewRestockCli
   const [supplierName, setSupplierName] = useState('')
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
   const [notes, setNotes] = useState('')
+  const [receiptImagePath, setReceiptImagePath] = useState<string | null>(null)
+  const [receiptPreview, setReceiptPreview] = useState<string | null>(null)
+  const [uploadingReceipt, setUploadingReceipt] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
   
   const [items, setItems] = useState<{ id: string; sparepartId: string; name: string; sku: string | null; quantity: number; buyPrice: number }[]>([])
   
   const [searchQuery, setSearchQuery] = useState('')
   const [error, setError] = useState<string | null>(null)
+
+  const handleReceiptUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploadError(null)
+    setUploadingReceipt(true)
+
+    const formData = new FormData()
+    formData.append('file', file)
+
+    try {
+      const res = await fetch('/api/upload/receipt', { method: 'POST', body: formData })
+      const data = await res.json()
+      if (!res.ok) {
+        setUploadError(data.error || 'Gagal mengupload foto')
+      } else {
+        setReceiptImagePath(data.path)
+        setReceiptPreview(URL.createObjectURL(file))
+      }
+    } catch {
+      setUploadError('Gagal mengupload foto')
+    } finally {
+      setUploadingReceipt(false)
+    }
+  }
+
+  const handleRemoveReceipt = () => {
+    setReceiptImagePath(null)
+    setReceiptPreview(null)
+  }
 
   // Filter spareparts by selected branch for the search dropdown
   const branchSpareparts = useMemo(() => {
@@ -92,6 +128,7 @@ export default function NewRestockClient({ branches, spareparts }: NewRestockCli
         supplierName,
         date,
         notes: notes || null,
+        receiptImagePath: receiptImagePath || null,
         items: items.map(i => ({
           sparepartId: i.sparepartId,
           quantity: i.quantity,
@@ -165,6 +202,60 @@ export default function NewRestockClient({ branches, spareparts }: NewRestockCli
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
             />
+
+            {/* Upload Foto Nota */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                Foto Nota Pembelian
+                <span className="text-xs text-slate-400 font-normal ml-1">(opsional, maks. 5 MB)</span>
+              </label>
+
+              {receiptPreview ? (
+                <div className="relative rounded-xl overflow-hidden border border-slate-200 bg-slate-50">
+                  <Image
+                    src={receiptPreview}
+                    alt="Foto nota"
+                    width={400}
+                    height={300}
+                    className="w-full object-contain max-h-48"
+                    unoptimized
+                  />
+                  <button
+                    type="button"
+                    onClick={handleRemoveReceipt}
+                    className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-slate-200 rounded-xl cursor-pointer bg-slate-50 hover:bg-slate-100 hover:border-primary-300 transition-all">
+                  {uploadingReceipt ? (
+                    <div className="flex items-center gap-2 text-slate-500">
+                      <div className="w-4 h-4 border-2 border-primary-300 border-t-primary-600 rounded-full animate-spin" />
+                      <span className="text-sm">Mengupload...</span>
+                    </div>
+                  ) : (
+                    <>
+                      <Upload className="w-6 h-6 text-slate-400 mb-1" />
+                      <span className="text-sm text-slate-500">Klik untuk upload foto nota</span>
+                      <span className="text-xs text-slate-400">JPG, PNG</span>
+                    </>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/jpg,image/png"
+                    className="hidden"
+                    onChange={handleReceiptUpload}
+                    disabled={uploadingReceipt}
+                  />
+                </label>
+              )}
+
+              {uploadError && (
+                <p className="mt-1.5 text-xs text-red-600">{uploadError}</p>
+              )}
+            </div>
           </div>
         </div>
 

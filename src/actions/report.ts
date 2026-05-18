@@ -85,3 +85,66 @@ export async function getReportData(startDateStr?: string, endDateStr?: string, 
     return { transactions: [], summary: { total: 0, service: 0, sparepart: 0, discount: 0 } }
   }
 }
+
+export async function getRestockReportData(startDateStr?: string, endDateStr?: string, branchId?: string) {
+  const session = await getSession()
+  if (!session || session.role !== 'ADMIN') {
+    return { restocks: [], summary: { total: 0, count: 0, topSparepart: null as string | null } }
+  }
+
+  const today = new Date()
+  const defaultStart = new Date(today.getFullYear(), today.getMonth(), 1)
+
+  const startDate = startDateStr ? new Date(startDateStr) : defaultStart
+  startDate.setHours(0, 0, 0, 0)
+
+  const endDate = endDateStr ? new Date(endDateStr) : new Date(today)
+  endDate.setHours(23, 59, 59, 999)
+
+  try {
+    const restocks = await prisma.restock.findMany({
+      where: {
+        ...(branchId ? { branchId } : {}),
+        date: { gte: startDate, lte: endDate },
+      },
+      include: {
+        branch: { select: { name: true } },
+        user: { select: { name: true } },
+        items: {
+          include: {
+            sparepart: { select: { name: true, sku: true } },
+          },
+        },
+      },
+      orderBy: { date: 'desc' },
+    })
+
+    let grandTotal = 0
+    const sparepartTotals: Record<string, { name: string; total: number }> = {}
+
+    restocks.forEach((r) => {
+      grandTotal += r.total
+      r.items.forEach((item) => {
+        const key = item.sparepartId
+        if (!sparepartTotals[key]) {
+          sparepartTotals[key] = { name: item.sparepart.name, total: 0 }
+        }
+        sparepartTotals[key].total += item.subtotal
+      })
+    })
+
+    const topSparepart = Object.values(sparepartTotals).sort((a, b) => b.total - a.total)[0]?.name ?? null
+
+    return {
+      restocks,
+      summary: {
+        total: grandTotal,
+        count: restocks.length,
+        topSparepart,
+      },
+    }
+  } catch (error) {
+    console.error('Restock report error:', error)
+    return { restocks: [], summary: { total: 0, count: 0, topSparepart: null } }
+  }
+}

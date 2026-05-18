@@ -8,9 +8,14 @@ import { z } from 'zod'
 const CustomerSchema = z.object({
   name: z.string().min(1, 'Nama pelanggan wajib diisi'),
   phone: z.string().optional(),
+  address: z.string().optional(),
   plateNumber: z.string().optional(),
+  vehicleBrand: z.string().optional(),
   vehicleType: z.string().optional(),
+  vehicleColor: z.string().optional(),
   vehicleYear: z.string().optional(),
+  fuelType: z.enum(['GASOLINE', 'DIESEL']).optional(),
+  odometer: z.coerce.number().int().min(0).optional(),
   branchId: z.string().min(1, 'Cabang wajib dipilih'),
 })
 
@@ -76,9 +81,14 @@ export async function createCustomer(
   const validatedFields = CustomerSchema.safeParse({
     name: formData.get('name'),
     phone: formData.get('phone') || undefined,
+    address: formData.get('address') || undefined,
     plateNumber: formData.get('plateNumber') || undefined,
+    vehicleBrand: formData.get('vehicleBrand') || undefined,
     vehicleType: formData.get('vehicleType') || undefined,
+    vehicleColor: formData.get('vehicleColor') || undefined,
     vehicleYear: formData.get('vehicleYear') || undefined,
+    fuelType: (formData.get('fuelType') as string) || undefined,
+    odometer: formData.get('odometer') ? Number(formData.get('odometer')) : undefined,
     branchId,
   })
 
@@ -91,9 +101,14 @@ export async function createCustomer(
       data: {
         name: validatedFields.data.name,
         phone: validatedFields.data.phone || null,
+        address: validatedFields.data.address || null,
         plateNumber: validatedFields.data.plateNumber || null,
+        vehicleBrand: validatedFields.data.vehicleBrand || null,
         vehicleType: validatedFields.data.vehicleType || null,
+        vehicleColor: validatedFields.data.vehicleColor || null,
         vehicleYear: validatedFields.data.vehicleYear || null,
+        fuelType: validatedFields.data.fuelType || null,
+        odometer: validatedFields.data.odometer ?? null,
         branchId: validatedFields.data.branchId,
       },
     })
@@ -120,9 +135,14 @@ export async function updateCustomer(
   const validatedFields = CustomerSchema.safeParse({
     name: formData.get('name'),
     phone: formData.get('phone') || undefined,
+    address: formData.get('address') || undefined,
     plateNumber: formData.get('plateNumber') || undefined,
+    vehicleBrand: formData.get('vehicleBrand') || undefined,
     vehicleType: formData.get('vehicleType') || undefined,
+    vehicleColor: formData.get('vehicleColor') || undefined,
     vehicleYear: formData.get('vehicleYear') || undefined,
+    fuelType: (formData.get('fuelType') as string) || undefined,
+    odometer: formData.get('odometer') ? Number(formData.get('odometer')) : undefined,
     branchId,
   })
 
@@ -136,9 +156,14 @@ export async function updateCustomer(
       data: {
         name: validatedFields.data.name,
         phone: validatedFields.data.phone || null,
+        address: validatedFields.data.address || null,
         plateNumber: validatedFields.data.plateNumber || null,
+        vehicleBrand: validatedFields.data.vehicleBrand || null,
         vehicleType: validatedFields.data.vehicleType || null,
+        vehicleColor: validatedFields.data.vehicleColor || null,
         vehicleYear: validatedFields.data.vehicleYear || null,
+        fuelType: validatedFields.data.fuelType || null,
+        odometer: validatedFields.data.odometer ?? null,
       },
     })
     revalidatePath('/kasir/pelanggan')

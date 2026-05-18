@@ -12,9 +12,14 @@ interface CustomerRow {
   id: string
   name: string
   phone: string | null
+  address: string | null
   plateNumber: string | null
+  vehicleBrand: string | null
   vehicleType: string | null
+  vehicleColor: string | null
   vehicleYear: string | null
+  fuelType: string | null
+  odometer: number | null
   branchId: string
   branch: {
     id: string
@@ -92,11 +97,11 @@ export default function CustomersClient({ initialCustomers, branchId }: Customer
       key: 'vehicle',
       header: 'Kendaraan',
       render: (row: CustomerRow) => (
-        row.vehicleType ? (
+        row.vehicleType || row.vehicleBrand ? (
           <div className="flex items-center gap-1.5">
             <Bike className="w-3.5 h-3.5 text-slate-400" />
             <span className="text-sm text-slate-700">
-              {row.vehicleType}
+              {[row.vehicleBrand, row.vehicleType].filter(Boolean).join(' ')}
               {row.vehicleYear ? ` (${row.vehicleYear})` : ''}
             </span>
           </div>

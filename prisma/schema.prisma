@@ -24,13 +24,15 @@ model Branch {
   updatedAt DateTime @updatedAt
 
   // Relations
-  users        User[]
-  customers    Customer[]
-  services     Service[]
-  spareparts   Sparepart[]
-  transactions Transaction[]
-  mechanics    Mechanic[]
-  restocks     Restock[]
+  users             User[]
+  customers         Customer[]
+  services          Service[]
+  spareparts        Sparepart[]
+  transactions      Transaction[]
+  mechanics         Mechanic[]
+  restocks          Restock[]
+  indentOrders      IndentOrder[]
+  corporateCustomers CorporateCustomer[]
 
   @@map("branches")
 }
@@ -58,6 +60,7 @@ model User {
   branch       Branch?       @relation(fields: [branchId], references: [id])
   transactions Transaction[]
   restocks     Restock[]
+  indentOrders IndentOrder[]
 
   @@map("users")
 }
@@ -65,20 +68,58 @@ model User {
 // ============================================
 // CUSTOMERS — Data Pelanggan
 // ============================================
-model Customer {
-  id          String   @id @default(cuid())
-  branchId    String   @map("branch_id")
-  name        String
-  phone       String?
-  plateNumber String?  @map("plate_number")
-  vehicleType String?  @map("vehicle_type")
-  vehicleYear String?  @map("vehicle_year")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+enum FuelType {
+  GASOLINE
+  DIESEL
+}
+
+enum BillingCycle {
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+}
+
+model CorporateCustomer {
+  id            String       @id @default(cuid())
+  branchId      String       @map("branch_id")
+  name          String
+  contactPerson String?      @map("contact_person")
+  contactPhone  String?      @map("contact_phone")
+  address       String?
+  taxId         String?      @map("tax_id")
+  billingCycle  BillingCycle @default(MONTHLY) @map("billing_cycle")
+  isActive      Boolean      @default(true)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 
   // Relations
-  branch       Branch        @relation(fields: [branchId], references: [id])
-  transactions Transaction[]
+  branch    Branch     @relation(fields: [branchId], references: [id])
+  customers Customer[]
+
+  @@map("corporate_customers")
+}
+
+model Customer {
+  id                  String    @id @default(cuid())
+  branchId            String    @map("branch_id")
+  corporateCustomerId String?   @map("corporate_customer_id")
+  name                String
+  phone               String?
+  address             String?
+  plateNumber         String?   @map("plate_number")
+  vehicleBrand        String?   @map("vehicle_brand")
+  vehicleType         String?   @map("vehicle_type")
+  vehicleColor        String?   @map("vehicle_color")
+  vehicleYear         String?   @map("vehicle_year")
+  fuelType            FuelType? @map("fuel_type")
+  odometer            Int?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  // Relations
+  branch            Branch             @relation(fields: [branchId], references: [id])
+  corporateCustomer CorporateCustomer? @relation(fields: [corporateCustomerId], references: [id])
+  transactions      Transaction[]
 
   @@map("customers")
 }
@@ -107,22 +148,26 @@ model Service {
 // SPAREPARTS — Master Sparepart
 // ============================================
 model Sparepart {
-  id        String   @id @default(cuid())
-  branchId  String   @map("branch_id")
-  name      String
-  sku       String?
-  buyPrice  Float    @default(0) @map("buy_price")
-  sellPrice Float    @map("sell_price")
-  stock     Int      @default(0)
-  unit      String   @default("pcs")
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             String   @id @default(cuid())
+  branchId       String   @map("branch_id")
+  name           String
+  sku            String?
+  sparepartType  String?  @map("sparepart_type")
+  sparepartBrand String?  @map("sparepart_brand")
+  sparepartSize  String?  @map("sparepart_size")
+  buyPrice       Float    @default(0) @map("buy_price")
+  sellPrice      Float    @map("sell_price")
+  stock          Int      @default(0)
+  unit           String   @default("pcs")
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   // Relations
   branch           Branch            @relation(fields: [branchId], references: [id])
   transactionItems TransactionItem[]
   restockItems     RestockItem[]
+  indentOrderItems IndentOrderItem[]
 
   @@map("spareparts")
 }
@@ -139,6 +184,7 @@ enum TransactionType {
 enum TransactionStatus {
   COMPLETED
   CANCELLED
+  PENDING_CORPORATE
 }
 
 enum PaymentMethod {
@@ -227,20 +273,23 @@ model Mechanic {
 // RESTOCK — Pembelian Barang Masuk
 // ============================================
 model Restock {
-  id           String   @id @default(cuid())
-  branchId     String   @map("branch_id")
-  userId       String   @map("user_id") // Admin/Kasir yang input
-  supplierName String   @map("supplier_name")
-  date         DateTime @db.Date
-  notes        String?
-  total        Float    @default(0)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                String   @id @default(cuid())
+  branchId          String   @map("branch_id")
+  userId            String   @map("user_id") // Admin/Kasir yang input
+  supplierName      String   @map("supplier_name")
+  date              DateTime @db.Date
+  notes             String?
+  total             Float    @default(0)
+  receiptImagePath  String?  @map("receipt_image_path")
+  indentOrderId     String?  @map("indent_order_id")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   // Relations
-  branch Branch        @relation(fields: [branchId], references: [id])
-  user   User          @relation(fields: [userId], references: [id])
-  items  RestockItem[]
+  branch      Branch        @relation(fields: [branchId], references: [id])
+  user        User          @relation(fields: [userId], references: [id])
+  items       RestockItem[]
+  indentOrder IndentOrder?  @relation(fields: [indentOrderId], references: [id])
 
   @@map("restocks")
 }
@@ -259,4 +308,51 @@ model RestockItem {
   sparepart Sparepart @relation(fields: [sparepartId], references: [id])
 
   @@map("restock_items")
+}
+
+
+// ============================================
+// INDENT ORDERS — Pemesanan Barang Belum Diterima
+// ============================================
+enum IndentStatus {
+  PENDING
+  PARTIAL
+  RECEIVED
+}
+
+model IndentOrder {
+  id           String       @id @default(cuid())
+  branchId     String       @map("branch_id")
+  userId       String       @map("user_id")
+  supplierName String       @map("supplier_name")
+  orderDate    DateTime     @map("order_date") @db.Date
+  expectedDate DateTime?    @map("expected_date") @db.Date
+  notes        String?
+  status       IndentStatus @default(PENDING)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  // Relations
+  branch   Branch            @relation(fields: [branchId], references: [id])
+  user     User              @relation(fields: [userId], references: [id])
+  items    IndentOrderItem[]
+  restocks Restock[]
+
+  @@map("indent_orders")
+}
+
+model IndentOrderItem {
+  id            String   @id @default(cuid())
+  indentOrderId String   @map("indent_order_id")
+  sparepartId   String   @map("sparepart_id")
+  quantity      Int
+  receivedQty   Int      @default(0) @map("received_qty")
+  estimatedPrice Float   @default(0) @map("estimated_price")
+  createdAt     DateTime @default(now())
+
+  // Relations
+  indentOrder IndentOrder @relation(fields: [indentOrderId], references: [id], onDelete: Cascade)
+  sparepart   Sparepart   @relation(fields: [sparepartId], references: [id])
+
+  @@map("indent_order_items")
 }

@@ -18,6 +18,8 @@ import {
   ChevronRight,
   LogOut,
   X,
+  ClipboardList,
+  Briefcase,
 } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
 import { logout } from '@/actions/auth'
@@ -44,6 +46,8 @@ const adminMenuItems = [
   { href: '/admin/master/services', label: 'Jasa Servis', icon: Wrench },
   { href: '/admin/master/spareparts', label: 'Sparepart', icon: Package },
   { href: '/admin/restock', label: 'Barang Masuk', icon: PackagePlus },
+  { href: '/admin/indent', label: 'Barang Indent', icon: ClipboardList },
+  { href: '/admin/korporat', label: 'Korporat', icon: Briefcase },
   { href: '/admin/master/mechanics', label: 'Mekanik', icon: Users },
   { href: '/admin/cabang', label: 'Cabang', icon: Building2 },
   { href: '/admin/users', label: 'Pengguna', icon: UserCog },

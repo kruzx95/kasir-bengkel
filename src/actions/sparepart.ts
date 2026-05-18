@@ -8,6 +8,9 @@ import { z } from 'zod'
 const SparepartSchema = z.object({
   name: z.string().min(1, 'Nama sparepart wajib diisi'),
   sku: z.string().optional(),
+  sparepartType: z.string().optional(),
+  sparepartBrand: z.string().optional(),
+  sparepartSize: z.string().optional(),
   buyPrice: z.coerce.number().min(0, 'Harga beli tidak boleh negatif'),
   sellPrice: z.coerce.number().min(0, 'Harga jual tidak boleh negatif'),
   stock: z.coerce.number().int().min(0, 'Stok tidak boleh negatif'),
@@ -71,6 +74,9 @@ export async function createSparepart(
   const validatedFields = SparepartSchema.safeParse({
     name: formData.get('name'),
     sku: formData.get('sku') || undefined,
+    sparepartType: formData.get('sparepartType') || undefined,
+    sparepartBrand: formData.get('sparepartBrand') || undefined,
+    sparepartSize: formData.get('sparepartSize') || undefined,
     buyPrice: formData.get('buyPrice'),
     sellPrice: formData.get('sellPrice'),
     stock: formData.get('stock'),
@@ -92,6 +98,9 @@ export async function createSparepart(
       data: branches.map((branch) => ({
         name: validatedFields.data.name,
         sku: validatedFields.data.sku || null,
+        sparepartType: validatedFields.data.sparepartType || null,
+        sparepartBrand: validatedFields.data.sparepartBrand || null,
+        sparepartSize: validatedFields.data.sparepartSize || null,
         buyPrice: validatedFields.data.buyPrice,
         sellPrice: validatedFields.data.sellPrice,
         stock: validatedFields.data.stock,
@@ -120,6 +129,9 @@ export async function updateSparepart(
   const validatedFields = SparepartSchema.safeParse({
     name: formData.get('name'),
     sku: formData.get('sku') || undefined,
+    sparepartType: formData.get('sparepartType') || undefined,
+    sparepartBrand: formData.get('sparepartBrand') || undefined,
+    sparepartSize: formData.get('sparepartSize') || undefined,
     buyPrice: formData.get('buyPrice'),
     sellPrice: formData.get('sellPrice'),
     stock: formData.get('stock'),
@@ -138,6 +150,9 @@ export async function updateSparepart(
       data: {
         name: validatedFields.data.name,
         sku: validatedFields.data.sku || null,
+        sparepartType: validatedFields.data.sparepartType || null,
+        sparepartBrand: validatedFields.data.sparepartBrand || null,
+        sparepartSize: validatedFields.data.sparepartSize || null,
         buyPrice: validatedFields.data.buyPrice,
         sellPrice: validatedFields.data.sellPrice,
         stock: validatedFields.data.stock,

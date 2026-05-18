@@ -16,6 +16,7 @@ const restockSchema = z.object({
   supplierName: z.string().min(1, 'Nama supplier wajib diisi'),
   date: z.string(), // ISO date string
   notes: z.string().optional().nullable(),
+  receiptImagePath: z.string().optional().nullable(),
   items: z.array(restockItemSchema).min(1, 'Pilih minimal satu sparepart'),
 })
 
@@ -53,6 +54,7 @@ export async function createRestock(payload: RestockPayload) {
           supplierName: data.supplierName,
           date: new Date(data.date),
           notes: data.notes,
+          receiptImagePath: data.receiptImagePath || null,
           total,
           items: {
             create: restockItems

@@ -19,6 +19,9 @@ interface SparepartRow {
   id: string
   name: string
   sku: string | null
+  sparepartType: string | null
+  sparepartBrand: string | null
+  sparepartSize: string | null
   buyPrice: number
   sellPrice: number
   stock: number
@@ -71,10 +74,32 @@ export default function SparepartsClient({ spareparts, branches }: SparepartsCli
           </div>
           <div>
             <p className="text-sm font-medium text-slate-900">{row.name}</p>
-            {row.sku && (
-              <p className="text-xs text-slate-400 font-mono">{row.sku}</p>
-            )}
+            <div className="flex items-center gap-1.5 mt-0.5">
+              {row.sku && (
+                <p className="text-xs text-slate-400 font-mono">{row.sku}</p>
+              )}
+              {row.sparepartSize && (
+                <p className="text-xs text-slate-400">{row.sparepartSize}</p>
+              )}
+            </div>
           </div>
+        </div>
+      ),
+    },
+    {
+      key: 'sparepartType',
+      header: 'Jenis / Merk',
+      render: (row: SparepartRow) => (
+        <div>
+          {row.sparepartType && (
+            <p className="text-sm text-slate-700">{row.sparepartType}</p>
+          )}
+          {row.sparepartBrand && (
+            <p className="text-xs text-slate-400">{row.sparepartBrand}</p>
+          )}
+          {!row.sparepartType && !row.sparepartBrand && (
+            <span className="text-xs text-slate-300">—</span>
+          )}
         </div>
       ),
     },

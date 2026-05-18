@@ -26,6 +26,18 @@ Pastikan Anda sudah menginstal:
 
 Sebelum menyiapkan database, pastikan service MySQL sudah berjalan di komputer Anda.
 
+**Untuk pengguna Windows:**
+
+Jalankan service MySQL melalui salah satu cara berikut:
+
+- **MySQL Installer**: Tekan `Win + R`, ketik `services.msc`, lalu Enter. Cari **MySQL80** (atau sesuai versi yang terinstal), klik kanan → **Start**.
+- **XAMPP**: Buka XAMPP Control Panel, klik tombol **Start** di baris MySQL.
+
+Setelah service berjalan, buka **MySQL Command Line Client** dari Start Menu, atau gunakan CMD/PowerShell:
+```cmd
+mysql -u root -p
+```
+
 **Untuk pengguna Linux (Ubuntu/Debian):**
 ```bash
 # Menjalankan service MySQL

@@ -20,6 +20,7 @@ const transactionSchema = z.object({
   discount: z.number().min(0).default(0),
   paymentMethod: z.enum(['CASH', 'TRANSFER', 'QRIS']).default('CASH'),
   notes: z.string().optional().nullable(),
+  isCorporate: z.boolean().optional().default(false),
 })
 
 export type TransactionPayload = z.infer<typeof transactionSchema>
@@ -101,6 +102,7 @@ export async function createTransaction(payload: TransactionPayload): Promise<Tr
           mechanicId: data.mechanicId || null,
           invoiceNumber,
           type,
+          status: data.isCorporate ? 'PENDING_CORPORATE' : 'COMPLETED',
           subtotal,
           discount: data.discount,
           total,

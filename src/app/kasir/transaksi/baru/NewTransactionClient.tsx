@@ -20,7 +20,7 @@ interface ItemData {
 }
 
 interface NewTransactionClientProps {
-  customers: { id: string; name: string; plateNumber: string | null }[]
+  customers: { id: string; name: string; plateNumber: string | null; corporateCustomerId: string | null }[]
   services: { id: string; name: string; price: number }[]
   spareparts: { id: string; name: string; sellPrice: number; stock: number; sku: string | null }[]
   mechanics?: { id: string; name: string }[]
@@ -37,6 +37,7 @@ export default function NewTransactionClient({
   
   // Form State
   const [customerId, setCustomerId] = useState<string>('')
+  const [isCorporate, setIsCorporate] = useState(false)
   const [items, setItems] = useState<TransactionPayload['items']>([])
   const [discount, setDiscount] = useState<number>(0)
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'TRANSFER' | 'QRIS'>('CASH')
@@ -47,7 +48,9 @@ export default function NewTransactionClient({
   const [searchQuery, setSearchQuery] = useState('')
   const [error, setError] = useState<string | null>(null)
 
-  // Combined Catalog
+  // Detect if selected customer is corporate
+  const selectedCustomer = customers.find(c => c.id === customerId)
+  const isSelectedCorporate = !!selectedCustomer?.corporateCustomerId
   const catalog = useMemo(() => {
     const s: ItemData[] = services.map(s => ({ id: s.id, name: s.name, price: s.price, type: 'SERVICE' }))
     const sp: ItemData[] = spareparts.map(sp => ({ 
@@ -135,7 +138,8 @@ export default function NewTransactionClient({
         items,
         discount,
         paymentMethod,
-        notes: notes || null
+        notes: notes || null,
+        isCorporate: isSelectedCorporate && isCorporate,
       }
       
       const res = await createTransaction(payload)
@@ -303,8 +307,27 @@ export default function NewTransactionClient({
                 }))
               ]}
               value={customerId}
-              onChange={(e) => setCustomerId(e.target.value)}
+              onChange={(e) => {
+                setCustomerId(e.target.value)
+                setIsCorporate(false)
+              }}
             />
+
+            {/* Corporate billing toggle */}
+            {isSelectedCorporate && (
+              <label className="flex items-center gap-3 p-3 bg-violet-50 border border-violet-200 rounded-xl cursor-pointer hover:bg-violet-100 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={isCorporate}
+                  onChange={(e) => setIsCorporate(e.target.checked)}
+                  className="w-4 h-4 accent-violet-600"
+                />
+                <div>
+                  <p className="text-sm font-medium text-violet-900">Tagihan Korporat</p>
+                  <p className="text-xs text-violet-600">Pembayaran akan digabung dengan tagihan perusahaan</p>
+                </div>
+              </label>
+            )}
 
             <Select
               id="mechanic"

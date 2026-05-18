@@ -18,6 +18,9 @@ interface SparepartData {
   id: string
   name: string
   sku: string | null
+  sparepartType: string | null
+  sparepartBrand: string | null
+  sparepartSize: string | null
   buyPrice: number
   sellPrice: number
   stock: number
@@ -83,71 +86,103 @@ export default function SparepartFormModal({
       )}
 
       <form action={formAction} className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Input
-            id="name"
-            name="name"
-            label="Nama Sparepart"
-            placeholder="contoh: Oli Yamalube 0.8L"
-            defaultValue={editData?.name}
-            error={state?.errors?.name?.[0]}
-            required
-          />
 
-          <Input
-            id="sku"
-            name="sku"
-            label="SKU / Kode"
-            placeholder="contoh: OLI-001"
-            defaultValue={editData?.sku || ''}
-          />
+        {/* Identitas Sparepart */}
+        <div className="pb-1">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Identitas Barang</p>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Input
+                id="name"
+                name="name"
+                label="Nama Sparepart"
+                placeholder="contoh: Oli Yamalube 0.8L"
+                defaultValue={editData?.name}
+                error={state?.errors?.name?.[0]}
+                required
+              />
+              <Input
+                id="sku"
+                name="sku"
+                label="SKU / Kode Barang"
+                placeholder="contoh: OLI-001"
+                defaultValue={editData?.sku || ''}
+              />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Input
+                id="sparepartType"
+                name="sparepartType"
+                label="Jenis"
+                placeholder="contoh: Oli, Filter, Busi"
+                defaultValue={editData?.sparepartType || ''}
+              />
+              <Input
+                id="sparepartBrand"
+                name="sparepartBrand"
+                label="Merk"
+                placeholder="contoh: AHM, NGK, Yamalube"
+                defaultValue={editData?.sparepartBrand || ''}
+              />
+              <Input
+                id="sparepartSize"
+                name="sparepartSize"
+                label="Ukuran"
+                placeholder="contoh: 20W-50, 17 inch"
+                defaultValue={editData?.sparepartSize || ''}
+              />
+            </div>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Input
-            id="buyPrice"
-            name="buyPrice"
-            type="number"
-            label="Harga Beli (Rp)"
-            placeholder="28000"
-            defaultValue={editData?.buyPrice?.toString()}
-            error={state?.errors?.buyPrice?.[0]}
-            required
-          />
-
-          <Input
-            id="sellPrice"
-            name="sellPrice"
-            type="number"
-            label="Harga Jual (Rp)"
-            placeholder="38000"
-            defaultValue={editData?.sellPrice?.toString()}
-            error={state?.errors?.sellPrice?.[0]}
-            required
-          />
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Input
-            id="stock"
-            name="stock"
-            type="number"
-            label="Stok Awal"
-            placeholder="50"
-            defaultValue={editData?.stock?.toString() ?? '0'}
-            error={state?.errors?.stock?.[0]}
-            required
-          />
-
-          <Input
-            id="unit"
-            name="unit"
-            label="Satuan"
-            placeholder="pcs, botol, set"
-            defaultValue={editData?.unit || 'pcs'}
-            error={state?.errors?.unit?.[0]}
-            required
-          />
+        {/* Harga & Stok */}
+        <div className="pt-2 border-t border-slate-100">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Harga & Stok</p>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Input
+                id="buyPrice"
+                name="buyPrice"
+                type="number"
+                label="Harga Beli (Rp)"
+                placeholder="28000"
+                defaultValue={editData?.buyPrice?.toString()}
+                error={state?.errors?.buyPrice?.[0]}
+                required
+              />
+              <Input
+                id="sellPrice"
+                name="sellPrice"
+                type="number"
+                label="Harga Jual (Rp)"
+                placeholder="38000"
+                defaultValue={editData?.sellPrice?.toString()}
+                error={state?.errors?.sellPrice?.[0]}
+                required
+              />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Input
+                id="stock"
+                name="stock"
+                type="number"
+                label="Stok Awal"
+                placeholder="50"
+                defaultValue={editData?.stock?.toString() ?? '0'}
+                error={state?.errors?.stock?.[0]}
+                required
+              />
+              <Input
+                id="unit"
+                name="unit"
+                label="Satuan"
+                placeholder="pcs, botol, set"
+                defaultValue={editData?.unit || 'pcs'}
+                error={state?.errors?.unit?.[0]}
+                required
+              />
+            </div>
+          </div>
         </div>
 
         {isEditing && (

@@ -1,0 +1,291 @@
+'use client'
+
+import { useState, useTransition } from 'react'
+import Button from '@/components/ui/Button'
+import Input from '@/components/ui/Input'
+import Badge from '@/components/ui/Badge'
+import Table from '@/components/ui/Table'
+import { getCorporateBilling, settleCorporateBilling, assignCustomerToCorporate } from '@/actions/corporate'
+import { formatCurrency } from '@/lib/utils'
+import { Filter, CheckCircle, Users, Printer, UserPlus, UserMinus } from 'lucide-react'
+
+interface CorporateData {
+  id: string
+  name: string
+  billingCycle: string
+  branch: { id: string; name: string }
+  customers: { id: string; name: string; plateNumber: string | null }[]
+}
+
+interface TagihanClientProps {
+  corporate: CorporateData
+  allCustomers: { id: string; name: string; plateNumber: string | null; corporateCustomerId?: string | null }[]
+}
+
+export default function TagihanClient({ corporate, allCustomers }: TagihanClientProps) {
+  const [isPending, startTransition] = useTransition()
+  const [activeTab, setActiveTab] = useState<'tagihan' | 'kendaraan'>('tagihan')
+
+  const todayStr = new Date().toISOString().slice(0, 10)
+  const firstDayStr = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10)
+
+  const [startDate, setStartDate] = useState(firstDayStr)
+  const [endDate, setEndDate] = useState(todayStr)
+  const [billingData, setBillingData] = useState<any>(null)
+  const [loaded, setLoaded] = useState(false)
+  const [settleMsg, setSettleMsg] = useState<string | null>(null)
+  const [assigningId, setAssigningId] = useState<string | null>(null)
+
+  const handleFilter = () => {
+    startTransition(async () => {
+      const res = await getCorporateBilling(corporate.id, startDate, endDate)
+      setBillingData(res)
+      setLoaded(true)
+    })
+  }
+
+  const handleSettle = () => {
+    if (!confirm(`Tandai semua tagihan sebagai LUNAS? Tindakan ini tidak bisa dibatalkan.`)) return
+    startTransition(async () => {
+      const res = await settleCorporateBilling(corporate.id, startDate, endDate)
+      setSettleMsg(res.message || null)
+      if (res.success) {
+        // Refresh billing data
+        const updated = await getCorporateBilling(corporate.id, startDate, endDate)
+        setBillingData(updated)
+      }
+    })
+  }
+
+  const handleAssign = async (customerId: string, assign: boolean) => {
+    setAssigningId(customerId)
+    await assignCustomerToCorporate(customerId, assign ? corporate.id : null)
+    setAssigningId(null)
+    // Reload page to reflect changes
+    window.location.reload()
+  }
+
+  const txColumns = [
+    {
+      key: 'invoice',
+      header: 'Invoice',
+      render: (row: any) => (
+        <div>
+          <p className="text-sm font-mono font-bold text-slate-900">{row.invoiceNumber}</p>
+          <p className="text-xs text-slate-400">
+            {new Date(row.transactionDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+          </p>
+        </div>
+      ),
+    },
+    {
+      key: 'customer',
+      header: 'Kendaraan',
+      render: (row: any) => (
+        <div>
+          <p className="text-sm font-medium text-slate-900">{row.customer?.name || '—'}</p>
+          {row.customer?.plateNumber && (
+            <p className="text-xs text-slate-400 font-mono">{row.customer.plateNumber}</p>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'items',
+      header: 'Layanan',
+      render: (row: any) => (
+        <div className="space-y-0.5">
+          {row.items.slice(0, 2).map((item: any, i: number) => (
+            <p key={i} className="text-xs text-slate-600">
+              {item.quantity}x {item.itemName}
+            </p>
+          ))}
+          {row.items.length > 2 && (
+            <p className="text-xs text-slate-400">+{row.items.length - 2} lainnya</p>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'total',
+      header: 'Total',
+      render: (row: any) => (
+        <span className="text-sm font-bold text-slate-900">{formatCurrency(row.total)}</span>
+      ),
+    },
+  ]
+
+  // Customers not yet in this corporate (from same branch)
+  const unassignedCustomers = allCustomers.filter(
+    c => !c.corporateCustomerId || c.corporateCustomerId !== corporate.id
+  )
+  const assignedCustomers = allCustomers.filter(c => c.corporateCustomerId === corporate.id)
+
+  return (
+    <div className="space-y-6">
+      {/* Tab */}
+      <div className="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit">
+        <button
+          onClick={() => setActiveTab('tagihan')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            activeTab === 'tagihan' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          <CheckCircle className="w-4 h-4" /> Tagihan
+        </button>
+        <button
+          onClick={() => setActiveTab('kendaraan')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            activeTab === 'kendaraan' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          <Users className="w-4 h-4" /> Kelola Kendaraan
+        </button>
+      </div>
+
+      {/* ===== TAB TAGIHAN ===== */}
+      {activeTab === 'tagihan' && (
+        <>
+          {settleMsg && (
+            <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-sm text-emerald-700">
+              {settleMsg}
+            </div>
+          )}
+
+          {/* Filter */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col md:flex-row items-end gap-4">
+            <div className="w-full md:w-auto">
+              <Input label="Mulai Tanggal" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+            </div>
+            <div className="w-full md:w-auto">
+              <Input label="Sampai Tanggal" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
+            </div>
+            <Button onClick={handleFilter} loading={isPending} icon={Filter}>Tampilkan Tagihan</Button>
+            {billingData?.transactions?.length > 0 && (
+              <>
+                <Button onClick={() => window.print()} variant="outline" icon={Printer}>Cetak</Button>
+                <Button
+                  onClick={handleSettle}
+                  loading={isPending}
+                  className="bg-emerald-600 hover:bg-emerald-700"
+                  icon={CheckCircle}
+                >
+                  Tandai Lunas
+                </Button>
+              </>
+            )}
+          </div>
+
+          {!loaded ? (
+            <div className="bg-white rounded-2xl border border-slate-200/80 p-12 text-center text-slate-400">
+              <CheckCircle className="w-10 h-10 mx-auto mb-3 opacity-30" />
+              <p className="text-sm">Klik tombol di atas untuk menampilkan tagihan.</p>
+            </div>
+          ) : (
+            <>
+              {/* Summary */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Total Tagihan</p>
+                  <p className="text-2xl font-black text-slate-900">{formatCurrency(billingData?.grandTotal || 0)}</p>
+                </div>
+                <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Jumlah Transaksi</p>
+                  <p className="text-xl font-bold text-violet-600">{billingData?.transactions?.length || 0} Transaksi</p>
+                </div>
+                <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Status</p>
+                  <Badge variant="warning" size="md">Belum Lunas</Badge>
+                </div>
+              </div>
+
+              {/* Table */}
+              <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden print:shadow-none">
+                <div className="p-5 border-b border-slate-100">
+                  <h3 className="font-bold text-slate-900">
+                    Tagihan {corporate.name} — {new Date(startDate).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
+                  </h3>
+                </div>
+                <Table
+                  columns={txColumns}
+                  data={billingData?.transactions || []}
+                  keyExtractor={(row: any) => row.id}
+                  emptyMessage="Tidak ada tagihan yang belum lunas pada periode ini."
+                />
+                {billingData?.transactions?.length > 0 && (
+                  <div className="p-5 border-t border-slate-200 bg-slate-50 flex justify-end">
+                    <div className="text-right">
+                      <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Grand Total</p>
+                      <p className="text-2xl font-black text-slate-900">{formatCurrency(billingData?.grandTotal || 0)}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </>
+      )}
+
+      {/* ===== TAB KENDARAAN ===== */}
+      {activeTab === 'kendaraan' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Assigned */}
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+            <div className="p-5 border-b border-slate-100 bg-violet-50/50">
+              <h3 className="font-semibold text-slate-900 flex items-center gap-2">
+                <Users className="w-4 h-4 text-violet-600" />
+                Kendaraan Terdaftar ({assignedCustomers.length})
+              </h3>
+            </div>
+            <div className="divide-y divide-slate-100">
+              {assignedCustomers.length === 0 ? (
+                <p className="p-6 text-sm text-slate-400 text-center">Belum ada kendaraan terdaftar.</p>
+              ) : assignedCustomers.map(c => (
+                <div key={c.id} className="flex items-center justify-between px-5 py-3">
+                  <div>
+                    <p className="text-sm font-medium text-slate-900">{c.name}</p>
+                    {c.plateNumber && <p className="text-xs text-slate-400 font-mono">{c.plateNumber}</p>}
+                  </div>
+                  <Button
+                    size="sm" variant="ghost" icon={UserMinus}
+                    className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                    loading={assigningId === c.id}
+                    onClick={() => handleAssign(c.id, false)}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Unassigned */}
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+            <div className="p-5 border-b border-slate-100 bg-slate-50/50">
+              <h3 className="font-semibold text-slate-900 flex items-center gap-2">
+                <UserPlus className="w-4 h-4 text-slate-500" />
+                Pelanggan Lain di Cabang Ini
+              </h3>
+            </div>
+            <div className="divide-y divide-slate-100 max-h-96 overflow-y-auto">
+              {unassignedCustomers.length === 0 ? (
+                <p className="p-6 text-sm text-slate-400 text-center">Semua pelanggan sudah terdaftar.</p>
+              ) : unassignedCustomers.map(c => (
+                <div key={c.id} className="flex items-center justify-between px-5 py-3">
+                  <div>
+                    <p className="text-sm font-medium text-slate-900">{c.name}</p>
+                    {c.plateNumber && <p className="text-xs text-slate-400 font-mono">{c.plateNumber}</p>}
+                  </div>
+                  <Button
+                    size="sm" variant="ghost" icon={UserPlus}
+                    className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                    loading={assigningId === c.id}
+                    onClick={() => handleAssign(c.id, true)}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
