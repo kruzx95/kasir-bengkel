@@ -3,6 +3,8 @@ import { redirect } from 'next/navigation'
 import DashboardShell from '@/components/layout/DashboardShell'
 import type { Metadata } from 'next'
 
+export const dynamic = 'force-dynamic'
+
 export const metadata: Metadata = {
   title: 'Dashboard Admin',
 }

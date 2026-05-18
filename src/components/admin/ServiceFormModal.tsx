@@ -1,6 +1,6 @@
 'use client'
 
-import { useActionState, useState, useEffect } from 'react'
+import { useActionState, useEffect } from 'react'
 import Modal, { ModalFooter } from '@/components/ui/Modal'
 import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
@@ -69,7 +69,7 @@ export default function ServiceFormModal({
       description={
         isEditing
           ? 'Perbarui data jasa servis'
-          : 'Isi detail jasa servis baru untuk cabang tertentu'
+          : 'Servis baru akan otomatis ditambahkan ke semua cabang'
       }
     >
       {state?.message && !state.success && (
@@ -108,16 +108,17 @@ export default function ServiceFormModal({
           defaultValue={editData?.category || ''}
         />
 
-        <Select
-          id="branchId"
-          name="branchId"
-          label="Cabang"
-          options={branchOptions}
-          placeholder="Pilih cabang..."
-          defaultValue={editData?.branchId}
-          error={state?.errors?.branchId?.[0]}
-          required
-        />
+        {isEditing && (
+          <Select
+            id="branchId"
+            name="branchId"
+            label="Cabang"
+            options={branchOptions}
+            placeholder="Pilih cabang..."
+            defaultValue={editData?.branchId}
+            required
+          />
+        )}
 
         <ModalFooter>
           <Button type="button" variant="outline" onClick={onClose}>

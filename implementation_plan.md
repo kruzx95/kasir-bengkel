@@ -1,7 +1,7 @@
 # 🏍️ Irian Motor — Implementation Plan
 
 > Aplikasi Manajemen Bengkel Motor Multi-Cabang  
-> Tech Stack: **Next.js 15 (App Router)** · **Tailwind CSS** · **Prisma ORM** · **PostgreSQL** · **NextAuth.js**
+> Tech Stack: **Next.js 16 (App Router)** · **Tailwind CSS** · **Prisma ORM** · **MySQL 8.0** · **Custom JWT Session**
 
 ---
 
@@ -34,7 +34,7 @@ graph TB
         G[Master Data API]
     end
 
-    subgraph "Database — PostgreSQL"
+    subgraph "Database — MySQL 8.0"
         H[(branches)]
         I[(users)]
         J[(transactions)]
@@ -334,7 +334,7 @@ irian-motor/
   npx -y create-next-app@latest ./
   ```
 - [ ] **1.2** Setup Tailwind CSS (sudah include di Next.js)
-- [ ] **1.3** Setup Prisma ORM + PostgreSQL connection
+- [ ] **1.3** Setup Prisma ORM + MySQL connection
   ```bash
   npm install prisma @prisma/client
   npx prisma init
@@ -625,7 +625,7 @@ export async function getDailyReport(branchId: string | null, date: Date) {
 
 ```env
 # .env.local
-DATABASE_URL="postgresql://user:password@localhost:5432/irian_motor"
+DATABASE_URL="mysql://user:password@localhost:3306/irian_motor"
 NEXTAUTH_SECRET="your-secret-key-here"
 NEXTAUTH_URL="http://localhost:3000"
 ```
@@ -706,7 +706,7 @@ gantt
 | Environment | Rekomendasi | Alasan |
 |-------------|-------------|--------|
 | **Hosting** | Vercel | Optimal untuk Next.js, free tier cukup |
-| **Database** | Supabase / Neon | PostgreSQL managed, free tier tersedia |
+| **Database** | PlanetScale / Railway | MySQL managed, free tier tersedia |
 | **Domain** | Custom domain | Profesional (contoh: app.irianmotor.com) |
 
 ---

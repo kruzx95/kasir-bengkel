@@ -7,7 +7,7 @@
 |------|--------|-------|
 | **1.1** Initialize Next.js 15 project | ✅ | `package.json` |
 | **1.2** Setup Tailwind CSS | ✅ | `globals.css` |
-| **1.3** Setup Prisma ORM + PostgreSQL | ✅ | `prisma/schema.prisma`, `prisma.config.ts`, `src/lib/prisma.ts` |
+| **1.3** Setup Prisma ORM + MySQL | ✅ | `prisma/schema.prisma`, `prisma.config.ts`, `src/lib/prisma.ts` |
 | **1.4** Schema Prisma (ALL tables) | ✅ | `prisma/schema.prisma` |
 | **1.5** Seed data (3 cabang + users) | ✅ | `prisma/seed.ts` |
 | **1.6** JWT Session (jose) | ✅ | `src/lib/session.ts` |
@@ -73,7 +73,7 @@
 
 ### Prisma 7 Migration
 - Removed `url` from `datasource` in schema (moved to `prisma.config.ts`)
-- Added `@prisma/adapter-pg` driver adapter (required by Prisma 7)
+- Added `@prisma/adapter-mariadb` driver adapter (required by Prisma 7 + MySQL)
 - Updated all imports to `@/generated/prisma/client`
 
 ### Build Status
@@ -129,7 +129,7 @@
 | Kasir 3 (Irian Barat) | kasir3@irianmotor.com | kasir123 |
 
 > [!NOTE]
-> Database PostgreSQL harus running dan sudah di-migrate + seed sebelum login bisa berfungsi. Jalankan:
+> Database MySQL harus running dan sudah di-migrate + seed sebelum login bisa berfungsi. Jalankan:
 > ```bash
 > npx prisma migrate dev --name init
 > npx prisma db seed

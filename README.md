@@ -12,7 +12,7 @@ Aplikasi web modern untuk mengelola multi-cabang bengkel motor. Dilengkapi denga
 
 ---
 
-## 🛠️ Panduan Instalasi & Menjalankan Proyek (Lokal)
+## 🛠️ Panduan Instalasi & Menjalankan Proyek (Dari Awal)
 
 ### 1. Persyaratan Sistem
 
@@ -20,38 +20,81 @@ Pastikan Anda sudah menginstal:
 
 - [Node.js](https://nodejs.org/) (versi 18.x atau yang lebih baru)
 - [MySQL](https://www.mysql.com/) (versi 8.0 atau yang lebih baru, berjalan di lokal komputer Anda)
+- Git (opsional, untuk clone repository)
 
-### 2. Instalasi Dependensi
+### 2. Setup Database MySQL
 
-Buka terminal/command prompt di dalam folder proyek ini, lalu jalankan:
+Sebelum menyiapkan database, pastikan service MySQL sudah berjalan di komputer Anda.
+
+**Untuk pengguna Linux (Ubuntu/Debian):**
+```bash
+# Menjalankan service MySQL
+sudo systemctl start mysql
+
+# (Opsional) Mengatur agar MySQL otomatis berjalan saat komputer menyala
+sudo systemctl enable mysql
+```
+
+Setelah service MySQL berjalan, masuk ke prompt MySQL sebagai root:
+```bash
+sudo mysql -u root -p
+```
+Lalu jalankan perintah SQL berikut di dalam prompt MySQL:
+
+```sql
+-- Buat user baru (opsional, tapi disarankan)
+CREATE USER 'irianmotor'@'localhost' IDENTIFIED BY 'irianmotor123';
+
+-- Buat database
+CREATE DATABASE irian_motor;
+
+-- Berikan akses penuh ke user tersebut
+GRANT ALL PRIVILEGES ON irian_motor.* TO 'irianmotor'@'localhost';
+
+-- Wajib: Berikan akses global agar Prisma Shadow Database bisa bekerja (untuk migrasi)
+GRANT ALL PRIVILEGES ON *.* TO 'irianmotor'@'localhost';
+
+FLUSH PRIVILEGES;
+```
+
+> **Catatan:** Jika Anda menggunakan Linux (Ubuntu/Debian), Prisma MySQL adapter memerlukan koneksi murni. Pastikan Anda menonaktifkan plugin caching pada MariaDB/MySQL jika terjadi error "unsupported capability" (seperti memodifikasi `/etc/mysql/my.cnf` untuk mengabaikan `mariadb.conf.d`).
+
+### 3. Instalasi Dependensi & Clone Proyek
+
+Buka terminal di lokasi tempat Anda ingin menyimpan proyek, lalu jalankan:
 
 ```bash
+# Clone proyek (jika dari Github)
+git clone https://github.com/username/irian-motor.git
+cd irian-motor
+
+# Install dependensi
 npm install
 ```
 
-### 3. Konfigurasi Environment Variables
+### 4. Konfigurasi Environment Variables
 
-Di dalam root folder proyek, buat file baru bernama `.env` (Anda bisa meng-copy dari `.env.local` jika ada).
-Isi file `.env` dengan konfigurasi berikut:
+Di dalam root folder proyek, buat file baru bernama `.env`.
+Isi file `.env` dengan konfigurasi berikut, sesuaikan dengan kredensial MySQL yang dibuat di langkah 2:
 
 ```env
-# Sesuaikan dengan username, password, dan nama database MySQL Anda
-DATABASE_URL="mysql://root:@localhost:3306/irian_motor"
+# Format: mysql://USER:PASSWORD@HOST:PORT/DATABASE
+DATABASE_URL="mysql://irianmotor:irianmotor123@127.0.0.1:3306/irian_motor"
 
 # Secret key untuk mengenkripsi sesi login (bisa diganti dengan string acak apa saja)
 SESSION_SECRET="ganti-dengan-secret-key-anda-yang-aman-minimal-32-karakter"
 ```
 
-### 4. Setup Database & Generate Client
+### 5. Generate Client, Migrasi, & Seeding Database
 
-Jalankan perintah-perintah berikut secara berurutan untuk menyiapkan database:
+Jalankan perintah-perintah berikut secara berurutan untuk menyiapkan struktur database dan data awal:
 
 ```bash
-# 1. Menjalankan migrasi untuk membuat tabel-tabel di database
-npx prisma migrate dev --name init
-
-# 2. Meng-generate Prisma Client (menggunakan adapter Prisma 7)
+# 1. Meng-generate Prisma Client (menggunakan adapter Prisma 7)
 npx prisma generate
+
+# 2. Menjalankan migrasi untuk membuat tabel-tabel di database
+npx prisma migrate dev --name init
 
 # 3. Mengisi data awal (Cabang, User Admin/Kasir, Servis, dan Sparepart)
 npx prisma db seed

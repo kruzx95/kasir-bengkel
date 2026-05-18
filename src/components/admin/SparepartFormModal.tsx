@@ -72,7 +72,7 @@ export default function SparepartFormModal({
       description={
         isEditing
           ? 'Perbarui data sparepart'
-          : 'Isi detail sparepart baru untuk cabang tertentu'
+          : 'Sparepart baru akan otomatis ditambahkan ke semua cabang'
       }
       size="lg"
     >
@@ -150,16 +150,17 @@ export default function SparepartFormModal({
           />
         </div>
 
-        <Select
-          id="branchId"
-          name="branchId"
-          label="Cabang"
-          options={branchOptions}
-          placeholder="Pilih cabang..."
-          defaultValue={editData?.branchId}
-          error={state?.errors?.branchId?.[0]}
-          required
-        />
+        {isEditing && (
+          <Select
+            id="branchId"
+            name="branchId"
+            label="Cabang"
+            options={branchOptions}
+            placeholder="Pilih cabang..."
+            defaultValue={editData?.branchId}
+            required
+          />
+        )}
 
         <ModalFooter>
           <Button type="button" variant="outline" onClick={onClose}>

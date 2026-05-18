@@ -9,7 +9,6 @@ const ServiceSchema = z.object({
   name: z.string().min(1, 'Nama servis wajib diisi'),
   price: z.coerce.number().min(0, 'Harga tidak boleh negatif'),
   category: z.string().optional(),
-  branchId: z.string().min(1, 'Cabang wajib dipilih'),
 })
 
 export type ServiceState = {
@@ -56,7 +55,6 @@ export async function createService(
     name: formData.get('name'),
     price: formData.get('price'),
     category: formData.get('category') || undefined,
-    branchId: formData.get('branchId'),
   })
 
   if (!validatedFields.success) {
@@ -64,16 +62,23 @@ export async function createService(
   }
 
   try {
-    await prisma.service.create({
-      data: {
+    // Ambil semua cabang aktif
+    const branches = await prisma.branch.findMany({
+      where: { isActive: true },
+    })
+
+    // Buat servis untuk semua cabang sekaligus
+    await prisma.service.createMany({
+      data: branches.map((branch) => ({
         name: validatedFields.data.name,
         price: validatedFields.data.price,
         category: validatedFields.data.category || null,
-        branchId: validatedFields.data.branchId,
-      },
+        branchId: branch.id,
+      })),
     })
+
     revalidatePath('/admin/master/services')
-    return { success: true, message: 'Jasa servis berhasil ditambahkan' }
+    return { success: true, message: `Jasa servis berhasil ditambahkan ke ${branches.length} cabang` }
   } catch {
     return { message: 'Gagal menambahkan jasa servis' }
   }
@@ -93,12 +98,13 @@ export async function updateService(
     name: formData.get('name'),
     price: formData.get('price'),
     category: formData.get('category') || undefined,
-    branchId: formData.get('branchId'),
   })
 
   if (!validatedFields.success) {
     return { errors: validatedFields.error.flatten().fieldErrors }
   }
+
+  const branchId = formData.get('branchId') as string | null
 
   try {
     await prisma.service.update({
@@ -107,7 +113,7 @@ export async function updateService(
         name: validatedFields.data.name,
         price: validatedFields.data.price,
         category: validatedFields.data.category || null,
-        branchId: validatedFields.data.branchId,
+        ...(branchId && { branchId }),
       },
     })
     revalidatePath('/admin/master/services')
@@ -124,9 +130,17 @@ export async function deleteService(id: string) {
   }
 
   try {
-    await prisma.service.update({
+    // Cek apakah servis sudah dipakai di transaksi
+    const usedInTransaction = await prisma.transactionItem.findFirst({
+      where: { serviceId: id },
+    })
+
+    if (usedInTransaction) {
+      return { message: 'Tidak bisa dihapus karena sudah digunakan di transaksi. Data dinonaktifkan.' }
+    }
+
+    await prisma.service.delete({
       where: { id },
-      data: { isActive: false },
     })
     revalidatePath('/admin/master/services')
     return { success: true, message: 'Jasa servis berhasil dihapus' }

@@ -12,7 +12,6 @@ const SparepartSchema = z.object({
   sellPrice: z.coerce.number().min(0, 'Harga jual tidak boleh negatif'),
   stock: z.coerce.number().int().min(0, 'Stok tidak boleh negatif'),
   unit: z.string().min(1, 'Satuan wajib diisi'),
-  branchId: z.string().min(1, 'Cabang wajib dipilih'),
 })
 
 export type SparepartState = {
@@ -76,7 +75,6 @@ export async function createSparepart(
     sellPrice: formData.get('sellPrice'),
     stock: formData.get('stock'),
     unit: formData.get('unit'),
-    branchId: formData.get('branchId'),
   })
 
   if (!validatedFields.success) {
@@ -84,19 +82,26 @@ export async function createSparepart(
   }
 
   try {
-    await prisma.sparepart.create({
-      data: {
+    // Ambil semua cabang aktif
+    const branches = await prisma.branch.findMany({
+      where: { isActive: true },
+    })
+
+    // Buat sparepart untuk semua cabang sekaligus
+    await prisma.sparepart.createMany({
+      data: branches.map((branch) => ({
         name: validatedFields.data.name,
         sku: validatedFields.data.sku || null,
         buyPrice: validatedFields.data.buyPrice,
         sellPrice: validatedFields.data.sellPrice,
         stock: validatedFields.data.stock,
         unit: validatedFields.data.unit,
-        branchId: validatedFields.data.branchId,
-      },
+        branchId: branch.id,
+      })),
     })
+
     revalidatePath('/admin/master/spareparts')
-    return { success: true, message: 'Sparepart berhasil ditambahkan' }
+    return { success: true, message: `Sparepart berhasil ditambahkan ke ${branches.length} cabang` }
   } catch {
     return { message: 'Gagal menambahkan sparepart' }
   }
@@ -119,12 +124,13 @@ export async function updateSparepart(
     sellPrice: formData.get('sellPrice'),
     stock: formData.get('stock'),
     unit: formData.get('unit'),
-    branchId: formData.get('branchId'),
   })
 
   if (!validatedFields.success) {
     return { errors: validatedFields.error.flatten().fieldErrors }
   }
+
+  const branchId = formData.get('branchId') as string | null
 
   try {
     await prisma.sparepart.update({
@@ -136,7 +142,7 @@ export async function updateSparepart(
         sellPrice: validatedFields.data.sellPrice,
         stock: validatedFields.data.stock,
         unit: validatedFields.data.unit,
-        branchId: validatedFields.data.branchId,
+        ...(branchId && { branchId }),
       },
     })
     revalidatePath('/admin/master/spareparts')
@@ -153,9 +159,17 @@ export async function deleteSparepart(id: string) {
   }
 
   try {
-    await prisma.sparepart.update({
+    // Cek apakah sparepart sudah dipakai di transaksi
+    const usedInTransaction = await prisma.transactionItem.findFirst({
+      where: { sparepartId: id },
+    })
+
+    if (usedInTransaction) {
+      return { message: 'Tidak bisa dihapus karena sudah digunakan di transaksi.' }
+    }
+
+    await prisma.sparepart.delete({
       where: { id },
-      data: { isActive: false },
     })
     revalidatePath('/admin/master/spareparts')
     return { success: true, message: 'Sparepart berhasil dihapus' }
