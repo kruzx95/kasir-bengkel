@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Table from '@/components/ui/Table'
 import Button from '@/components/ui/Button'
 import { formatCurrency } from '@/lib/utils'
-import { Plus, PackagePlus, Search } from 'lucide-react'
+import { Plus, PackagePlus, Search, ImageIcon, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
 
 interface RestockRow {
@@ -12,6 +12,7 @@ interface RestockRow {
   supplierName: string
   date: Date
   total: number
+  receiptImagePath: string | null
   branch: { name: string }
   user: { name: string }
   items: { quantity: number }[]
@@ -43,7 +44,14 @@ export default function RestocksClient({ initialData }: { initialData: RestockRo
           <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 shrink-0">
             <PackagePlus className="w-4 h-4" />
           </div>
-          <span className="text-sm font-bold text-slate-900">{row.supplierName}</span>
+          <div>
+            <p className="text-sm font-bold text-slate-900">{row.supplierName}</p>
+            {row.receiptImagePath && (
+              <p className="text-xs text-emerald-600 flex items-center gap-1 mt-0.5">
+                <ImageIcon className="w-3 h-3" /> Ada foto nota
+              </p>
+            )}
+          </div>
         </div>
       ),
     },
@@ -69,6 +77,18 @@ export default function RestocksClient({ initialData }: { initialData: RestockRo
       header: 'Total Pembelian',
       render: (row: RestockRow) => (
         <span className="text-sm font-bold text-slate-900">{formatCurrency(row.total)}</span>
+      ),
+    },
+    {
+      key: 'actions',
+      header: '',
+      className: 'w-12 text-right',
+      render: (row: RestockRow) => (
+        <Link href={`/admin/restock/${row.id}`}>
+          <button className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors">
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </Link>
       ),
     },
   ]
