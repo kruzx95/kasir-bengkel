@@ -14,14 +14,17 @@ datasource db {
 // BRANCHES — Data Cabang Bengkel
 // ============================================
 model Branch {
-  id        String   @id @default(cuid())
-  code      String   @unique // BRG-01, BRG-02, BRG-03
-  name      String
-  address   String
-  phone     String?
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id               String   @id @default(cuid())
+  code             String   @unique // BRG-01, BRG-02, BRG-03
+  name             String
+  address          String
+  phone            String?
+  instagramHandle  String?  @map("instagram_handle")
+  facebookPage     String?  @map("facebook_page")
+  whatsappNumber   String?  @map("whatsapp_number")
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   // Relations
   users             User[]

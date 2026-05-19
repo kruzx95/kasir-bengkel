@@ -19,20 +19,38 @@ export async function getBranchById(id: string) {
   })
 }
 
-export async function updateBranch(id: string, data: { name: string; address: string; phone: string }) {
+export async function updateBranch(
+  id: string,
+  data: {
+    name: string
+    address: string
+    phone: string
+    instagramHandle?: string
+    facebookPage?: string
+    whatsappNumber?: string
+  }
+) {
   try {
     const session = await getSession()
     if (!session || session.role !== 'ADMIN') throw new Error('Unauthorized')
+
+    // Validate whatsappNumber: digits only, 10-15 chars if provided
+    if (data.whatsappNumber && !/^\d{10,15}$/.test(data.whatsappNumber)) {
+      return { success: false, message: 'Nomor WhatsApp harus berupa angka 10–15 digit' }
+    }
 
     await prisma.branch.update({
       where: { id },
       data: {
         name: data.name,
         address: data.address,
-        phone: data.phone
-      }
+        phone: data.phone || null,
+        instagramHandle: data.instagramHandle || null,
+        facebookPage: data.facebookPage || null,
+        whatsappNumber: data.whatsappNumber || null,
+      },
     })
-    
+
     return { success: true }
   } catch (error: unknown) {
     return { success: false, message: (error as Error).message || 'Gagal mengubah data cabang' }

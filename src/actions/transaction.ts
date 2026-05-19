@@ -244,7 +244,7 @@ export async function getTransactionDetails(id: string) {
           select: { id: true, name: true }
         },
         branch: {
-          select: { id: true, name: true, address: true, phone: true }
+          select: { id: true, name: true, address: true, phone: true, instagramHandle: true, facebookPage: true, whatsappNumber: true }
         },
         items: {
           select: {
