@@ -260,7 +260,7 @@ export async function getTransactionDetails(id: string) {
     })
 
     // Security check: Kasir can only see their own branch's transactions
-    if (transaction && session.role === 'KASIR' && transaction.branch.id !== session.branchId) {
+    if (transaction && session.role === 'KASIR' && transaction.branch?.id !== session.branchId) {
       return null
     }
 
