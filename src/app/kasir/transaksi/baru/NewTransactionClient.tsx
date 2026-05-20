@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useTransition } from 'react'
+import { useState, useMemo, useTransition, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
@@ -8,8 +8,53 @@ import Select from '@/components/ui/Select'
 import Badge from '@/components/ui/Badge'
 import { createTransaction, type TransactionPayload } from '@/actions/transaction'
 import { formatCurrency } from '@/lib/utils'
-import { Plus, Trash2, Search, ArrowLeft, Receipt, Wrench, Package, User } from 'lucide-react'
+import { Plus, Trash2, Search, ArrowLeft, Receipt, Wrench, Package, User, RotateCcw } from 'lucide-react'
 import Link from 'next/link'
+
+const DRAFT_KEY = 'irian_motor_tx_draft'
+
+interface DraftState {
+  customerId: string
+  isCorporate: boolean
+  items: TransactionPayload['items']
+  discount: number
+  paymentMethod: 'CASH' | 'TRANSFER' | 'QRIS'
+  mechanicId: string
+  notes: string
+}
+
+const defaultDraft: DraftState = {
+  customerId: '',
+  isCorporate: false,
+  items: [],
+  discount: 0,
+  paymentMethod: 'CASH',
+  mechanicId: '',
+  notes: '',
+}
+
+function loadDraft(): DraftState {
+  if (typeof window === 'undefined') return defaultDraft
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY)
+    if (!raw) return defaultDraft
+    return { ...defaultDraft, ...JSON.parse(raw) }
+  } catch {
+    return defaultDraft
+  }
+}
+
+function saveDraft(state: DraftState) {
+  try {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(state))
+  } catch {}
+}
+
+function clearDraft() {
+  try {
+    localStorage.removeItem(DRAFT_KEY)
+  } catch {}
+}
 
 interface ItemData {
   id: string
@@ -35,15 +80,41 @@ export default function NewTransactionClient({
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   
-  // Form State
-  const [customerId, setCustomerId] = useState<string>('')
-  const [isCorporate, setIsCorporate] = useState(false)
-  const [items, setItems] = useState<TransactionPayload['items']>([])
-  const [discount, setDiscount] = useState<number>(0)
-  const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'TRANSFER' | 'QRIS'>('CASH')
-  const [mechanicId, setMechanicId] = useState<string>('')
-  const [notes, setNotes] = useState('')
-  
+  // Load dari draft saat pertama render
+  const [customerId, setCustomerId] = useState<string>(() => loadDraft().customerId)
+  const [isCorporate, setIsCorporate] = useState<boolean>(() => loadDraft().isCorporate)
+  const [items, setItems] = useState<TransactionPayload['items']>(() => loadDraft().items)
+  const [discount, setDiscount] = useState<number>(() => loadDraft().discount)
+  const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'TRANSFER' | 'QRIS'>(() => loadDraft().paymentMethod)
+  const [mechanicId, setMechanicId] = useState<string>(() => loadDraft().mechanicId)
+  const [notes, setNotes] = useState<string>(() => loadDraft().notes)
+  const [hasDraft, setHasDraft] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false
+    const raw = localStorage.getItem(DRAFT_KEY)
+    if (!raw) return false
+    try { return (JSON.parse(raw) as DraftState).items.length > 0 } catch { return false }
+  })
+
+  // Auto-save ke localStorage setiap kali state berubah
+  useEffect(() => {
+    const draft: DraftState = { customerId, isCorporate, items, discount, paymentMethod, mechanicId, notes }
+    saveDraft(draft)
+    setHasDraft(items.length > 0)
+  }, [customerId, isCorporate, items, discount, paymentMethod, mechanicId, notes])
+
+  const handleResetDraft = () => {
+    if (!confirm('Hapus semua item dan mulai transaksi baru?')) return
+    clearDraft()
+    setCustomerId('')
+    setIsCorporate(false)
+    setItems([])
+    setDiscount(0)
+    setPaymentMethod('CASH')
+    setMechanicId('')
+    setNotes('')
+    setHasDraft(false)
+  }
+
   // Catalog search state
   const [searchQuery, setSearchQuery] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -144,6 +215,7 @@ export default function NewTransactionClient({
       
       const res = await createTransaction(payload)
       if (res.success) {
+        clearDraft()
         router.push(`/kasir/transaksi/${res.invoiceNumber || ''}`)
       } else {
         setError(res.message || 'Gagal membuat transaksi')
@@ -157,11 +229,28 @@ export default function NewTransactionClient({
         <Link href="/kasir/transaksi">
           <Button variant="ghost" icon={ArrowLeft} className="w-10 h-10 p-0" />
         </Link>
-        <div>
+        <div className="flex-1">
           <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Transaksi Baru</h1>
           <p className="text-xs sm:text-sm text-slate-500">Buat invoice untuk layanan atau penjualan</p>
         </div>
+        {hasDraft && (
+          <button
+            onClick={handleResetDraft}
+            className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-red-600 bg-slate-100 hover:bg-red-50 border border-slate-200 hover:border-red-200 px-3 py-1.5 rounded-lg transition-all"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            Bersihkan
+          </button>
+        )}
       </div>
+
+      {/* Banner draft tersimpan */}
+      {hasDraft && (
+        <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
+          <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
+          Draft tersimpan — transaksi dilanjutkan dari sesi sebelumnya
+        </div>
+      )}
 
       {error && (
         <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">

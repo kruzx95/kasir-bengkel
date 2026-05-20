@@ -1,6 +1,6 @@
 # tolong analisis apakah phase 1 sampai 3 sudah s...
 
-Exported: 5/19/2026, 3:44:16 PM
+Exported: 5/20/2026, 1:46:54 PM
 
 ## Steering Documents
 
@@ -473,5 +473,484 @@ File `FITUR.md` sudah dibuat di root project. Isinya mencakup:
 - **Status transaksi dan indent** beserta penjelasannya
 - **Ringkasan operasional harian** untuk kasir dan admin
 - **Tabel URL** semua halaman beserta role yang bisa mengaksesnya
+
+---
+
+**User:**
+
+cek keseluruhan apakah ada error ?
+
+---
+
+**Assistant:**
+
+Cek menyeluruh — build, TypeScript, dan semua file source:
+
+Ada 4 file bermasalah. Root cause-nya: Prisma client belum di-regenerate setelah migrasi schema, sehingga type `Branch` belum punya field baru. Selesaikan semuanya:
+
+Prisma client sudah di-regenerate. Sekarang cek ulang TypeScript:
+
+Tidak ada error. Semua 33 error TypeScript sebelumnya sudah hilang setelah `prisma generate`.
+
+**Root cause:** Setiap kali schema Prisma diubah dan migrasi dijalankan, Prisma client perlu di-regenerate agar TypeScript types ikut terupdate. `prisma migrate dev` memang otomatis menjalankan generate, tapi karena ada dua dev server yang berjalan bersamaan tadi, proses generate kemungkinan tidak selesai dengan benar.
+
+**Untuk ke depannya:** Kalau ada perubahan schema lagi, jalankan:
+```bash
+npx prisma migrate dev --name nama_migrasi
+npx prisma generate
+```
+
+---
+
+**User:**
+
+apa fungsi file ini ? bagaimana peran nya
+
+---
+
+**Assistant:**
+
+File `.env` adalah **file konfigurasi environment** — tempat menyimpan nilai-nilai sensitif dan konfigurasi yang berbeda-beda tergantung lingkungan (development, staging, production), tanpa harus hardcode langsung di kode.
+
+---
+
+## Isi file ini
+
+### `DATABASE_URL`
+```
+mysql://irianmotor:irianmotor123@127.0.0.1:3306/irian_motor
+```
+Ini adalah connection string ke database MySQL. Formatnya:
+```
+mysql://[username]:[password]@[host]:[port]/[nama_database]
+```
+
+| Bagian | Nilai | Keterangan |
+|--------|-------|-----------|
+| username | `irianmotor` | User MySQL yang dipakai |
+| password | `irianmotor123` | Password user tersebut |
+| host | `127.0.0.1` | Database ada di mesin yang sama (localhost) |
+| port | `3306` | Port default MySQL |
+| database | `irian_motor` | Nama database yang dipakai |
+
+Digunakan oleh **Prisma** untuk konek ke database. Setiap query (`prisma.transaction.findMany()`, dll) melewati koneksi ini.
+
+---
+
+### `SESSION_SECRET`
+```
+s3cr3t-k3y-irian-m0t0r-2026-random-string
+```
+Ini adalah **kunci rahasia** untuk menandatangani (sign) JWT session cookie. Digunakan di `src/lib/session.ts` untuk:
+- Membuat token saat login
+- Memverifikasi token saat setiap request masuk
+- Jika kunci ini berubah, semua session yang aktif langsung invalid (semua user ter-logout)
+
+---
+
+## Kenapa disimpan di `.env` dan bukan di kode?
+
+1. **Keamanan** — password database dan secret key tidak ikut masuk ke Git repository
+2. **Fleksibilitas** — di server production bisa pakai database yang berbeda tanpa ubah kode
+3. **Standar industri** — semua framework modern (Next.js, Laravel, Django, dll) menggunakan pola ini
+
+---
+
+## Yang perlu diperhatikan
+
+**`.env` sudah masuk `.gitignore`** — artinya file ini tidak ikut di-commit ke Git, yang benar. Cek:
+
+Aman — `.env*` sudah di-ignore, jadi file ini tidak akan ter-upload ke GitHub/GitLab.
+
+---
+
+## Saat deploy ke production
+
+Nilai-nilai ini perlu diganti dengan yang lebih kuat:
+
+```env
+# Production — jangan pakai nilai development
+DATABASE_URL="mysql://user_prod:password_kuat_sekali@host-db-prod:3306/irian_motor_prod"
+SESSION_SECRET="random-string-panjang-minimal-32-karakter-acak"
+```
+
+`SESSION_SECRET` sebaiknya di-generate secara acak, misalnya:
+```bash
+openssl rand -base64 32
+```
+
+---
+
+**User:**
+
+bagaimana cara mengakses database
+
+---
+
+**Assistant:**
+
+Ada beberapa cara untuk mengakses database `irian_motor`:
+
+---
+
+## 1. Via Terminal (MySQL CLI)
+
+```bash
+mysql -u irianmotor -pirianmotor123 -h 127.0.0.1 irian_motor
+```
+
+Setelah masuk, contoh perintah yang berguna:
+
+```sql
+-- Lihat semua tabel
+SHOW TABLES;
+
+-- Lihat struktur tabel
+DESCRIBE customers;
+DESCRIBE transactions;
+
+-- Lihat data
+SELECT * FROM branches;
+SELECT * FROM users;
+SELECT name, plate_number, vehicle_brand FROM customers LIMIT 10;
+
+-- Lihat transaksi terbaru
+SELECT invoice_number, total, status, transaction_date 
+FROM transactions 
+ORDER BY created_at DESC 
+LIMIT 10;
+
+-- Keluar
+EXIT;
+```
+
+---
+
+## 2. Via Prisma Studio (GUI berbasis browser)
+
+Cara paling mudah — langsung buka di browser tanpa perlu install apapun:
+
+```bash
+npx prisma studio
+```
+
+Port tersedia. Jalankan di terminal kamu:
+
+```bash
+cd /home/kruza/Documents/irian-motor/irian-motor
+npx prisma studio
+```
+
+Lalu buka **`http://localhost:5555`** di browser. Tampilannya seperti spreadsheet — bisa lihat, tambah, edit, hapus data semua tabel tanpa perlu SQL.
+
+---
+
+## 3. Via GUI Client (Rekomendasi untuk penggunaan rutin)
+
+Install salah satu aplikasi ini:
+
+| Aplikasi | Platform | Keterangan |
+|----------|----------|-----------|
+| **DBeaver** | Linux/Win/Mac | Gratis, lengkap |
+| **TablePlus** | Linux/Win/Mac | UI bersih, berbayar |
+| **MySQL Workbench** | Linux/Win/Mac | Resmi dari MySQL, gratis |
+| **phpMyAdmin** | Browser | Berbasis web |
+
+Konfigurasi koneksi yang dipakai:
+
+```
+Host     : 127.0.0.1
+Port     : 3306
+User     : irianmotor
+Password : irianmotor123
+Database : irian_motor
+```
+
+---
+
+## 4. Via Aplikasi (cara yang sudah berjalan)
+
+Ini yang sudah dipakai — Next.js + Prisma otomatis konek ke database setiap kali ada request. Tidak perlu akses manual kecuali untuk keperluan debug atau backup.
+
+---
+
+## Rekomendasi
+
+Untuk **sehari-hari**: pakai **Prisma Studio** (`npx prisma studio`) — paling cepat dan tidak perlu install apapun tambahan.
+
+Untuk **backup rutin**:
+```bash
+mysqldump -u irianmotor -pirianmotor123 irian_motor > backup_$(date +%Y%m%d).sql
+```
+
+---
+
+**User:**
+
+untuk menu sparepart, apakah memungkinkan jika upload file excel ? mengingat sangat banyak item nya. isi file excel yang ber isi banyak sparepart
+
+---
+
+**Assistant:**
+
+Sangat memungkinkan. Mari lihat kode yang ada dulu sebelum implementasi:
+
+Paham strukturnya. Sekarang implementasi fitur import Excel. Library `xlsx` sudah ada di project, jadi tidak perlu install apapun.
+
+Yang perlu dibuat:
+1. **API route** untuk proses file Excel di server
+2. **Tombol Import** + modal preview di `SparepartsClient`
+3. **Template Excel** yang bisa diunduh
+
+**Format kolom Excel yang akan didukung:**
+
+| nama | sku | jenis | merk | ukuran | harga_beli | harga_jual | stok | satuan |
+|------|-----|-------|------|--------|-----------|-----------|------|--------|
+
+Sekarang buat komponen modal import:
+
+Sekarang tambahkan tombol Import ke `SparepartsClient`:
+
+Cek diagnostics semua file yang diubah:
+
+Semua bersih. Fitur import Excel sudah siap. Cara pakainya:
+
+**Di halaman Master → Sparepart**, sekarang ada tombol "Import Excel" di sebelah "Tambah Sparepart".
+
+Alurnya:
+1. Klik **Import Excel** → modal terbuka
+2. **Unduh Template** → isi data sparepart di Excel (bisa ratusan/ribuan baris)
+3. Pilih **cabang tujuan** — bisa semua cabang sekaligus atau satu cabang saja
+4. Upload file → klik **Import Sekarang**
+5. Jika ada baris yang error (misal harga_jual kosong), sistem menampilkan detail baris mana yang bermasalah
+6. Jika sukses → halaman otomatis reload dan daftar sparepart terupdate
+
+**Kolom Excel yang didukung:**
+
+| Kolom | Wajib | Keterangan |
+|-------|-------|-----------|
+| `nama` | ✅ | Nama sparepart |
+| `sku` | - | Kode SKU |
+| `jenis` | - | Contoh: Oli, Busi, Kampas |
+| `merk` | - | Contoh: AHM, NGK, Yamalube |
+| `ukuran` | - | Contoh: 20W-50, 17 inch |
+| `harga_beli` | - | Default 0 jika kosong |
+| `harga_jual` | ✅ | Wajib dan harus > 0 |
+| `stok` | - | Default 0 jika kosong |
+| `satuan` | - | Default "pcs" jika kosong |
+
+---
+
+**User:**
+
+di fitur sparepart sepertinya belum memiliki fitur cari
+
+---
+
+**Assistant:**
+
+Tambahkan fitur pencarian langsung ke `SparepartsClient`:
+
+Tambahkan import `Select` dan `Search` icon, lalu tambahkan search bar di atas tabel:
+
+Sekarang update bagian render — tambah search bar dan ganti `spareparts` dengan `filtered` di tabel:
+
+Ganti `data={spareparts}` dengan `data={filtered}` di tabel:
+
+Bersih. Fitur pencarian sekarang mendukung:
+
+- **Cari teks** — nama, SKU, jenis, atau merk (real-time saat mengetik)
+- **Filter cabang** — dropdown untuk filter per cabang
+- **Counter** — menampilkan "X dari Y sparepart" sehingga tahu berapa hasil yang ditemukan
+
+---
+
+**User:**
+
+untuk fitur import excel, jika sku,ukuran atau yang lain nya tidak di isi apakah muncul masalah ketika di upload ?
+
+---
+
+**Assistant:**
+
+Tidak akan muncul masalah. Mari lihat kode API-nya untuk konfirmasi:
+
+Sudah terkonfirmasi. Berikut penjelasannya:
+
+---
+
+**Tidak akan ada masalah.** Semua field selain `nama` dan `harga_jual` bersifat opsional.
+
+Logika di kode:
+```ts
+sku: String(row['sku'] || '').trim() || null
+// → jika kosong/tidak ada kolom → disimpan sebagai null di database
+```
+
+Ringkasan per kolom:
+
+| Kolom | Jika dikosongkan | Hasil di database |
+|-------|-----------------|-------------------|
+| `nama` | ❌ Error, wajib diisi | — |
+| `harga_jual` | ❌ Error, wajib > 0 | — |
+| `sku` | ✅ Aman | `null` |
+| `jenis` | ✅ Aman | `null` |
+| `merk` | ✅ Aman | `null` |
+| `ukuran` | ✅ Aman | `null` |
+| `harga_beli` | ✅ Aman | `0` |
+| `stok` | ✅ Aman | `0` |
+| `satuan` | ✅ Aman | `"pcs"` (default) |
+
+Bahkan **kolomnya tidak perlu ada sama sekali** di file Excel — misalnya kalau tidak ada kolom `sku` sama sekali, sistem tetap berjalan normal dan menyimpan `null`.
+
+Jadi file Excel paling minimal yang valid hanya butuh 2 kolom:
+
+| nama | harga_jual |
+|------|-----------|
+| Oli AHM 20W-50 | 45000 |
+| Busi NGK | 25000 |
+
+---
+
+**User:**
+
+apakah jika upload file excel yang sama kemungkinan item duplicate ?
+
+---
+
+**Assistant:**
+
+Ya, saat ini **bisa duplicate**. Lihat kode API-nya:
+
+```ts
+await prisma.sparepart.createMany({ data, skipDuplicates: false })
+```
+
+`skipDuplicates: false` artinya setiap upload akan selalu insert baris baru tanpa cek apakah sudah ada. Perlu diperbaiki.
+
+Strategi terbaik: **cek berdasarkan kombinasi `nama` + `branchId`** — jika sudah ada, update (upsert); jika belum ada, insert baru.
+
+Sekarang update pesan sukses di modal agar menampilkan info inserted vs updated:
+
+Sekarang perilakunya:
+
+| Kondisi | Yang terjadi |
+|---------|-------------|
+| Nama sparepart **belum ada** di cabang | ✅ Insert baru |
+| Nama sparepart **sudah ada** di cabang | 🔄 Update data (harga, stok, jenis, merk, dll) |
+| Upload file yang **sama persis** | 🔄 Semua baris di-update, tidak ada duplikat |
+
+Pesan hasil import juga sekarang lebih informatif, contoh:
+> *"Selesai: 45 sparepart baru ditambahkan, 12 sparepart diperbarui (3 cabang)"*
+
+Jadi upload ulang file yang sama aman — data lama akan diperbarui, bukan digandakan. Pengecekan duplikat berdasarkan **nama + cabang**, jadi sparepart dengan nama yang sama di cabang berbeda tetap dianggap entri terpisah (yang memang benar secara logika bisnis).
+
+---
+
+**User:**
+
+oke sekarang buat juga import excel di jasa servis,a keran sangat juga varian jasa nya
+
+---
+
+**Assistant:**
+
+Lihat struktur servis dulu:
+
+Struktur servis lebih sederhana dari sparepart (hanya 3 kolom: nama, harga, kategori). Buat semua sekaligus:
+
+Sekarang update `ServicesClient` — tambah search, filter cabang, dan tombol Import:
+
+Semua bersih. Yang ditambahkan ke halaman Master → Servis:
+
+**Import Excel** — kolom template:
+
+| Kolom | Wajib | Keterangan |
+|-------|-------|-----------|
+| `nama` | ✅ | Nama jasa servis |
+| `harga` | ✅ | Harga jasa (Rp) |
+| `kategori` | - | Contoh: Oli, Rem, Tune Up, Karburator |
+
+**Fitur pencarian** — cari berdasarkan nama atau kategori, plus filter per cabang.
+
+**Upsert** — sama seperti sparepart, upload ulang file yang sama akan update data yang sudah ada, tidak membuat duplikat.
+
+---
+
+**User:**
+
+ini di menu kasir, ketika sedang input transaksi kemudian pindah ke menu lain dan kembali lagi ke menu transaksi. transaksi harus di mulai lagi dari awal. bagaimana solusi nya ?
+
+---
+
+**Assistant:**
+
+Solusinya adalah menyimpan state transaksi ke `localStorage` — sehingga kalau kasir pindah halaman dan kembali, data keranjang masih ada.
+
+Sekarang tambahkan persistensi `localStorage` — state otomatis tersimpan setiap ada perubahan, dan dipulihkan saat halaman dibuka kembali:
+
+Sekarang ganti bagian state initialization dan tambahkan auto-save + reset:
+
+Sekarang tambahkan `clearDraft()` saat transaksi berhasil disimpan, dan tambahkan banner draft + tombol reset di UI:
+
+Tambahkan banner "Draft tersimpan" dan tombol reset di header:
+
+Bersih. Sekarang cara kerjanya:
+
+**Saat kasir mengetik/menambah item** → state otomatis tersimpan ke `localStorage` browser.
+
+**Saat kasir pindah halaman lain** → data tetap ada di browser.
+
+**Saat kasir kembali ke halaman Transaksi Baru** → semua item, pelanggan, mekanik, catatan, diskon, dan metode bayar langsung muncul kembali. Ada banner kuning kecil: *"Draft tersimpan — transaksi dilanjutkan dari sesi sebelumnya"*
+
+**Tombol "Bersihkan"** di pojok kanan atas header → untuk memulai transaksi baru dari awal (dengan konfirmasi).
+
+**Setelah Simpan Transaksi berhasil** → draft otomatis dihapus, siap untuk transaksi berikutnya.
+
+---
+
+**User:**
+
+di menu admin apakah benar % sudah sesuai ? bagaimana cara hitung nya
+
+---
+
+**Assistant:**
+
+Dari screenshot: harga beli **Rp 30.000**, harga jual **Rp 40.000**, margin **Rp 10.000**, persentase **33%**.
+
+Mari cek kode perhitungannya:
+
+Ketemu. Rumus yang dipakai sekarang:
+
+```
+pct = (margin / harga_beli) × 100
+pct = (10.000 / 30.000) × 100 = 33%
+```
+
+Ini adalah **margin terhadap harga beli (markup)** — bukan margin terhadap harga jual.
+
+---
+
+Ada dua cara hitung yang umum dipakai:
+
+| Metode | Rumus | Contoh (beli 30rb, jual 40rb) | Kapan dipakai |
+|--------|-------|-------------------------------|---------------|
+| **Markup** *(yang sekarang)* | `(jual - beli) / beli × 100` | `10.000 / 30.000 = 33%` | Perspektif modal — "untung berapa dari modal" |
+| **Gross Margin** | `(jual - beli) / jual × 100` | `10.000 / 40.000 = 25%` | Perspektif pendapatan — "berapa % dari harga jual yang jadi keuntungan" |
+
+**Keduanya benar**, tergantung konteks bisnis yang diinginkan. Untuk bengkel yang fokus ke **berapa keuntungan dari modal yang dikeluarkan**, markup (33%) lebih intuitif. Untuk analisis keuangan formal, gross margin (25%) lebih standar.
+
+Kalau ingin ganti ke gross margin, perubahannya kecil:
+
+```ts
+// Sekarang (markup):
+const pct = row.buyPrice > 0 ? Math.round((margin / row.buyPrice) * 100) : 0
+
+// Ganti ke gross margin:
+const pct = row.sellPrice > 0 ? Math.round((margin / row.sellPrice) * 100) : 0
+```
+
+Mau diganti atau tetap seperti sekarang?
 
 ---

@@ -5,9 +5,11 @@ import Table from '@/components/ui/Table'
 import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
 import SparepartFormModal from '@/components/admin/SparepartFormModal'
+import ImportSparepartModal from '@/components/admin/ImportSparepartModal'
 import { deleteSparepart } from '@/actions/sparepart'
 import { formatCurrency } from '@/lib/utils'
-import { Plus, Pencil, Trash2, Package } from 'lucide-react'
+import { Plus, Pencil, Trash2, Package, Upload, Search } from 'lucide-react'
+import Select from '@/components/ui/Select'
 
 interface Branch {
   id: string
@@ -37,8 +39,23 @@ interface SparepartsClientProps {
 
 export default function SparepartsClient({ spareparts, branches }: SparepartsClientProps) {
   const [modalOpen, setModalOpen] = useState(false)
+  const [importModalOpen, setImportModalOpen] = useState(false)
   const [editData, setEditData] = useState<SparepartRow | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [filterBranch, setFilterBranch] = useState('')
+
+  const filtered = spareparts.filter((sp) => {
+    const q = searchQuery.toLowerCase()
+    const matchSearch =
+      !q ||
+      sp.name.toLowerCase().includes(q) ||
+      (sp.sku?.toLowerCase().includes(q) ?? false) ||
+      (sp.sparepartType?.toLowerCase().includes(q) ?? false) ||
+      (sp.sparepartBrand?.toLowerCase().includes(q) ?? false)
+    const matchBranch = !filterBranch || sp.branchId === filterBranch
+    return matchSearch && matchBranch
+  })
 
   const handleEdit = (sp: SparepartRow) => {
     setEditData(sp)
@@ -183,27 +200,61 @@ export default function SparepartsClient({ spareparts, branches }: SparepartsCli
 
   return (
     <>
+      {/* Search & Filter Bar */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-4">
+        <div className="relative w-full sm:max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Cari nama, SKU, jenis, atau merk..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none transition-all"
+          />
+        </div>
+        <div className="w-full sm:w-48">
+          <Select
+            options={[
+              { label: 'Semua Cabang', value: '' },
+              ...branches.map(b => ({ label: b.name, value: b.id })),
+            ]}
+            value={filterBranch}
+            onChange={(e) => setFilterBranch(e.target.value)}
+          />
+        </div>
+        <p className="text-sm text-slate-400 shrink-0">
+          {filtered.length} dari {spareparts.length} sparepart
+        </p>
+      </div>
+
       {/* Action Bar */}
       <div className="flex items-center justify-between mb-4">
-        <p className="text-sm text-slate-500">
-          {spareparts.length} sparepart terdaftar
-        </p>
-        <Button
-          icon={Plus}
-          onClick={() => {
-            setEditData(null)
-            setModalOpen(true)
-          }}
-        >
-          Tambah Sparepart
-        </Button>
+        <div />
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            icon={Upload}
+            onClick={() => setImportModalOpen(true)}
+          >
+            Import Excel
+          </Button>
+          <Button
+            icon={Plus}
+            onClick={() => {
+              setEditData(null)
+              setModalOpen(true)
+            }}
+          >
+            Tambah Sparepart
+          </Button>
+        </div>
       </div>
 
       {/* Table */}
       <div className="bg-white rounded-2xl border border-slate-200/80 overflow-hidden">
         <Table
           columns={columns}
-          data={spareparts}
+          data={filtered}
           keyExtractor={(row) => row.id}
           emptyMessage="Belum ada sparepart. Klik tombol di atas untuk menambahkan."
         />
@@ -215,6 +266,13 @@ export default function SparepartsClient({ spareparts, branches }: SparepartsCli
         onClose={handleClose}
         branches={branches}
         editData={editData}
+      />
+
+      {/* Import Modal */}
+      <ImportSparepartModal
+        open={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
+        branches={branches}
       />
     </>
   )
