@@ -54,6 +54,14 @@ next-env.d.ts
 # kiro IDE files
 /.kiro/
 
+# dokumentasi internal / catatan pengembangan
+AGENTS.md
+FITUR.md
+implementation_plan.md
+kiro-pertama.md
+kiro-kedua.md
+progress_report.md
+
 # log files
 *.log
 /logs/
@@ -63,4 +71,3 @@ Thumbs.db
 .DS_Store
 
 # md files
-FITUR.md
