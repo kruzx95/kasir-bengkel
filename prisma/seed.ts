@@ -19,18 +19,26 @@ async function main() {
   // Create 3 branches
   const branch1 = await prisma.branch.upsert({
     where: { code: 'BRG-01' },
-    update: {},
+    update: {
+      name: 'Indihiang',
+      address: 'Indihiang',
+      phone: '0265-123456',
+    },
     create: {
       code: 'BRG-01',
-      name: 'Irian Jaya',
-      address: 'Jl. Irian Jaya No. 45, Kota Tasikmalaya',
+      name: 'Indihiang',
+      address: 'Indihiang',
       phone: '0265-123456',
     },
   })
 
   const branch2 = await prisma.branch.upsert({
     where: { code: 'BRG-02' },
-    update: {},
+    update: {
+      name: 'Irian Timur',
+      address: 'Jl. Irian Timur No. 78, Kota Tasikmalaya',
+      phone: '0265-234567',
+    },
     create: {
       code: 'BRG-02',
       name: 'Irian Timur',
@@ -41,7 +49,11 @@ async function main() {
 
   const branch3 = await prisma.branch.upsert({
     where: { code: 'BRG-03' },
-    update: {},
+    update: {
+      name: 'Irian Barat',
+      address: 'Jl. Irian Barat No. 12, Kota Tasikmalaya',
+      phone: '0265-345678',
+    },
     create: {
       code: 'BRG-03',
       name: 'Irian Barat',
@@ -53,7 +65,7 @@ async function main() {
   console.log('✅ Branches created:', branch1.name, branch2.name, branch3.name)
 
   // Create admin user
-  const adminPassword = await bcrypt.hash('admin123', 10)
+  const adminPassword = await bcrypt.hash('IrianMotor@2026!', 10)  // ← ganti sesuai keinginan
   const admin = await prisma.user.upsert({
     where: { email: 'admin@irianmotor.com' },
     update: {},
@@ -69,7 +81,7 @@ async function main() {
   console.log('✅ Admin created:', admin.email)
 
   // Create 3 kasir users (1 per branch)
-  const kasirPassword = await bcrypt.hash('kasir123', 10)
+  const kasirPassword = await bcrypt.hash('KasirIrian@2026!', 10)  // ← ganti sesuai keinginan
 
   const kasir1 = await prisma.user.upsert({
     where: { email: 'kasir1@irianmotor.com' },

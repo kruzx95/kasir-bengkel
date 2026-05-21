@@ -152,18 +152,20 @@ export default function Sidebar({ role, userName, branchName, mobileOpen = false
 
         {/* User Info & Collapse */}
         <div className="border-t border-white/10 p-3 space-y-2 shrink-0">
-          {/* User */}
-          <div
+          {/* User — klik untuk ke halaman profil */}
+          <Link
+            href="/profil"
             className={cn(
-              'flex items-center gap-3 px-3 py-2 rounded-xl bg-white/5',
+              'flex items-center gap-3 px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 transition-colors',
               collapsed && !mobileOpen && 'justify-center px-0'
             )}
+            title="Profil & Keamanan"
           >
             <div className="w-8 h-8 bg-gradient-to-br from-accent-400 to-accent-600 rounded-lg flex items-center justify-center text-white text-xs font-bold shrink-0">
               {userName.charAt(0).toUpperCase()}
             </div>
             {(!collapsed || mobileOpen) && (
-              <div className="overflow-hidden">
+              <div className="overflow-hidden flex-1">
                 <p className="text-xs font-medium text-white truncate">
                   {userName}
                 </p>
@@ -172,7 +174,7 @@ export default function Sidebar({ role, userName, branchName, mobileOpen = false
                 </p>
               </div>
             )}
-          </div>
+          </Link>
 
           {/* Logout */}
           <form action={logout}>

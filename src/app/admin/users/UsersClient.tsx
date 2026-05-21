@@ -25,7 +25,8 @@ export default function UsersClient({ users }: { users: UserData[] }) {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    password: ''
+    password: '',
+    confirmPassword: '',
   })
   const [error, setError] = useState('')
 
@@ -34,7 +35,8 @@ export default function UsersClient({ users }: { users: UserData[] }) {
     setFormData({
       name: user.name,
       email: user.email,
-      password: '' // Keep empty unless changing
+      password: '',
+      confirmPassword: '',
     })
     setError('')
   }
@@ -44,8 +46,23 @@ export default function UsersClient({ users }: { users: UserData[] }) {
     if (!editingUser) return
     setError('')
 
+    if (formData.password && formData.password.length > 0) {
+      if (formData.password.length < 6) {
+        setError('Password minimal 6 karakter')
+        return
+      }
+      if (formData.password !== formData.confirmPassword) {
+        setError('Konfirmasi password tidak cocok')
+        return
+      }
+    }
+
     startTransition(async () => {
-      const res = await updateUser(editingUser.id, formData)
+      const res = await updateUser(editingUser.id, {
+        name: formData.name,
+        email: formData.email,
+        password: formData.password || undefined,
+      })
       if (res.success) {
         setEditingUser(null)
         router.refresh()
@@ -143,9 +160,19 @@ export default function UsersClient({ users }: { users: UserData[] }) {
               label="Password Baru"
               type="password"
               placeholder="Kosongkan jika tidak ingin ganti password"
+              hint="Minimal 6 karakter jika diisi"
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
             />
+            {formData.password && (
+              <Input
+                label="Konfirmasi Password Baru"
+                type="password"
+                placeholder="Ulangi password baru"
+                value={formData.confirmPassword}
+                onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+              />
+            )}
           </div>
 
           <ModalFooter>
