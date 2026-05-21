@@ -1,150 +1,192 @@
 # 🏍️ Irian Motor — Sistem Manajemen Bengkel
 
-Aplikasi web modern untuk mengelola multi-cabang bengkel motor. Dilengkapi dengan fitur kasir (transaksi harian), manajemen master data (servis & sparepart), dan monitoring dashboard untuk owner/admin.
+Aplikasi web multi-cabang untuk manajemen bengkel motor. Mencakup kasir transaksi harian, master data, restock & indent barang, pelanggan korporat, laporan, dan monitoring dashboard.
 
 ## 🚀 Tech Stack
 
-- **Framework**: Next.js 16 (App Router)
+- **Framework**: Next.js 16 (App Router, Turbopack)
 - **Styling**: Tailwind CSS v4
 - **Database**: MySQL 8.0
-- **ORM**: Prisma 7 (menggunakan `@prisma/adapter-mariadb`)
-- **Authentication**: Custom JWT Session (dengan library `jose`)
+- **ORM**: Prisma 7 (`@prisma/adapter-mariadb`)
+- **Authentication**: Custom JWT Session (`jose`)
+- **Excel**: `xlsx` (import & ekspor)
 
 ---
 
-## 🛠️ Panduan Instalasi & Menjalankan Proyek (Dari Awal)
+## ✨ Fitur Utama
+
+| Fitur | Admin | Kasir |
+|-------|-------|-------|
+| Dashboard ringkasan harian | ✅ semua cabang | ✅ cabang sendiri |
+| Transaksi (servis, sparepart, mixed) | ✅ | ✅ |
+| Draft transaksi (tersimpan otomatis) | ✅ | ✅ |
+| Invoice & cetak nota | ✅ | ✅ |
+| Data pelanggan + kendaraan | ✅ | ✅ |
+| Master sparepart + import Excel | ✅ | — |
+| Master jasa servis + import Excel | ✅ | — |
+| Master mekanik | ✅ | — |
+| Restock barang + foto nota | ✅ | — |
+| Indent order (pemesanan barang) | ✅ | — |
+| Pelanggan korporat + tagihan borongan | ✅ | — |
+| Laporan transaksi + ekspor Excel | ✅ | ✅ |
+| Laporan pembelian sparepart | ✅ | — |
+| Kelola cabang + media sosial | ✅ | — |
+| Kelola pengguna + ganti password | ✅ | — |
+| Profil & ganti password sendiri | ✅ | ✅ |
+
+---
+
+## 🛠️ Instalasi & Setup
 
 ### 1. Persyaratan Sistem
 
-Pastikan Anda sudah menginstal:
-
-- [Node.js](https://nodejs.org/) (versi 18.x atau yang lebih baru)
-- [MySQL](https://www.mysql.com/) (versi 8.0 atau yang lebih baru, berjalan di lokal komputer Anda)
-- Git (opsional, untuk clone repository)
+- [Node.js](https://nodejs.org/) v18 atau lebih baru
+- MySQL 8.0 (berjalan di lokal)
+- Git
 
 ### 2. Setup Database MySQL
 
-Sebelum menyiapkan database, pastikan service MySQL sudah berjalan di komputer Anda.
+Pastikan service MySQL sudah berjalan, lalu masuk ke MySQL:
 
-**Untuk pengguna Windows:**
+```bash
+# Linux
+sudo mysql -u root -p
 
-Jalankan service MySQL melalui salah satu cara berikut:
-
-- **MySQL Installer**: Tekan `Win + R`, ketik `services.msc`, lalu Enter. Cari **MySQL80** (atau sesuai versi yang terinstal), klik kanan → **Start**.
-- **XAMPP**: Buka XAMPP Control Panel, klik tombol **Start** di baris MySQL.
-
-Setelah service berjalan, buka **MySQL Command Line Client** dari Start Menu, atau gunakan CMD/PowerShell:
-```cmd
+# Windows (CMD)
 mysql -u root -p
 ```
 
-**Untuk pengguna Linux (Ubuntu/Debian):**
-```bash
-# Menjalankan service MySQL
-sudo systemctl start mysql
-
-# (Opsional) Mengatur agar MySQL otomatis berjalan saat komputer menyala
-sudo systemctl enable mysql
-```
-
-Setelah service MySQL berjalan, masuk ke prompt MySQL sebagai root:
-```bash
-sudo mysql -u root -p
-```
-Lalu jalankan perintah SQL berikut di dalam prompt MySQL:
+Jalankan perintah berikut di dalam prompt MySQL:
 
 ```sql
--- Buat user baru (opsional, tapi disarankan)
 CREATE USER 'irianmotor'@'localhost' IDENTIFIED BY 'irianmotor123';
-
--- Buat database
 CREATE DATABASE irian_motor;
-
--- Berikan akses penuh ke user tersebut
 GRANT ALL PRIVILEGES ON irian_motor.* TO 'irianmotor'@'localhost';
-
--- Wajib: Berikan akses global agar Prisma Shadow Database bisa bekerja (untuk migrasi)
 GRANT ALL PRIVILEGES ON *.* TO 'irianmotor'@'localhost';
-
 FLUSH PRIVILEGES;
 ```
 
-> **Catatan:** Jika Anda menggunakan Linux (Ubuntu/Debian), Prisma MySQL adapter memerlukan koneksi murni. Pastikan Anda menonaktifkan plugin caching pada MariaDB/MySQL jika terjadi error "unsupported capability" (seperti memodifikasi `/etc/mysql/my.cnf` untuk mengabaikan `mariadb.conf.d`).
-
-### 3. Instalasi Dependensi & Clone Proyek
-
-Buka terminal di lokasi tempat Anda ingin menyimpan proyek, lalu jalankan:
+### 3. Clone & Install
 
 ```bash
-# Clone proyek (jika dari Github)
 git clone https://github.com/username/irian-motor.git
 cd irian-motor
-
-# Install dependensi
 npm install
 ```
 
-### 4. Konfigurasi Environment Variables
+### 4. Konfigurasi Environment
 
-Di dalam root folder proyek, buat file baru bernama `.env`.
-Isi file `.env` dengan konfigurasi berikut, sesuaikan dengan kredensial MySQL yang dibuat di langkah 2:
+Buat file `.env` di root project:
 
 ```env
-# Format: mysql://USER:PASSWORD@HOST:PORT/DATABASE
 DATABASE_URL="mysql://irianmotor:irianmotor123@127.0.0.1:3306/irian_motor"
-
-# Secret key untuk mengenkripsi sesi login (bisa diganti dengan string acak apa saja)
-SESSION_SECRET="ganti-dengan-secret-key-anda-yang-aman-minimal-32-karakter"
+SESSION_SECRET="ganti-dengan-random-string-minimal-32-karakter"
 ```
 
-### 5. Generate Client, Migrasi, & Seeding Database
+Generate `SESSION_SECRET` yang aman:
+```bash
+openssl rand -base64 32
+```
 
-Jalankan perintah-perintah berikut secara berurutan untuk menyiapkan struktur database dan data awal:
+### 5. Setup Database
 
 ```bash
-# 1. Meng-generate Prisma Client (menggunakan adapter Prisma 7)
+# Generate Prisma Client
 npx prisma generate
 
-# 2. Menjalankan migrasi untuk membuat tabel-tabel di database
+# Jalankan migrasi
 npx prisma migrate dev --name init
 
-# 3. Mengisi data awal (Cabang, User Admin/Kasir, Servis, dan Sparepart)
+# Isi data awal (cabang, user, servis, sparepart)
 npx prisma db seed
 ```
 
-### 5. Menjalankan Server Development
-
-Setelah database siap, Anda bisa menjalankan aplikasi:
+### 6. Jalankan Aplikasi
 
 ```bash
 npm run dev
 ```
 
-Buka browser Anda dan akses **[http://localhost:3000](http://localhost:3000)**.
+Buka **[http://localhost:3000](http://localhost:3000)**
 
 ---
 
-## 🔐 Kredensial Login (Testing)
+## 🔐 Kredensial Default
 
-Berikut adalah daftar akun yang terdaftar di sistem untuk pengujian aplikasi:
+> ⚠️ **Ganti password sebelum digunakan di production!**
+> Jalankan: `npx tsx scripts/reset-password.ts`
 
-**Admin (Owner — Bisa melihat semua cabang & laporan):**
-
-- Email: `[EMAIL_ADDRESS]`
-- Password: `admin123`
-
-**Kasir (Hanya bisa mengakses cabang masing-masing):**
-
-- **Irian Motor Indihiang**: `irian@indihiang.com` / `kasir123`
-- **Hidayah Auto Service**: `has@burujul.com` / `kasir123`
-- **Irian Motor Ciamis**: `irian@ciamis.com` / `kasir123`
+| Role | Email | Password Default |
+|------|-------|-----------------|
+| Admin | `admin@irianmotor.com` | *(set saat seed)* |
+| Kasir Indihiang | `kasir1@irianmotor.com` | *(set saat seed)* |
+| Kasir Irian Timur | `kasir2@irianmotor.com` | *(set saat seed)* |
+| Kasir Irian Barat | `kasir3@irianmotor.com` | *(set saat seed)* |
 
 ---
 
-## 📁 Struktur Utama Kode
+## 📁 Struktur Kode
 
-- `/src/app` — Routing dan halaman aplikasi (Route `/admin`, `/kasir`, `/login`).
-- `/src/components` — Komponen UI terpisah (Layout, UI Reusable seperti Modal, Table, Button).
-- `/src/actions` — Server Actions (Logika backend untuk operasi CRUD ke database).
-- `/src/lib` — Konfigurasi Prisma client, sistem session, dan fungsi utilitas.
-- `/prisma` — Skema database `schema.prisma` dan file seeding `seed.ts`.
+```
+src/
+├── app/
+│   ├── admin/          # Halaman admin (dashboard, laporan, master data, dll)
+│   ├── kasir/          # Halaman kasir (transaksi, pelanggan, sparepart)
+│   ├── profil/         # Halaman profil & ganti password (semua role)
+│   ├── login/          # Halaman login
+│   └── api/            # API routes (upload foto, import Excel)
+├── actions/            # Server Actions — logika CRUD ke database
+├── components/         # Komponen UI (Layout, Modal, Table, Button, dll)
+└── lib/                # Prisma client, session, utils
+
+prisma/
+├── schema.prisma       # Definisi skema database
+├── seed.ts             # Data awal (cabang, user, servis, sparepart)
+└── migrations/         # Riwayat migrasi database
+
+scripts/
+├── backup.sh           # Script backup database & uploads
+└── reset-password.ts   # Script reset password user via CLI
+
+uploads/
+└── receipts/           # Foto nota pembelian (tidak di-commit ke Git)
+```
+
+---
+
+## 🗄️ Backup
+
+Jalankan backup manual:
+```bash
+bash scripts/backup.sh
+```
+
+Atau jadwalkan otomatis setiap hari jam 02:00 via cron:
+```bash
+crontab -e
+# Tambahkan:
+0 2 * * * bash /path/to/project/scripts/backup.sh >> /tmp/backup-irian.log 2>&1
+```
+
+Hasil backup tersimpan di `~/backup-irian-motor/` (database + foto nota).
+
+---
+
+## 🔄 Setelah Update Schema Prisma
+
+Setiap kali `schema.prisma` diubah:
+```bash
+npx prisma migrate dev --name nama_perubahan
+npx prisma generate
+```
+
+---
+
+## 📋 Catatan Production
+
+- Gunakan **Ubuntu 22.04 LTS** di VPS
+- Pasang **SSL/HTTPS** via Certbot (Let's Encrypt)
+- Gunakan **PM2** untuk menjaga proses Node.js tetap berjalan
+- Gunakan **Nginx** sebagai reverse proxy
+- Folder `uploads/` harus di-backup secara berkala
+- Jangan commit file `.env` ke repository
