@@ -30,9 +30,14 @@ Aplikasi web multi-cabang untuk manajemen bengkel motor. Mencakup kasir transaks
 | Pelanggan korporat + tagihan borongan | ✅              | —                 |
 | Laporan transaksi + ekspor Excel      | ✅              | ✅                |
 | Laporan pembelian sparepart           | ✅              | —                 |
-| Kelola cabang + media sosial          | ✅              | —                 |
+| Kelola cabang (Tambah, Edit, Hapus)   | ✅              | —                 |
 | Kelola pengguna + ganti password      | ✅              | —                 |
 | Profil & ganti password sendiri       | ✅              | ✅                |
+
+### ⚡ Pembaruan Performa & Keamanan
+- **Server-Side Pagination:** Tabel data berskala besar (Transaksi, Pelanggan, Sparepart) kini dimuat secara bertahap (per 50 data) langsung dari server, sehingga performa aplikasi tetap sangat ringan tanpa membebani _browser_.
+- **Isolasi Data Cabang:** Akun Kasir dikunci secara absolut (_backend-level_) agar hanya dapat membaca dan mencatat data (transaksi, stok, pelanggan) yang berada di cabang penugasannya sendiri, mencegah kebocoran data antar cabang.
+- **Soft Delete:** Data krusial seperti cabang dan pengguna tidak dihapus secara permanen jika sudah memiliki riwayat transaksi, melainkan dinonaktifkan untuk menjaga integritas laporan riwayat masa lalu.
 
 ---
 
