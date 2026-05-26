@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useTransition, useEffect } from 'react'
+import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import Table from '@/components/ui/Table'
 import Badge from '@/components/ui/Badge'
 import { formatCurrency } from '@/lib/utils'
@@ -17,31 +18,46 @@ interface SparepartRow {
 
 interface StockClientProps {
   initialSpareparts: SparepartRow[]
+  totalCount: number
 }
 
-export default function StockClient({ initialSpareparts }: StockClientProps) {
-  const [spareparts] = useState(initialSpareparts)
-  const [searchQuery, setSearchQuery] = useState('')
+export default function StockClient({ initialSpareparts, totalCount }: StockClientProps) {
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const [isPending, startTransition] = useTransition()
+
+  const initialSearch = searchParams.get('search') || ''
+  const [searchQuery, setSearchQuery] = useState(initialSearch)
   const [filter, setFilter] = useState<'all' | 'low' | 'empty'>('all')
 
-  const filteredData = spareparts.filter((sp) => {
-    // Search filter
-    const matchesSearch =
-      !searchQuery ||
-      sp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (sp.sku && sp.sku.toLowerCase().includes(searchQuery.toLowerCase()))
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      startTransition(() => {
+        const params = new URLSearchParams(searchParams.toString())
+        if (searchQuery) {
+          params.set('search', searchQuery)
+        } else {
+          params.delete('search')
+        }
+        params.set('page', '1')
+        router.replace(`${pathname}?${params.toString()}`)
+      })
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [searchQuery, pathname, router, searchParams])
 
-    // Stock filter
+  const filteredData = initialSpareparts.filter((sp) => {
+    // Stock filter (masih client-side untuk halaman ini)
     const matchesFilter =
       filter === 'all' ||
       (filter === 'low' && sp.stock > 0 && sp.stock <= 5) ||
       (filter === 'empty' && sp.stock === 0)
-
-    return matchesSearch && matchesFilter
+    return matchesFilter
   })
 
-  const lowStockCount = spareparts.filter((sp) => sp.stock > 0 && sp.stock <= 5).length
-  const emptyStockCount = spareparts.filter((sp) => sp.stock === 0).length
+  const lowStockCount = initialSpareparts.filter((sp) => sp.stock > 0 && sp.stock <= 5).length
+  const emptyStockCount = initialSpareparts.filter((sp) => sp.stock === 0).length
 
   const getStockBadge = (stock: number) => {
     if (stock === 0) return <Badge variant="danger" size="md">Habis</Badge>
@@ -146,12 +162,15 @@ export default function StockClient({ initialSpareparts }: StockClientProps) {
       </div>
 
       {/* Count */}
-      <p className="text-sm text-slate-500 mb-3">
-        {filteredData.length} sparepart ditampilkan
-      </p>
+      <div className="flex items-center gap-2 mb-3">
+        <p className="text-sm text-slate-500">
+          {filteredData.length} item dari total {totalCount} sparepart (halaman ini)
+        </p>
+        {isPending && <span className="text-primary-500 animate-pulse text-xs">Mencari...</span>}
+      </div>
 
       {/* Table */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 overflow-hidden">
+      <div className={`bg-white rounded-2xl border border-slate-200/80 overflow-hidden transition-opacity ${isPending ? 'opacity-50' : 'opacity-100'}`}>
         <Table
           columns={columns}
           data={filteredData}

@@ -1,5 +1,5 @@
 import Header from '@/components/layout/Header'
-import { getTransactions } from '@/actions/transaction'
+import { getPaginatedTransactions } from '@/actions/transaction'
 import { prisma } from '@/lib/prisma'
 import AdminTransactionsClient from './AdminTransactionsClient'
 import type { Metadata } from 'next'
@@ -13,8 +13,8 @@ export const metadata: Metadata = {
 export default async function AdminTransaksiPage() {
   const todayStr = new Date().toISOString().slice(0, 10)
 
-  const [transactions, branches] = await Promise.all([
-    getTransactions(undefined, todayStr),
+  const [result, branches] = await Promise.all([
+    getPaginatedTransactions(1, 50, undefined, todayStr),
     prisma.branch.findMany({
       where: { isActive: true },
       select: { id: true, name: true },
@@ -30,9 +30,14 @@ export default async function AdminTransaksiPage() {
       />
       <div className="p-4 sm:p-6 animate-fade-in">
         <AdminTransactionsClient
-          initialData={transactions}
+          initialData={result.data}
           initialDate={todayStr}
           branches={branches}
+          initialPagination={{
+            currentPage: result.currentPage,
+            totalPages: result.totalPages,
+            totalCount: result.totalCount
+          }}
         />
       </div>
     </>

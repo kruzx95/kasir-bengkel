@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useEffect, useTransition } from 'react'
+import { useState, useTransition, useEffect } from 'react'
+import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import Table from '@/components/ui/Table'
 import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
 import CustomerFormModal from '@/components/kasir/CustomerFormModal'
-import { getCustomers } from '@/actions/customer'
 import { Plus, Pencil, Users, Search, Bike } from 'lucide-react'
 
 interface CustomerRow {
@@ -31,26 +31,37 @@ interface CustomerRow {
 interface CustomersClientProps {
   initialCustomers: CustomerRow[]
   branchId: string
+  totalCount: number
 }
 
-export default function CustomersClient({ initialCustomers, branchId }: CustomersClientProps) {
-  const [modalOpen, setModalOpen] = useState(false)
-  const [editData, setEditData] = useState<CustomerRow | null>(null)
-  const [customers, setCustomers] = useState(initialCustomers)
-  const [searchQuery, setSearchQuery] = useState('')
+export default function CustomersClient({ initialCustomers, branchId, totalCount }: CustomersClientProps) {
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const [isPending, startTransition] = useTransition()
 
-  useEffect(() => {
-    startTransition(() => setCustomers(initialCustomers))
-  }, [initialCustomers])
+  const [modalOpen, setModalOpen] = useState(false)
+  const [editData, setEditData] = useState<CustomerRow | null>(null)
+  
+  const initialSearch = searchParams.get('search') || ''
+  const [searchQuery, setSearchQuery] = useState(initialSearch)
 
-  const handleSearch = (query: string) => {
-    setSearchQuery(query)
-    startTransition(async () => {
-      const results = await getCustomers(branchId, query || undefined)
-      setCustomers(results as CustomerRow[])
-    })
-  }
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      startTransition(() => {
+        const params = new URLSearchParams(searchParams.toString())
+        if (searchQuery) {
+          params.set('search', searchQuery)
+        } else {
+          params.delete('search')
+        }
+        params.set('page', '1') // reset to page 1 on new search
+        router.replace(`${pathname}?${params.toString()}`)
+      })
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [searchQuery, pathname, router, searchParams])
 
   const handleEdit = (customer: CustomerRow) => {
     setEditData(customer)
@@ -135,7 +146,7 @@ export default function CustomersClient({ initialCustomers, branchId }: Customer
             type="text"
             placeholder="Cari nama, plat nomor, atau no. HP..."
             value={searchQuery}
-            onChange={(e) => handleSearch(e.target.value)}
+            onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 transition-all duration-200 hover:border-slate-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none"
           />
           {isPending && (
@@ -155,15 +166,17 @@ export default function CustomersClient({ initialCustomers, branchId }: Customer
       </div>
 
       {/* Count */}
-      <p className="text-sm text-slate-500 mb-3">
-        {customers.length} pelanggan ditemukan
-      </p>
+      <div className="flex items-center gap-2 mb-3">
+        <p className="text-sm text-slate-500">
+          {initialCustomers.length} item dari total {totalCount} pelanggan (halaman ini)
+        </p>
+      </div>
 
       {/* Table */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 overflow-hidden">
+      <div className={`bg-white rounded-2xl border border-slate-200/80 overflow-hidden transition-opacity ${isPending ? 'opacity-50' : 'opacity-100'}`}>
         <Table
           columns={columns}
-          data={customers}
+          data={initialCustomers}
           keyExtractor={(row) => row.id}
           emptyMessage="Belum ada pelanggan terdaftar."
         />

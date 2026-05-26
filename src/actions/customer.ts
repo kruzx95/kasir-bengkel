@@ -53,6 +53,62 @@ export async function getCustomers(branchId?: string | null, search?: string) {
   })
 }
 
+export type PaginatedResult<T> = {
+  data: T[]
+  totalCount: number
+  totalPages: number
+  currentPage: number
+}
+
+export async function getPaginatedCustomers(
+  page = 1,
+  limit = 50,
+  branchId?: string | null,
+  search?: string
+): Promise<PaginatedResult<any>> {
+  try {
+    const session = await getSession()
+    if (!session) return { data: [], totalCount: 0, totalPages: 0, currentPage: page }
+
+    const where: Record<string, unknown> = {}
+
+    if (branchId) {
+      where.branchId = branchId
+    } else if (session.role === 'KASIR' && session.branchId) {
+      where.branchId = session.branchId
+    }
+
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { plateNumber: { contains: search, mode: 'insensitive' } },
+        { phone: { contains: search, mode: 'insensitive' } },
+      ]
+    }
+
+    const [totalCount, data] = await prisma.$transaction([
+      prisma.customer.count({ where }),
+      prisma.customer.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        include: { branch: true },
+        orderBy: { name: 'asc' },
+      })
+    ])
+
+    return {
+      data,
+      totalCount,
+      totalPages: Math.ceil(totalCount / limit),
+      currentPage: page
+    }
+  } catch (error) {
+    console.error('Get Paginated Customers Error:', error)
+    return { data: [], totalCount: 0, totalPages: 0, currentPage: page }
+  }
+}
+
 export async function getCustomerById(id: string) {
   return prisma.customer.findUnique({
     where: { id },

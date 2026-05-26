@@ -1,18 +1,27 @@
 import Header from '@/components/layout/Header'
 import { getSession } from '@/lib/session'
-import { getCustomers } from '@/actions/customer'
+import { getPaginatedCustomers } from '@/actions/customer'
 import CustomersClient from './CustomersClient'
+import Pagination from '@/components/ui/Pagination'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
   title: 'Daftar Pelanggan',
 }
 
-export default async function PelangganPage() {
+export default async function PelangganPage(
+  props: { searchParams?: Promise<{ [key: string]: string | string[] | undefined }> }
+) {
+  const searchParams = await props.searchParams
+  const page = Number(searchParams?.page) || 1
+  const search = typeof searchParams?.search === 'string' ? searchParams.search : undefined
+  const limit = 50
+
   const session = await getSession()
   if (!session || !session.branchId) return null
 
-  const customers = await getCustomers(session.branchId)
+  const result = await getPaginatedCustomers(page, limit, session.branchId, search)
+  const customers = result.data
 
   return (
     <>
@@ -24,6 +33,12 @@ export default async function PelangganPage() {
         <CustomersClient
           initialCustomers={customers as Parameters<typeof CustomersClient>[0]['initialCustomers']}
           branchId={session.branchId}
+          totalCount={result.totalCount}
+        />
+        <Pagination 
+          currentPage={result.currentPage}
+          totalPages={result.totalPages}
+          totalCount={result.totalCount}
         />
       </div>
     </>

@@ -6,7 +6,7 @@ import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import { formatCurrency } from '@/lib/utils'
 import { Receipt, Eye, Filter, Calendar } from 'lucide-react'
-import { getTransactions } from '@/actions/transaction'
+import { getPaginatedTransactions } from '@/actions/transaction'
 import Link from 'next/link'
 
 interface AdminTransactionRow {
@@ -27,6 +27,7 @@ interface AdminTransactionsClientProps {
   initialData: AdminTransactionRow[]
   initialDate: string
   branches: { id: string; name: string }[]
+  initialPagination: { totalPages: number; totalCount: number; currentPage: number }
 }
 
 const getTypeBadge = (type: string) => {
@@ -38,17 +39,31 @@ const getTypeBadge = (type: string) => {
   }
 }
 
-export default function AdminTransactionsClient({ initialData, initialDate, branches }: AdminTransactionsClientProps) {
+export default function AdminTransactionsClient({ initialData, initialDate, branches, initialPagination }: AdminTransactionsClientProps) {
   const [isPending, startTransition] = useTransition()
   const [data, setData] = useState<AdminTransactionRow[]>(initialData)
+  const [pagination, setPagination] = useState(initialPagination)
   const [selectedDate, setSelectedDate] = useState(initialDate)
   const [selectedBranch, setSelectedBranch] = useState('')
 
-  const handleFilter = () => {
+  const fetchData = (page: number, branch?: string, date?: string) => {
     startTransition(async () => {
-      const result = await getTransactions(selectedBranch || undefined, selectedDate)
-      setData(result as AdminTransactionRow[])
+      const result = await getPaginatedTransactions(page, 50, branch || undefined, date)
+      setData(result.data as AdminTransactionRow[])
+      setPagination({
+        currentPage: result.currentPage,
+        totalPages: result.totalPages,
+        totalCount: result.totalCount
+      })
     })
+  }
+
+  const handleFilter = () => {
+    fetchData(1, selectedBranch, selectedDate)
+  }
+
+  const handlePageChange = (newPage: number) => {
+    fetchData(newPage, selectedBranch, selectedDate)
   }
 
   const totalRevenue = data
@@ -198,6 +213,33 @@ export default function AdminTransactionsClient({ initialData, initialDate, bran
           </table>
         </div>
       </div>
+
+      {/* Pagination Controls */}
+      {pagination.totalPages > 1 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-4 border-t border-slate-200">
+          <div className="text-sm text-slate-500">
+            Menampilkan halaman <span className="font-semibold text-slate-900">{pagination.currentPage}</span> dari <span className="font-semibold text-slate-900">{pagination.totalPages}</span> (Total: {pagination.totalCount} transaksi)
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handlePageChange(pagination.currentPage - 1)}
+              disabled={pagination.currentPage <= 1 || isPending}
+            >
+              Sebelumnya
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handlePageChange(pagination.currentPage + 1)}
+              disabled={pagination.currentPage >= pagination.totalPages || isPending}
+            >
+              Selanjutnya
+            </Button>
+          </div>
+        </div>
+      )}
     </>
   )
 }

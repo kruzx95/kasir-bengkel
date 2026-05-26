@@ -1,7 +1,8 @@
 import Header from '@/components/layout/Header'
 import { getSession } from '@/lib/session'
-import { getTransactions } from '@/actions/transaction'
+import { getPaginatedTransactions } from '@/actions/transaction'
 import TransactionsClient from './TransactionsClient'
+import Pagination from '@/components/ui/Pagination'
 import type { Metadata } from 'next'
 
 type KasirTransactionRow = {
@@ -23,12 +24,19 @@ export const metadata: Metadata = {
   title: 'Daftar Transaksi',
 }
 
-export default async function KasirTransaksiPage() {
+export default async function KasirTransaksiPage(
+  props: { searchParams?: Promise<{ [key: string]: string | string[] | undefined }> }
+) {
+  const searchParams = await props.searchParams
+  const page = Number(searchParams?.page) || 1
+  const limit = 50
+
   const session = await getSession()
   if (!session || !session.branchId) return null
 
-  // Get today's transactions
-  const transactions = await getTransactions(session.branchId) as KasirTransactionRow[]
+  // Get today's paginated transactions
+  const result = await getPaginatedTransactions(page, limit, session.branchId)
+  const transactions = result.data as KasirTransactionRow[]
 
   return (
     <>
@@ -38,6 +46,11 @@ export default async function KasirTransaksiPage() {
       />
       <div className="p-4 sm:p-6 animate-fade-in">
         <TransactionsClient initialTransactions={transactions} />
+        <Pagination 
+          currentPage={result.currentPage}
+          totalPages={result.totalPages}
+          totalCount={result.totalCount}
+        />
       </div>
     </>
   )

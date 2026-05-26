@@ -41,6 +41,60 @@ export async function getSpareparts(branchId?: string | null) {
   })
 }
 
+export type PaginatedResult<T> = {
+  data: T[]
+  totalCount: number
+  totalPages: number
+  currentPage: number
+}
+
+export async function getPaginatedSpareparts(
+  page = 1,
+  limit = 50,
+  branchId?: string | null,
+  search?: string
+): Promise<PaginatedResult<any>> {
+  try {
+    const session = await getSession()
+    if (!session) return { data: [], totalCount: 0, totalPages: 0, currentPage: page }
+
+    const where: Record<string, unknown> = { isActive: true }
+    if (branchId) {
+      where.branchId = branchId
+    } else if (session.role === 'KASIR' && session.branchId) {
+      where.branchId = session.branchId
+    }
+
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { sku: { contains: search, mode: 'insensitive' } },
+      ]
+    }
+
+    const [totalCount, data] = await prisma.$transaction([
+      prisma.sparepart.count({ where }),
+      prisma.sparepart.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        include: { branch: true },
+        orderBy: { name: 'asc' },
+      })
+    ])
+
+    return {
+      data,
+      totalCount,
+      totalPages: Math.ceil(totalCount / limit),
+      currentPage: page
+    }
+  } catch (error) {
+    console.error('Get Paginated Spareparts Error:', error)
+    return { data: [], totalCount: 0, totalPages: 0, currentPage: page }
+  }
+}
+
 export async function getSparepartById(id: string) {
   return prisma.sparepart.findUnique({
     where: { id },

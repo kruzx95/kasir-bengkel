@@ -21,6 +21,7 @@ interface DraftState {
   paymentMethod: 'CASH' | 'TRANSFER' | 'QRIS'
   mechanicId: string
   notes: string
+  odometer: number | ''
 }
 
 const defaultDraft: DraftState = {
@@ -31,6 +32,7 @@ const defaultDraft: DraftState = {
   paymentMethod: 'CASH',
   mechanicId: '',
   notes: '',
+  odometer: '',
 }
 
 function loadDraft(): DraftState {
@@ -88,6 +90,7 @@ export default function NewTransactionClient({
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'TRANSFER' | 'QRIS'>(() => loadDraft().paymentMethod)
   const [mechanicId, setMechanicId] = useState<string>(() => loadDraft().mechanicId)
   const [notes, setNotes] = useState<string>(() => loadDraft().notes)
+  const [odometer, setOdometer] = useState<number | ''>(() => loadDraft().odometer)
   const [hasDraft, setHasDraft] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false
     const raw = localStorage.getItem(DRAFT_KEY)
@@ -97,10 +100,10 @@ export default function NewTransactionClient({
 
   // Auto-save ke localStorage setiap kali state berubah
   useEffect(() => {
-    const draft: DraftState = { customerId, isCorporate, items, discount, paymentMethod, mechanicId, notes }
+    const draft: DraftState = { customerId, isCorporate, items, discount, paymentMethod, mechanicId, notes, odometer }
     saveDraft(draft)
     startTransition(() => setHasDraft(items.length > 0))
-  }, [customerId, isCorporate, items, discount, paymentMethod, mechanicId, notes])
+  }, [customerId, isCorporate, items, discount, paymentMethod, mechanicId, notes, odometer])
 
   const handleResetDraft = () => {
     if (!confirm('Hapus semua item dan mulai transaksi baru?')) return
@@ -112,6 +115,7 @@ export default function NewTransactionClient({
     setPaymentMethod('CASH')
     setMechanicId('')
     setNotes('')
+    setOdometer('')
     setHasDraft(false)
   }
 
@@ -210,6 +214,7 @@ export default function NewTransactionClient({
         discount,
         paymentMethod,
         notes: notes || null,
+        odometer: odometer === '' ? null : odometer,
         isCorporate: isSelectedCorporate && isCorporate,
       }
       
@@ -401,6 +406,19 @@ export default function NewTransactionClient({
                 setIsCorporate(false)
               }}
             />
+
+            {customerId && (
+              <Input
+                id="odometer"
+                name="odometer"
+                label="Odometer / Jarak Tempuh (Km) Terbaru"
+                type="number"
+                placeholder="Contoh: 15200"
+                min="0"
+                value={odometer}
+                onChange={(e) => setOdometer(e.target.value ? Number(e.target.value) : '')}
+              />
+            )}
 
             {/* Corporate billing toggle */}
             {isSelectedCorporate && (

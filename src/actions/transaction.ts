@@ -21,6 +21,7 @@ const transactionSchema = z.object({
   paymentMethod: z.enum(['CASH', 'TRANSFER', 'QRIS']).default('CASH'),
   notes: z.string().optional().nullable(),
   isCorporate: z.boolean().optional().default(false),
+  odometer: z.number().int().min(0).optional().nullable(),
 })
 
 export type TransactionPayload = z.infer<typeof transactionSchema>
@@ -143,6 +144,14 @@ export async function createTransaction(payload: TransactionPayload): Promise<Tr
         }
       }
 
+      // 5. Update Customer Odometer (jika ada)
+      if (data.customerId && data.odometer !== undefined && data.odometer !== null) {
+        await tx.customer.update({
+          where: { id: data.customerId },
+          data: { odometer: data.odometer }
+        })
+      }
+
       return transaction
     })
 
@@ -209,6 +218,81 @@ export async function getTransactions(branchId?: string, dateStr?: string) {
   } catch (error) {
     console.error('Get Transactions Error:', error)
     return []
+  }
+}
+
+export type PaginatedResult<T> = {
+  data: T[]
+  totalCount: number
+  totalPages: number
+  currentPage: number
+}
+
+export async function getPaginatedTransactions(
+  page = 1,
+  limit = 50,
+  branchId?: string,
+  dateStr?: string
+): Promise<PaginatedResult<any>> {
+  try {
+    const session = await getSession()
+    if (!session) return { data: [], totalCount: 0, totalPages: 0, currentPage: page }
+
+    const targetBranch = session.role === 'KASIR' ? session.branchId : branchId
+    const targetDate = dateStr ? new Date(dateStr) : undefined
+    
+    let dateFilter = {}
+    if (targetDate) {
+      const startOfDay = new Date(targetDate)
+      startOfDay.setHours(0, 0, 0, 0)
+      const endOfDay = new Date(targetDate)
+      endOfDay.setHours(23, 59, 59, 999)
+      dateFilter = {
+        transactionDate: {
+          gte: startOfDay,
+          lte: endOfDay,
+        }
+      }
+    }
+
+    const where = {
+      ...(targetBranch ? { branchId: targetBranch } : {}),
+      ...dateFilter
+    }
+
+    const [totalCount, data] = await prisma.$transaction([
+      prisma.transaction.count({ where }),
+      prisma.transaction.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        select: {
+          id: true,
+          invoiceNumber: true,
+          type: true,
+          status: true,
+          total: true,
+          paymentMethod: true,
+          createdAt: true,
+          customer: { select: { name: true, plateNumber: true } },
+          user: { select: { name: true } },
+          mechanic: { select: { name: true } },
+          branch: { select: { name: true } },
+          items: { select: { itemType: true, subtotal: true } }
+        },
+        orderBy: { createdAt: 'desc' }
+      })
+    ])
+
+    return {
+      data,
+      totalCount,
+      totalPages: Math.ceil(totalCount / limit),
+      currentPage: page
+    }
+  } catch (error) {
+    console.error('Get Paginated Transactions Error:', error)
+    return { data: [], totalCount: 0, totalPages: 0, currentPage: page }
   }
 }
 
