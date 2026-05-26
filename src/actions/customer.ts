@@ -39,9 +39,9 @@ export async function getCustomers(branchId?: string | null, search?: string) {
 
   if (search) {
     where.OR = [
-      { name: { contains: search, mode: 'insensitive' } },
-      { plateNumber: { contains: search, mode: 'insensitive' } },
-      { phone: { contains: search, mode: 'insensitive' } },
+      { name: { contains: search } },
+      { plateNumber: { contains: search } },
+      { phone: { contains: search } },
     ]
   }
 
@@ -80,9 +80,9 @@ export async function getPaginatedCustomers(
 
     if (search) {
       where.OR = [
-        { name: { contains: search, mode: 'insensitive' } },
-        { plateNumber: { contains: search, mode: 'insensitive' } },
-        { phone: { contains: search, mode: 'insensitive' } },
+        { name: { contains: search } },
+        { plateNumber: { contains: search } },
+        { phone: { contains: search } },
       ]
     }
 

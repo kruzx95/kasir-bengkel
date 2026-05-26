@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition, useEffect } from 'react'
+import { useState, useTransition, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import Table from '@/components/ui/Table'
 import Badge from '@/components/ui/Badge'
@@ -31,10 +31,16 @@ export default function StockClient({ initialSpareparts, totalCount }: StockClie
   const [searchQuery, setSearchQuery] = useState(initialSearch)
   const [filter, setFilter] = useState<'all' | 'low' | 'empty'>('all')
 
+  // Simpan searchParams ke ref agar tidak masuk dependency array dan menyebabkan infinite loop
+  const searchParamsRef = useRef(searchParams)
+  useEffect(() => {
+    searchParamsRef.current = searchParams
+  }, [searchParams])
+
   useEffect(() => {
     const timer = setTimeout(() => {
       startTransition(() => {
-        const params = new URLSearchParams(searchParams.toString())
+        const params = new URLSearchParams(searchParamsRef.current.toString())
         if (searchQuery) {
           params.set('search', searchQuery)
         } else {
@@ -45,7 +51,7 @@ export default function StockClient({ initialSpareparts, totalCount }: StockClie
       })
     }, 500)
     return () => clearTimeout(timer)
-  }, [searchQuery, pathname, router, searchParams])
+  }, [searchQuery, pathname, router])
 
   const filteredData = initialSpareparts.filter((sp) => {
     // Stock filter (masih client-side untuk halaman ini)

@@ -81,28 +81,28 @@ npm install
 
 ### 4. Konfigurasi Environment
 
-Buat file `.env` di root project:
+Salin file template environment yang sudah tersedia:
+
+```bash
+cp .env.example .env
+```
+
+Lalu edit file `.env` dan sesuaikan nilainya:
 
 ```env
-DATABASE_URL="mysql://irianmotor:irianmotor123@127.0.0.1:3306/irian_motor"
-SESSION_SECRET="ganti-dengan-random-string-minimal-32-karakter"
+# Koneksi database MySQL
+DATABASE_URL="mysql://USER:PASSWORD@HOST:3306/irian_motor?allowPublicKeyRetrieval=true&sslAccept=strict"
+
+# Kunci enkripsi sesi JWT — generate dengan:
+# openssl rand -base64 32
+SESSION_SECRET="isi-dengan-random-string-minimal-32-karakter"
 ```
 
-Generate `SESSION_SECRET` yang aman:
+### 5. Migrasi Database & Data Awal
+
+> ℹ️ Langkah `prisma generate` dan `prisma migrate deploy` sudah **berjalan otomatis** saat `npm install` (via script `postinstall`). Anda hanya perlu menjalankan seed untuk data awal:
 
 ```bash
-openssl rand -base64 32
-```
-
-### 5. Setup Database
-
-```bash
-# Generate Prisma Client
-npx prisma generate
-
-# Jalankan migrasi
-npx prisma migrate dev --name init
-
 # Isi data awal (cabang, user, servis, sparepart)
 npx prisma db seed
 ```

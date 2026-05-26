@@ -32,6 +32,7 @@ yarn-error.log*
 
 # env files — jangan pernah commit kredensial
 .env*
+!.env.example
 
 # vercel
 .vercel

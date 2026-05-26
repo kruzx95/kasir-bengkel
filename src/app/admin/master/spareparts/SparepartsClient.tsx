@@ -1,6 +1,6 @@
 'use client'
 
-import { useTransition, useEffect, useState } from 'react'
+import { useTransition, useEffect, useState, useRef } from 'react'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import Table from '@/components/ui/Table'
 import Button from '@/components/ui/Button'
@@ -56,28 +56,35 @@ export default function SparepartsClient({ spareparts, branches, totalCount }: S
   const [searchQuery, setSearchQuery] = useState(initialSearch)
   const [filterBranch, setFilterBranch] = useState(initialBranch)
 
-  // Debounce search
+  // Simpan searchParams ke ref agar bisa diakses di useEffect tanpa memicu re-render loop
+  const searchParamsRef = useRef(searchParams)
+  useEffect(() => {
+    searchParamsRef.current = searchParams
+  }, [searchParams])
+
+  // Debounce search — hanya terpicu saat searchQuery berubah (user mengetik)
+  // searchParamsRef dipakai (bukan searchParams langsung) agar tidak masuk dependency array
   useEffect(() => {
     const timer = setTimeout(() => {
       startTransition(() => {
-        const params = new URLSearchParams(searchParams.toString())
+        const params = new URLSearchParams(searchParamsRef.current.toString())
         if (searchQuery) {
           params.set('search', searchQuery)
         } else {
           params.delete('search')
         }
-        params.set('page', '1') // reset to page 1 on new search
+        params.set('page', '1')
         router.replace(`${pathname}?${params.toString()}`)
       })
     }, 500)
     return () => clearTimeout(timer)
-  }, [searchQuery, pathname, router, searchParams])
+  }, [searchQuery, pathname, router]) // searchParams TIDAK dimasukkan — itu yang menyebabkan infinite loop
 
   // Branch filter change
   const handleBranchChange = (branchId: string) => {
     setFilterBranch(branchId)
     startTransition(() => {
-      const params = new URLSearchParams(searchParams.toString())
+      const params = new URLSearchParams(searchParamsRef.current.toString())
       if (branchId) {
         params.set('branch', branchId)
       } else {
