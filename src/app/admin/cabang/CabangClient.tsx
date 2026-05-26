@@ -1,11 +1,11 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { Building2, MapPin, Phone, CheckCircle, Edit2 } from 'lucide-react'
+import { Building2, MapPin, Phone, CheckCircle, Edit2, Plus, Trash2 } from 'lucide-react'
 import Modal, { ModalFooter } from '@/components/ui/Modal'
 import Input from '@/components/ui/Input'
 import Button from '@/components/ui/Button'
-import { updateBranch } from '@/actions/branch'
+import { updateBranch, createBranch, deleteBranch } from '@/actions/branch'
 import { useRouter } from 'next/navigation'
 
 interface Branch {
@@ -46,8 +46,10 @@ function FacebookIcon({ className }: { className?: string }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [editingBranch, setEditingBranch] = useState<Branch | null>(null)
+  const [isCreating, setIsCreating] = useState(false)
 
   const [formData, setFormData] = useState({
+    code: '',
     name: '',
     address: '',
     phone: '',
@@ -57,9 +59,26 @@ function FacebookIcon({ className }: { className?: string }) {
   })
   const [error, setError] = useState('')
 
+  const handleCreate = () => {
+    setIsCreating(true)
+    setEditingBranch(null)
+    setFormData({
+      code: '',
+      name: '',
+      address: '',
+      phone: '',
+      instagramHandle: '',
+      facebookPage: '',
+      whatsappNumber: '',
+    })
+    setError('')
+  }
+
   const handleEdit = (branch: Branch) => {
+    setIsCreating(false)
     setEditingBranch(branch)
     setFormData({
+      code: branch.code,
       name: branch.name,
       address: branch.address,
       phone: branch.phone || '',
@@ -70,24 +89,59 @@ function FacebookIcon({ className }: { className?: string }) {
     setError('')
   }
 
+  const handleDelete = (id: string) => {
+    if (!confirm('Yakin ingin menghapus / menonaktifkan cabang ini?')) return
+    startTransition(async () => {
+      const res = await deleteBranch(id)
+      if (res.success) {
+        router.refresh()
+      } else {
+        alert(res.message)
+      }
+    })
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!editingBranch) return
+    if (!editingBranch && !isCreating) return
     setError('')
 
     startTransition(async () => {
-      const res = await updateBranch(editingBranch.id, formData)
-      if (res.success) {
-        setEditingBranch(null)
-        router.refresh()
-      } else {
-        setError(res.message || 'Terjadi kesalahan')
+      if (isCreating) {
+        const res = await createBranch({ ...formData })
+        if (res.success) {
+          setIsCreating(false)
+          router.refresh()
+        } else {
+          setError(res.message || 'Terjadi kesalahan')
+        }
+      } else if (editingBranch) {
+        const res = await updateBranch(editingBranch.id, {
+          name: formData.name,
+          address: formData.address,
+          phone: formData.phone,
+          instagramHandle: formData.instagramHandle,
+          facebookPage: formData.facebookPage,
+          whatsappNumber: formData.whatsappNumber,
+        })
+        if (res.success) {
+          setEditingBranch(null)
+          router.refresh()
+        } else {
+          setError(res.message || 'Terjadi kesalahan')
+        }
       }
     })
   }
 
   return (
     <>
+      <div className="flex justify-end mb-4">
+        <Button icon={Plus} onClick={handleCreate}>
+          Tambah Cabang
+        </Button>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {branches.map((branch, index) => (
           <div
@@ -151,22 +205,35 @@ function FacebookIcon({ className }: { className?: string }) {
               )}
             </div>
 
-            {/* Edit Overlay Button */}
-            <button
-              onClick={() => handleEdit(branch)}
-              className="absolute top-4 right-4 p-2 bg-white/90 backdrop-blur border border-slate-200 text-slate-600 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:text-primary-600 hover:border-primary-200 shadow-sm"
-              title="Edit Data Cabang"
-            >
-              <Edit2 className="w-4 h-4" />
-            </button>
+            {/* Actions */}
+            <div className="absolute top-4 right-4 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button
+                onClick={() => handleEdit(branch)}
+                className="p-2 bg-white/90 backdrop-blur border border-slate-200 text-slate-600 rounded-lg hover:text-primary-600 hover:border-primary-200 shadow-sm"
+                title="Edit Data Cabang"
+              >
+                <Edit2 className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => handleDelete(branch.id)}
+                disabled={isPending}
+                className="p-2 bg-white/90 backdrop-blur border border-slate-200 text-slate-600 rounded-lg hover:text-red-600 hover:border-red-200 shadow-sm disabled:opacity-50"
+                title="Hapus Cabang"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         ))}
       </div>
 
       <Modal
-        open={!!editingBranch}
-        onClose={() => setEditingBranch(null)}
-        title="Edit Data Cabang"
+        open={!!editingBranch || isCreating}
+        onClose={() => {
+          setEditingBranch(null)
+          setIsCreating(false)
+        }}
+        title={isCreating ? "Tambah Cabang Baru" : "Edit Data Cabang"}
       >
         <form onSubmit={handleSubmit} className="p-6">
           {error && (
@@ -176,6 +243,15 @@ function FacebookIcon({ className }: { className?: string }) {
           )}
 
           <div className="space-y-4">
+            {isCreating && (
+              <Input
+                label="Kode Cabang"
+                placeholder="Contoh: BRG-01"
+                value={formData.code}
+                onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+                required
+              />
+            )}
             <Input
               label="Nama Cabang"
               value={formData.name}
@@ -223,7 +299,10 @@ function FacebookIcon({ className }: { className?: string }) {
           </div>
 
           <ModalFooter>
-            <Button type="button" variant="ghost" onClick={() => setEditingBranch(null)}>
+            <Button type="button" variant="ghost" onClick={() => {
+              setEditingBranch(null)
+              setIsCreating(false)
+            }}>
               Batal
             </Button>
             <Button type="submit" loading={isPending}>

@@ -171,7 +171,7 @@ export async function getTransactions(branchId?: string, dateStr?: string) {
     if (!session) return []
 
     // If kasir, force branchId
-    const targetBranch = session.role === 'KASIR' ? session.branchId : branchId
+    const targetBranch = session.role === 'KASIR' ? (session.branchId || 'UNASSIGNED') : branchId
 
     const targetDate = dateStr ? new Date(dateStr) : new Date()
     const startOfDay = new Date(targetDate)
@@ -182,7 +182,7 @@ export async function getTransactions(branchId?: string, dateStr?: string) {
 
     const transactions = await prisma.transaction.findMany({
       where: {
-        ...(targetBranch ? { branchId: targetBranch } : {}),
+        ...(targetBranch !== undefined ? { branchId: targetBranch } : {}),
         transactionDate: {
           gte: startOfDay,
           lte: endOfDay,
@@ -238,7 +238,7 @@ export async function getPaginatedTransactions(
     const session = await getSession()
     if (!session) return { data: [], totalCount: 0, totalPages: 0, currentPage: page }
 
-    const targetBranch = session.role === 'KASIR' ? session.branchId : branchId
+    const targetBranch = session.role === 'KASIR' ? (session.branchId || 'UNASSIGNED') : branchId
     const targetDate = dateStr ? new Date(dateStr) : undefined
     
     let dateFilter = {}
@@ -256,7 +256,7 @@ export async function getPaginatedTransactions(
     }
 
     const where = {
-      ...(targetBranch ? { branchId: targetBranch } : {}),
+      ...(targetBranch !== undefined ? { branchId: targetBranch } : {}),
       ...dateFilter
     }
 

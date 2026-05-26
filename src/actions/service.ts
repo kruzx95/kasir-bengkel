@@ -24,8 +24,8 @@ export async function getServices(branchId?: string | null) {
   const where: Record<string, unknown> = { isActive: true }
   if (branchId) {
     where.branchId = branchId
-  } else if (session.role === 'KASIR' && session.branchId) {
-    where.branchId = session.branchId
+  } else if (session.role === 'KASIR') {
+    where.branchId = session.branchId || 'UNASSIGNED'
   }
 
   return prisma.service.findMany({

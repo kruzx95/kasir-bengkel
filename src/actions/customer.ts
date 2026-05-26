@@ -33,8 +33,8 @@ export async function getCustomers(branchId?: string | null, search?: string) {
 
   if (branchId) {
     where.branchId = branchId
-  } else if (session.role === 'KASIR' && session.branchId) {
-    where.branchId = session.branchId
+  } else if (session.role === 'KASIR') {
+    where.branchId = session.branchId || 'UNASSIGNED'
   }
 
   if (search) {
@@ -74,8 +74,8 @@ export async function getPaginatedCustomers(
 
     if (branchId) {
       where.branchId = branchId
-    } else if (session.role === 'KASIR' && session.branchId) {
-      where.branchId = session.branchId
+    } else if (session.role === 'KASIR') {
+      where.branchId = session.branchId || 'UNASSIGNED'
     }
 
     if (search) {

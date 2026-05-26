@@ -7,7 +7,7 @@ export async function getDashboardMetrics() {
   const session = await getSession()
   if (!session) return null
 
-  const targetBranch = session.role === 'KASIR' ? session.branchId : undefined
+  const targetBranch = session.role === 'KASIR' ? (session.branchId || 'UNASSIGNED') : undefined
 
   // 1. Date ranges
   const today = new Date()
@@ -30,7 +30,7 @@ export async function getDashboardMetrics() {
     // Today's Revenue
     prisma.transaction.aggregate({
       where: {
-        ...(targetBranch ? { branchId: targetBranch } : {}),
+        ...(targetBranch !== undefined ? { branchId: targetBranch } : {}),
         transactionDate: { gte: today },
         status: 'COMPLETED',
       },
@@ -40,7 +40,7 @@ export async function getDashboardMetrics() {
     // This Month's Revenue
     prisma.transaction.aggregate({
       where: {
-        ...(targetBranch ? { branchId: targetBranch } : {}),
+        ...(targetBranch !== undefined ? { branchId: targetBranch } : {}),
         transactionDate: { gte: startOfMonth },
         status: 'COMPLETED',
       },
@@ -61,7 +61,7 @@ export async function getDashboardMetrics() {
     // Trend 7 Days
     prisma.transaction.findMany({
       where: {
-        ...(targetBranch ? { branchId: targetBranch } : {}),
+        ...(targetBranch !== undefined ? { branchId: targetBranch } : {}),
         transactionDate: { gte: sevenDaysAgo },
         status: 'COMPLETED',
       },
@@ -72,7 +72,7 @@ export async function getDashboardMetrics() {
     prisma.transactionItem.findMany({
       where: {
         transaction: {
-          ...(targetBranch ? { branchId: targetBranch } : {}),
+          ...(targetBranch !== undefined ? { branchId: targetBranch } : {}),
           transactionDate: { gte: startOfMonth },
           status: 'COMPLETED',
         },
@@ -83,7 +83,7 @@ export async function getDashboardMetrics() {
     // Low Stock Items (< 5)
     prisma.sparepart.findMany({
       where: {
-        ...(targetBranch ? { branchId: targetBranch } : {}),
+        ...(targetBranch !== undefined ? { branchId: targetBranch } : {}),
         isActive: true,
         stock: { lt: 5 },
       },

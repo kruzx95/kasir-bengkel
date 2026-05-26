@@ -37,6 +37,70 @@ export async function updateUser(id: string, data: { name: string; email: string
   }
 }
 
+export async function createUser(data: {
+  name: string
+  email: string
+  password: string
+  role: 'ADMIN' | 'KASIR'
+  branchId?: string | null
+}) {
+  try {
+    const session = await getSession()
+    if (!session || session.role !== 'ADMIN') throw new Error('Unauthorized')
+
+    if (!data.name.trim() || !data.email.trim() || !data.password) {
+      return { success: false, message: 'Semua field wajib diisi' }
+    }
+
+    if (data.password.length < 6) {
+      return { success: false, message: 'Password minimal 6 karakter' }
+    }
+
+    if (data.role === 'KASIR' && !data.branchId) {
+      return { success: false, message: 'Kasir wajib memilih cabang' }
+    }
+
+    const existing = await prisma.user.findUnique({ where: { email: data.email } })
+    if (existing) {
+      return { success: false, message: 'Email sudah terdaftar' }
+    }
+
+    const passwordHash = await bcrypt.hash(data.password, 10)
+
+    await prisma.user.create({
+      data: {
+        name: data.name.trim(),
+        email: data.email.trim(),
+        passwordHash,
+        role: data.role,
+        branchId: data.role === 'ADMIN' ? null : data.branchId,
+      },
+    })
+
+    return { success: true, message: 'Pengguna berhasil ditambahkan' }
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Gagal menambahkan pengguna'
+    return { success: false, message }
+  }
+}
+
+export async function deleteUser(id: string) {
+  try {
+    const session = await getSession()
+    if (!session || session.role !== 'ADMIN') throw new Error('Unauthorized')
+
+    if (session.userId === id) {
+      return { success: false, message: 'Tidak dapat menghapus akun sendiri' }
+    }
+
+    await prisma.user.delete({ where: { id } })
+    return { success: true, message: 'Pengguna berhasil dihapus' }
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Gagal menghapus pengguna'
+    return { success: false, message }
+  }
+}
+
 export async function changeOwnPassword(data: {
   currentPassword: string
   newPassword: string

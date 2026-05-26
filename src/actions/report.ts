@@ -8,7 +8,7 @@ export async function getReportData(startDateStr?: string, endDateStr?: string, 
   if (!session) return { transactions: [], summary: { total: 0, service: 0, sparepart: 0, discount: 0 } }
 
   // Enforce branch filter for Kasir
-  const targetBranch = session.role === 'KASIR' ? session.branchId : (branchId || undefined)
+  const targetBranch = session.role === 'KASIR' ? (session.branchId || 'UNASSIGNED') : (branchId || undefined)
 
   // Defaults: 1st of current month to today
   const today = new Date()
@@ -23,7 +23,7 @@ export async function getReportData(startDateStr?: string, endDateStr?: string, 
   try {
     const transactions = await prisma.transaction.findMany({
       where: {
-        ...(targetBranch ? { branchId: targetBranch } : {}),
+        ...(targetBranch !== undefined ? { branchId: targetBranch } : {}),
         transactionDate: {
           gte: startDate,
           lte: endDate,

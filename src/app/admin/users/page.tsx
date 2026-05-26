@@ -8,11 +8,18 @@ export const metadata: Metadata = {
 }
 
 export default async function UsersPage() {
-  const users = await prisma.user.findMany({
-    where: { isActive: true },
-    include: { branch: true },
-    orderBy: [{ role: 'asc' }, { name: 'asc' }],
-  })
+  const [users, branches] = await Promise.all([
+    prisma.user.findMany({
+      where: { isActive: true },
+      include: { branch: true },
+      orderBy: [{ role: 'asc' }, { name: 'asc' }],
+    }),
+    prisma.branch.findMany({
+      where: { isActive: true },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    }),
+  ])
 
   return (
     <>
@@ -25,7 +32,7 @@ export default async function UsersPage() {
           {users.length} pengguna aktif
         </p>
 
-        <UsersClient users={users} />
+        <UsersClient users={users} branches={branches} />
       </div>
     </>
   )

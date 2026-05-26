@@ -30,8 +30,8 @@ export async function getSpareparts(branchId?: string | null) {
   const where: Record<string, unknown> = { isActive: true }
   if (branchId) {
     where.branchId = branchId
-  } else if (session.role === 'KASIR' && session.branchId) {
-    where.branchId = session.branchId
+  } else if (session.role === 'KASIR') {
+    where.branchId = session.branchId || 'UNASSIGNED'
   }
 
   return prisma.sparepart.findMany({
@@ -61,8 +61,8 @@ export async function getPaginatedSpareparts(
     const where: Record<string, unknown> = { isActive: true }
     if (branchId) {
       where.branchId = branchId
-    } else if (session.role === 'KASIR' && session.branchId) {
-      where.branchId = session.branchId
+    } else if (session.role === 'KASIR') {
+      where.branchId = session.branchId || 'UNASSIGNED'
     }
 
     if (search) {

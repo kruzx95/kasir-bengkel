@@ -8,11 +8,11 @@ export async function getMechanics(branchId?: string) {
   const session = await getSession()
   if (!session) return []
 
-  const targetBranch = session.role === 'KASIR' ? session.branchId : branchId
+  const targetBranch = session.role === 'KASIR' ? (session.branchId || 'UNASSIGNED') : branchId
 
   try {
     return await prisma.mechanic.findMany({
-      where: targetBranch ? { branchId: targetBranch } : {},
+      where: targetBranch !== undefined ? { branchId: targetBranch } : {},
       include: {
         branch: { select: { name: true } }
       },
