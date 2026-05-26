@@ -1,18 +1,28 @@
 import Header from '@/components/layout/Header'
 import { getTransactions } from '@/actions/transaction'
-import Table from '@/components/ui/Table'
 import Badge from '@/components/ui/Badge'
 import { formatCurrency } from '@/lib/utils'
-import { Receipt, Eye } from 'lucide-react'
-import Link from 'next/link'
+import { Receipt } from 'lucide-react'
 import type { Metadata } from 'next'
+
+interface AdminTransactionRow {
+  id: string
+  invoiceNumber: string
+  type: string
+  total: number
+  paymentMethod: string
+  createdAt: string | Date
+  customer?: { name: string; plateNumber: string | null } | null
+  user: { name: string }
+  branch: { name: string }
+}
 
 export const metadata: Metadata = {
   title: 'Semua Transaksi',
 }
 
 export default async function AdminTransaksiPage() {
-  const transactions = await getTransactions()
+  const transactions = await getTransactions() as AdminTransactionRow[]
 
   const getTypeBadge = (type: string) => {
     switch (type) {
@@ -68,7 +78,7 @@ export default async function AdminTransaksiPage() {
                     </td>
                   </tr>
                 ) : (
-                  transactions.map((tx: any) => (
+                  transactions.map((tx: AdminTransactionRow) => (
                     <tr key={tx.id} className="hover:bg-slate-50 transition-colors">
                       <td className="p-4">
                         <div className="flex items-center gap-3">

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState } from 'react'
 import Table from '@/components/ui/Table'
 import Badge from '@/components/ui/Badge'
 import { formatCurrency } from '@/lib/utils'
@@ -20,7 +20,7 @@ interface StockClientProps {
 }
 
 export default function StockClient({ initialSpareparts }: StockClientProps) {
-  const [spareparts, setSpareparts] = useState(initialSpareparts)
+  const [spareparts] = useState(initialSpareparts)
   const [searchQuery, setSearchQuery] = useState('')
   const [filter, setFilter] = useState<'all' | 'low' | 'empty'>('all')
 

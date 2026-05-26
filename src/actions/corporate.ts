@@ -229,7 +229,8 @@ export async function settleCorporateBilling(corporateCustomerId: string, startD
     revalidatePath('/admin/korporat')
     revalidatePath('/admin/laporan')
     return { success: true, message: `${result.count} transaksi berhasil dilunasi` }
-  } catch (error: any) {
-    return { success: false, message: error.message || 'Gagal melunasi tagihan' }
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Gagal melunasi tagihan'
+    return { success: false, message }
   }
 }

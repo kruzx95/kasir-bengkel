@@ -1,6 +1,6 @@
 'use client'
 
-import { login, type LoginState } from '@/actions/auth'
+import { login } from '@/actions/auth'
 import { useActionState } from 'react'
 import { Wrench, Eye, EyeOff } from 'lucide-react'
 import { useState } from 'react'

@@ -12,10 +12,46 @@ import { Download, Filter, Receipt, ShoppingCart, Printer } from 'lucide-react'
 
 import * as XLSX from 'xlsx'
 
+interface TransactionItem {
+  quantity: number
+  itemName: string
+  subtotal: number
+}
+
+interface TransactionRow {
+  id: string
+  invoiceNumber: string
+  transactionDate: string | Date
+  items: TransactionItem[]
+  branch: { name: string }
+  user: { name: string }
+  customer?: { name?: string; plateNumber?: string | null } | null
+  type: string
+  total: number
+  subtotal: number
+  discount?: number
+  paymentMethod?: string
+}
+
+interface RestockItem {
+  quantity: number
+  sparepart: { name: string; sparepartBrand?: string }
+  buyPrice: number
+}
+
+interface RestockRow {
+  id: string
+  date: string | Date
+  supplierName: string
+  branch: { name: string }
+  items: RestockItem[]
+  total: number
+}
+
 interface ReportClientProps {
   branches: { id: string; name: string }[]
-  initialData: any
-  initialSummary: any
+  initialData: TransactionRow[]
+  initialSummary: { total: number; service: number; sparepart: number }
 }
 
 export default function ReportClient({ branches, initialData, initialSummary }: ReportClientProps) {
@@ -29,14 +65,14 @@ export default function ReportClient({ branches, initialData, initialSummary }: 
   const [startDate, setStartDate] = useState(firstDayStr)
   const [endDate, setEndDate] = useState(todayStr)
   const [branchId, setBranchId] = useState('')
-  const [data, setData] = useState(initialData)
+  const [data, setData] = useState<TransactionRow[]>(initialData)
   const [summary, setSummary] = useState(initialSummary)
 
   // Pembelian state
   const [buyStartDate, setBuyStartDate] = useState(firstDayStr)
   const [buyEndDate, setBuyEndDate] = useState(todayStr)
   const [buyBranchId, setBuyBranchId] = useState('')
-  const [buyData, setBuyData] = useState<any[]>([])
+  const [buyData, setBuyData] = useState<RestockRow[]>([])
   const [buySummary, setBuySummary] = useState({ total: 0, count: 0, topSparepart: null as string | null })
   const [buyLoaded, setBuyLoaded] = useState(false)
 
@@ -58,9 +94,9 @@ export default function ReportClient({ branches, initialData, initialSummary }: 
   }
 
   const handleExportExcel = () => {
-    const exportData = data.map((tx: any) => {
+    const exportData = data.map((tx: TransactionRow) => {
       const date = new Date(tx.transactionDate).toLocaleDateString('id-ID')
-      const itemsStr = tx.items.map((i: any) => `${i.quantity}x ${i.itemName} (Rp${i.subtotal})`).join('\n')
+      const itemsStr = tx.items.map((i: TransactionItem) => `${i.quantity}x ${i.itemName} (Rp${i.subtotal})`).join('\n')
       return {
         'Tanggal': date,
         'No. Invoice': tx.invoiceNumber,
@@ -93,7 +129,7 @@ export default function ReportClient({ branches, initialData, initialSummary }: 
     {
       key: 'invoice',
       header: 'No. Invoice',
-      render: (row: any) => (
+      render: (row: TransactionRow) => (
         <div>
           <p className="text-sm font-bold text-slate-900 font-mono">{row.invoiceNumber}</p>
           <p className="text-xs text-slate-400">
@@ -105,7 +141,7 @@ export default function ReportClient({ branches, initialData, initialSummary }: 
     {
       key: 'branch',
       header: 'Cabang / Kasir',
-      render: (row: any) => (
+      render: (row: TransactionRow) => (
         <div>
           <p className="text-sm font-medium text-slate-900">{row.branch.name}</p>
           <p className="text-xs text-slate-500">{row.user.name}</p>
@@ -115,7 +151,7 @@ export default function ReportClient({ branches, initialData, initialSummary }: 
     {
       key: 'type',
       header: 'Tipe',
-      render: (row: any) => (
+      render: (row: TransactionRow) => (
         <Badge variant={row.type === 'SERVICE' ? 'primary' : row.type === 'SPAREPART' ? 'warning' : 'success'} size="sm">
           {row.type}
         </Badge>
@@ -124,14 +160,14 @@ export default function ReportClient({ branches, initialData, initialSummary }: 
     {
       key: 'items',
       header: 'Total Item',
-      render: (row: any) => (
+      render: (row: TransactionRow) => (
         <span className="text-sm font-medium text-slate-700">{row.items.length} item</span>
       ),
     },
     {
       key: 'total',
       header: 'Total Akhir',
-      render: (row: any) => (
+      render: (row: TransactionRow) => (
         <span className="text-sm font-bold text-slate-900">{formatCurrency(row.total)}</span>
       ),
     },
@@ -141,7 +177,7 @@ export default function ReportClient({ branches, initialData, initialSummary }: 
     {
       key: 'date',
       header: 'Tanggal',
-      render: (row: any) => (
+      render: (row: RestockRow) => (
         <p className="text-sm text-slate-700">
           {new Date(row.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
         </p>
@@ -150,7 +186,7 @@ export default function ReportClient({ branches, initialData, initialSummary }: 
     {
       key: 'supplier',
       header: 'Supplier / Cabang',
-      render: (row: any) => (
+      render: (row: RestockRow) => (
         <div>
           <p className="text-sm font-medium text-slate-900">{row.supplierName}</p>
           <p className="text-xs text-slate-400">{row.branch.name}</p>
@@ -160,9 +196,9 @@ export default function ReportClient({ branches, initialData, initialSummary }: 
     {
       key: 'items',
       header: 'Rincian Barang',
-      render: (row: any) => (
+      render: (row: RestockRow) => (
         <div className="space-y-0.5">
-          {row.items.map((item: any, i: number) => (
+          {row.items.map((item: RestockItem, i: number) => (
             <p key={i} className="text-xs text-slate-600">
               {item.quantity}x {item.sparepart.name}
               {item.sparepart.sparepartBrand ? ` (${item.sparepart.sparepartBrand})` : ''}
@@ -175,7 +211,7 @@ export default function ReportClient({ branches, initialData, initialSummary }: 
     {
       key: 'total',
       header: 'Total Pengeluaran',
-      render: (row: any) => (
+      render: (row: RestockRow) => (
         <span className="text-sm font-bold text-slate-900">{formatCurrency(row.total)}</span>
       ),
     },
@@ -263,7 +299,7 @@ export default function ReportClient({ branches, initialData, initialSummary }: 
             <Table
               columns={transactionColumns}
               data={data}
-              keyExtractor={(row: any) => row.id}
+              keyExtractor={(row: TransactionRow) => row.id}
               emptyMessage="Tidak ada transaksi pada rentang tanggal tersebut."
             />
           </div>
@@ -326,7 +362,7 @@ export default function ReportClient({ branches, initialData, initialSummary }: 
                 <Table
                   columns={restockColumns}
                   data={buyData}
-                  keyExtractor={(row: any) => row.id}
+                  keyExtractor={(row: RestockRow) => row.id}
                   emptyMessage="Tidak ada data pembelian pada rentang tanggal tersebut."
                 />
               </div>

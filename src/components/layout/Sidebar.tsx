@@ -11,7 +11,6 @@ import {
   PackagePlus,
   Wrench,
   BarChart3,
-  Settings,
   Building2,
   UserCog,
   ChevronLeft,
@@ -21,7 +20,7 @@ import {
   ClipboardList,
   Briefcase,
 } from 'lucide-react'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { logout } from '@/actions/auth'
 
 interface SidebarProps {

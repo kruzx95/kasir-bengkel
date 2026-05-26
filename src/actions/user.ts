@@ -4,6 +4,12 @@ import { prisma } from '@/lib/prisma'
 import { getSession } from '@/lib/session'
 import bcrypt from 'bcryptjs'
 
+type UpdateUserData = {
+  name: string
+  email: string
+  passwordHash?: string
+}
+
 export async function updateUser(id: string, data: { name: string; email: string; password?: string }) {
   try {
     const session = await getSession()
@@ -18,15 +24,16 @@ export async function updateUser(id: string, data: { name: string; email: string
       return { success: false, message: 'Password minimal 6 karakter' }
     }
 
-    const updateData: any = { name: data.name, email: data.email }
+    const updateData: UpdateUserData = { name: data.name, email: data.email }
     if (data.password && data.password.length >= 6) {
       updateData.passwordHash = await bcrypt.hash(data.password, 10)
     }
 
     await prisma.user.update({ where: { id }, data: updateData })
     return { success: true }
-  } catch (error: any) {
-    return { success: false, message: error.message || 'Gagal mengubah data pengguna' }
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Gagal mengubah data pengguna'
+    return { success: false, message }
   }
 }
 
@@ -52,8 +59,9 @@ export async function changeOwnPassword(data: {
     await prisma.user.update({ where: { id: session.userId }, data: { passwordHash: hash } })
 
     return { success: true, message: 'Password berhasil diubah' }
-  } catch (error: any) {
-    return { success: false, message: error.message || 'Gagal mengubah password' }
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Gagal mengubah password'
+    return { success: false, message }
   }
 }
 
@@ -75,7 +83,8 @@ export async function updateOwnProfile(data: { name: string; email: string }) {
     })
 
     return { success: true, message: 'Profil berhasil diperbarui' }
-  } catch (error: any) {
-    return { success: false, message: error.message || 'Gagal memperbarui profil' }
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Gagal memperbarui profil'
+    return { success: false, message }
   }
 }

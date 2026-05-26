@@ -23,6 +23,7 @@ interface CorporateData {
   taxId?: string | null
   billingCycle: string
   branch: { name: string }
+  branchId?: string | null
 }
 
 interface CorporateFormModalProps {
@@ -97,12 +98,12 @@ export default function CorporateFormModal({ open, onClose, branches, editData }
             <Input
               name="address" label="Alamat"
               placeholder="Alamat perusahaan"
-              defaultValue={(editData as any)?.address || ''}
+              defaultValue={editData?.address ?? ''}
             />
             <Input
               name="taxId" label="NPWP (Opsional)"
               placeholder="xx.xxx.xxx.x-xxx.xxx"
-              defaultValue={(editData as any)?.taxId || ''}
+              defaultValue={editData?.taxId ?? ''}
             />
           </div>
         </div>
@@ -119,7 +120,7 @@ export default function CorporateFormModal({ open, onClose, branches, editData }
               name="branchId" label="Cabang" required
               options={branchOptions}
               placeholder="Pilih cabang..."
-              defaultValue={(editData as any)?.branchId || ''}
+              defaultValue={editData?.branchId ?? ''}
             />
           </div>
         </div>

@@ -3,6 +3,8 @@ import { getSession } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import * as XLSX from 'xlsx'
 
+type ExcelRow = Record<string, unknown>
+
 export async function POST(request: NextRequest) {
   try {
     const session = await getSession()
@@ -27,7 +29,7 @@ export async function POST(request: NextRequest) {
     const buffer = await file.arrayBuffer()
     const workbook = XLSX.read(buffer, { type: 'array' })
     const sheet = workbook.Sheets[workbook.SheetNames[0]]
-    const rows: any[] = XLSX.utils.sheet_to_json(sheet, { defval: '' })
+    const rows = XLSX.utils.sheet_to_json<ExcelRow>(sheet, { defval: '' })
 
     if (rows.length === 0) {
       return NextResponse.json({ error: 'File Excel kosong atau tidak ada data' }, { status: 400 })
@@ -35,7 +37,7 @@ export async function POST(request: NextRequest) {
 
     // Normalize header keys
     const normalized = rows.map((row) => {
-      const obj: Record<string, any> = {}
+      const obj: Record<string, unknown> = {}
       for (const key of Object.keys(row)) {
         obj[key.toLowerCase().trim().replace(/\s+/g, '_')] = row[key]
       }
@@ -118,8 +120,9 @@ export async function POST(request: NextRequest) {
       updated,
       branches: branches.length,
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Import service error:', error)
-    return NextResponse.json({ error: error.message || 'Gagal mengimpor file' }, { status: 500 })
+    const message = error instanceof Error ? error.message : 'Gagal mengimpor file'
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }

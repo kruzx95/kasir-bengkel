@@ -34,7 +34,7 @@ export async function createRestock(payload: RestockPayload) {
 
     const data = validated.data
 
-    const result = await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx) => {
       let total = 0
       const restockItems = data.items.map(item => {
         const subtotal = item.quantity * item.buyPrice
@@ -79,9 +79,9 @@ export async function createRestock(payload: RestockPayload) {
     revalidatePath('/admin/restock')
     revalidatePath('/admin/master/spareparts')
     return { success: true, message: 'Barang masuk berhasil dicatat' }
-  } catch (error: any) {
-    console.error('Create Restock Error:', error)
-    return { success: false, message: error.message || 'Gagal menyimpan barang masuk' }
+  } catch {
+    console.error('Create Restock Error')
+    return { success: false, message: 'Gagal menyimpan barang masuk' }
   }
 }
 
@@ -99,9 +99,10 @@ export async function getRestocks(branchId?: string) {
       },
       orderBy: { date: 'desc' }
     })
-  } catch (error) {
+  } catch {
     return []
   }
+  
 }
 
 export async function getRestockDetails(id: string) {
@@ -121,7 +122,7 @@ export async function getRestockDetails(id: string) {
         }
       }
     })
-  } catch (error) {
+  } catch {
     return null
   }
 }

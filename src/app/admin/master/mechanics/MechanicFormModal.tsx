@@ -7,10 +7,18 @@ import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
 import { createMechanic, updateMechanic } from '@/actions/mechanic'
 
+interface MechanicData {
+  id: string
+  name: string
+  phone?: string | null
+  branchId: string
+  isActive: boolean
+}
+
 interface MechanicFormModalProps {
   isOpen: boolean
   onClose: () => void
-  mechanic: any | null
+  mechanic: MechanicData | null
   branches: { id: string; name: string }[]
 }
 
@@ -26,22 +34,24 @@ export default function MechanicFormModal({ isOpen, onClose, mechanic, branches 
   })
 
   useEffect(() => {
-    if (mechanic) {
-      setFormData({
-        name: mechanic.name,
-        phone: mechanic.phone || '',
-        branchId: mechanic.branchId,
-        isActive: mechanic.isActive,
-      })
-    } else {
-      setFormData({
-        name: '',
-        phone: '',
-        branchId: branches[0]?.id || '',
-        isActive: true,
-      })
-    }
-    setError('')
+    startTransition(() => {
+      if (mechanic) {
+        setFormData({
+          name: mechanic.name,
+          phone: mechanic.phone || '',
+          branchId: mechanic.branchId,
+          isActive: mechanic.isActive,
+        })
+      } else {
+        setFormData({
+          name: '',
+          phone: '',
+          branchId: branches[0]?.id || '',
+          isActive: true,
+        })
+      }
+      setError('')
+    })
   }, [mechanic, branches, isOpen])
 
   const handleSubmit = (e: React.FormEvent) => {

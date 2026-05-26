@@ -41,7 +41,7 @@ export default function CustomersClient({ initialCustomers, branchId }: Customer
   const [isPending, startTransition] = useTransition()
 
   useEffect(() => {
-    setCustomers(initialCustomers)
+    startTransition(() => setCustomers(initialCustomers))
   }, [initialCustomers])
 
   const handleSearch = (query: string) => {

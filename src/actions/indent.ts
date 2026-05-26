@@ -5,6 +5,8 @@ import { getSession } from '@/lib/session'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
+type IndentOrderStatus = 'PENDING' | 'PARTIAL' | 'RECEIVED'
+
 const indentItemSchema = z.object({
   sparepartId: z.string(),
   quantity: z.number().min(1),
@@ -58,13 +60,14 @@ export async function createIndentOrder(payload: IndentPayload) {
 
     revalidatePath('/admin/indent')
     return { success: true, message: 'Pesanan indent berhasil disimpan' }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Create Indent Error:', error)
-    return { success: false, message: error.message || 'Gagal menyimpan indent' }
+    const message = error instanceof Error ? error.message : 'Gagal menyimpan indent'
+    return { success: false, message }
   }
 }
 
-export async function getIndentOrders(branchId?: string, status?: string) {
+export async function getIndentOrders(branchId?: string, status?: IndentOrderStatus) {
   try {
     const session = await getSession()
     if (!session || session.role !== 'ADMIN') return []
@@ -72,7 +75,7 @@ export async function getIndentOrders(branchId?: string, status?: string) {
     return await prisma.indentOrder.findMany({
       where: {
         ...(branchId ? { branchId } : {}),
-        ...(status ? { status: status as any } : {}),
+        ...(status ? { status } : {}),
       },
       include: {
         branch: { select: { name: true } },
@@ -85,7 +88,7 @@ export async function getIndentOrders(branchId?: string, status?: string) {
       },
       orderBy: { orderDate: 'desc' },
     })
-  } catch (error) {
+  } catch {
     return []
   }
 }
@@ -107,7 +110,7 @@ export async function getIndentOrderById(id: string) {
         },
       },
     })
-  } catch (error) {
+  } catch {
     return null
   }
 }
@@ -144,7 +147,7 @@ export async function receiveIndentOrder(payload: ReceiveIndentPayload) {
 
     const data = validated.data
 
-    const result = await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx) => {
       // Get indent order
       const indentOrder = await tx.indentOrder.findUnique({
         where: { id: data.indentOrderId },
@@ -210,11 +213,11 @@ export async function receiveIndentOrder(payload: ReceiveIndentPayload) {
       const allReceived = updatedItems.every((i) => i.receivedQty >= i.quantity)
       const anyReceived = updatedItems.some((i) => i.receivedQty > 0)
 
-      const newStatus = allReceived ? 'RECEIVED' : anyReceived ? 'PARTIAL' : 'PENDING'
+      const newStatus: IndentOrderStatus = allReceived ? 'RECEIVED' : anyReceived ? 'PARTIAL' : 'PENDING'
 
       await tx.indentOrder.update({
         where: { id: data.indentOrderId },
-        data: { status: newStatus as any },
+        data: { status: newStatus },
       })
 
       return restock
@@ -224,8 +227,8 @@ export async function receiveIndentOrder(payload: ReceiveIndentPayload) {
     revalidatePath('/admin/restock')
     revalidatePath('/admin/master/spareparts')
     return { success: true, message: 'Penerimaan barang berhasil dicatat' }
-  } catch (error: any) {
-    console.error('Receive Indent Error:', error)
-    return { success: false, message: error.message || 'Gagal mencatat penerimaan barang' }
+  } catch {
+    console.error('Receive Indent Error')
+    return { success: false, message: 'Gagal mencatat penerimaan barang' }
   }
 }

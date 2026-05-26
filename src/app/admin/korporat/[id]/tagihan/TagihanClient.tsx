@@ -17,6 +17,34 @@ interface CorporateData {
   customers: { id: string; name: string; plateNumber: string | null }[]
 }
 
+interface BillingCustomer {
+  name: string
+  plateNumber: string | null
+}
+
+interface BillingItem {
+  itemName: string
+  itemType: string
+  quantity: number
+  unitPrice: number
+  subtotal: number
+}
+
+interface BillingRow {
+  id: string
+  invoiceNumber: string
+  transactionDate: string | Date
+  customer?: BillingCustomer | null
+  items: BillingItem[]
+  total: number
+  branch: { name: string }
+}
+
+interface CorporateBillingData {
+  grandTotal: number
+  transactions: BillingRow[]
+}
+
 interface TagihanClientProps {
   corporate: CorporateData
   allCustomers: { id: string; name: string; plateNumber: string | null; corporateCustomerId?: string | null }[]
@@ -31,7 +59,7 @@ export default function TagihanClient({ corporate, allCustomers }: TagihanClient
 
   const [startDate, setStartDate] = useState(firstDayStr)
   const [endDate, setEndDate] = useState(todayStr)
-  const [billingData, setBillingData] = useState<any>(null)
+  const [billingData, setBillingData] = useState<CorporateBillingData | null>(null)
   const [loaded, setLoaded] = useState(false)
   const [settleMsg, setSettleMsg] = useState<string | null>(null)
   const [assigningId, setAssigningId] = useState<string | null>(null)
@@ -69,7 +97,7 @@ export default function TagihanClient({ corporate, allCustomers }: TagihanClient
     {
       key: 'invoice',
       header: 'Invoice',
-      render: (row: any) => (
+      render: (row: BillingRow) => (
         <div>
           <p className="text-sm font-mono font-bold text-slate-900">{row.invoiceNumber}</p>
           <p className="text-xs text-slate-400">
@@ -81,7 +109,7 @@ export default function TagihanClient({ corporate, allCustomers }: TagihanClient
     {
       key: 'customer',
       header: 'Kendaraan',
-      render: (row: any) => (
+      render: (row: BillingRow) => (
         <div>
           <p className="text-sm font-medium text-slate-900">{row.customer?.name || '—'}</p>
           {row.customer?.plateNumber && (
@@ -93,9 +121,9 @@ export default function TagihanClient({ corporate, allCustomers }: TagihanClient
     {
       key: 'items',
       header: 'Layanan',
-      render: (row: any) => (
+      render: (row: BillingRow) => (
         <div className="space-y-0.5">
-          {row.items.slice(0, 2).map((item: any, i: number) => (
+          {row.items.slice(0, 2).map((item: BillingItem, i: number) => (
             <p key={i} className="text-xs text-slate-600">
               {item.quantity}x {item.itemName}
             </p>
@@ -109,7 +137,7 @@ export default function TagihanClient({ corporate, allCustomers }: TagihanClient
     {
       key: 'total',
       header: 'Total',
-      render: (row: any) => (
+      render: (row: BillingRow) => (
         <span className="text-sm font-bold text-slate-900">{formatCurrency(row.total)}</span>
       ),
     },
@@ -161,7 +189,7 @@ export default function TagihanClient({ corporate, allCustomers }: TagihanClient
               <Input label="Sampai Tanggal" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
             </div>
             <Button onClick={handleFilter} loading={isPending} icon={Filter}>Tampilkan Tagihan</Button>
-            {billingData?.transactions?.length > 0 && (
+            {((billingData?.transactions.length ?? 0) > 0) && (
               <>
                 <Button onClick={() => window.print()} variant="outline" icon={Printer}>Cetak</Button>
                 <Button
@@ -209,10 +237,10 @@ export default function TagihanClient({ corporate, allCustomers }: TagihanClient
                 <Table
                   columns={txColumns}
                   data={billingData?.transactions || []}
-                  keyExtractor={(row: any) => row.id}
+                  keyExtractor={(row: BillingRow) => row.id}
                   emptyMessage="Tidak ada tagihan yang belum lunas pada periode ini."
                 />
-                {billingData?.transactions?.length > 0 && (
+                {((billingData?.transactions.length ?? 0) > 0) && (
                   <div className="p-5 border-t border-slate-200 bg-slate-50 flex justify-end">
                     <div className="text-right">
                       <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Grand Total</p>

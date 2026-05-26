@@ -21,7 +21,6 @@ interface IndentRow {
 
 interface IndentClientProps {
   initialData: IndentRow[]
-  branches: { id: string; name: string }[]
 }
 
 const statusVariant: Record<string, 'warning' | 'success' | 'primary' | 'danger'> = {
@@ -36,7 +35,7 @@ const statusLabel: Record<string, string> = {
   RECEIVED: 'Diterima',
 }
 
-export default function IndentClient({ initialData, branches }: IndentClientProps) {
+export default function IndentClient({ initialData }: IndentClientProps) {
   const [statusFilter, setStatusFilter] = useState('')
   const today = new Date()
 

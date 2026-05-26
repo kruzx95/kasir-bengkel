@@ -7,7 +7,7 @@ import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
 import { createRestock, type RestockPayload } from '@/actions/restock'
 import { formatCurrency } from '@/lib/utils'
-import { ArrowLeft, Trash2, Search, Package, Plus, Upload, X, ImageIcon } from 'lucide-react'
+import { ArrowLeft, Trash2, Search, Package, Plus, Upload, X } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
 

@@ -43,18 +43,6 @@ export async function getDashboardMetrics() {
   const monthlyRevenue = monthTransactions.reduce((acc, curr) => acc + curr.total, 0)
 
   // Revenue by Branch (Admin only)
-  let branchRevenue = []
-  if (session.role === 'ADMIN') {
-    const branches = await prisma.branch.findMany({
-      select: { id: true, name: true }
-    })
-    
-    for (const b of branches) {
-      const bTrans = monthTransactions.filter(t => (t as any).branchId === b.id) // Need branchId in monthTransactions... wait, I didn't select it.
-    }
-  }
-
-  // Let's refactor Revenue by Branch properly:
   let branchRevenueData: { name: string; revenue: number }[] = []
   if (session.role === 'ADMIN') {
     const allMonthTrans = await prisma.transaction.findMany({

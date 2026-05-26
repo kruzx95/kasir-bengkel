@@ -39,8 +39,9 @@ export async function createMechanic(data: { name: string; phone?: string; branc
 
     revalidatePath('/admin/master/mechanics')
     return { success: true }
-  } catch (error: any) {
-    return { success: false, message: error.message || 'Gagal menambah mekanik' }
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Gagal menambah mekanik'
+    return { success: false, message }
   }
 }
 
@@ -60,8 +61,9 @@ export async function updateMechanic(id: string, data: { name: string; phone?: s
 
     revalidatePath('/admin/master/mechanics')
     return { success: true }
-  } catch (error: any) {
-    return { success: false, message: error.message || 'Gagal mengubah mekanik' }
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Gagal mengubah mekanik'
+    return { success: false, message }
   }
 }
 
@@ -84,7 +86,8 @@ export async function deleteMechanic(id: string) {
     await prisma.mechanic.delete({ where: { id } })
     revalidatePath('/admin/master/mechanics')
     return { success: true }
-  } catch (error: any) {
-    return { success: false, message: error.message || 'Gagal menghapus mekanik' }
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Gagal menghapus mekanik'
+    return { success: false, message }
   }
 }

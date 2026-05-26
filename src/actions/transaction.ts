@@ -28,7 +28,7 @@ export type TransactionPayload = z.infer<typeof transactionSchema>
 export type TransactionState = {
   success?: boolean
   message?: string
-  errors?: any
+  errors?: Record<string, string[] | undefined>
   invoiceNumber?: string
 }
 
@@ -149,9 +149,10 @@ export async function createTransaction(payload: TransactionPayload): Promise<Tr
     revalidatePath('/kasir/transaksi')
     revalidatePath('/kasir/sparepart')
     return { success: true, message: 'Transaksi berhasil disimpan', invoiceNumber: result.invoiceNumber }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Create Transaction Error:', error)
-    return { success: false, message: error.message || 'Terjadi kesalahan pada server' }
+    const message = error instanceof Error ? error.message : 'Terjadi kesalahan pada server'
+    return { success: false, message }
   }
 }
 
@@ -276,7 +277,7 @@ export async function cancelTransaction(id: string) {
     const session = await getSession()
     if (!session || session.role !== 'ADMIN') return { success: false, message: 'Unauthorized. Hanya admin yang bisa membatalkan transaksi.' }
 
-    const result = await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx) => {
       const transaction = await tx.transaction.findUnique({
         where: { id },
         include: { items: true }
@@ -307,7 +308,8 @@ export async function cancelTransaction(id: string) {
     revalidatePath('/admin/master/spareparts')
     
     return { success: true, message: 'Transaksi berhasil dibatalkan dan stok dikembalikan.' }
-  } catch (error: any) {
-    return { success: false, message: error.message || 'Gagal membatalkan transaksi.' }
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Gagal membatalkan transaksi.'
+    return { success: false, message }
   }
 }

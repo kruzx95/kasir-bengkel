@@ -4,7 +4,6 @@ import { formatCurrency } from '@/lib/utils'
 import Link from 'next/link'
 import { ArrowLeft, Receipt, MapPin, Phone, User, Calendar } from 'lucide-react'
 import Button from '@/components/ui/Button'
-import Badge from '@/components/ui/Badge'
 import PrintButton from './PrintButton'
 import CancelButton from './CancelButton'
 import { getSession } from '@/lib/session'
@@ -41,15 +40,6 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
 
   if (!tx) {
     notFound()
-  }
-
-  const getTypeBadge = (type: string) => {
-    switch (type) {
-      case 'SERVICE': return <Badge variant="primary" size="sm">Servis</Badge>
-      case 'SPAREPART': return <Badge variant="warning" size="sm">Sparepart</Badge>
-      case 'MIXED': return <Badge variant="success" size="sm">Servis & Part</Badge>
-      default: return <Badge variant="default" size="sm">{type}</Badge>
-    }
   }
 
   return (
@@ -147,7 +137,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {tx.items.map((item, index) => (
+            {tx.items.map((item) => (
               <tr key={item.id} className="group">
                 <td className="py-4">
                   <p className="text-sm font-semibold text-slate-900">{item.itemName}</p>
@@ -171,7 +161,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
             {tx.notes && (
               <>
                 <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Catatan</p>
-                <p className="text-sm text-slate-600 bg-amber-50/50 p-3 rounded-lg border border-amber-100/50 italic">"{tx.notes}"</p>
+                <p className="text-sm text-slate-600 bg-amber-50/50 p-3 rounded-lg border border-amber-100/50 italic">&quot;{tx.notes}&quot;</p>
               </>
             )}
           </div>

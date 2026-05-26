@@ -8,7 +8,7 @@ import Select from '@/components/ui/Select'
 import Badge from '@/components/ui/Badge'
 import { createTransaction, type TransactionPayload } from '@/actions/transaction'
 import { formatCurrency } from '@/lib/utils'
-import { Plus, Trash2, Search, ArrowLeft, Receipt, Wrench, Package, User, RotateCcw } from 'lucide-react'
+import { Trash2, Search, ArrowLeft, Receipt, Wrench, Package, User, RotateCcw } from 'lucide-react'
 import Link from 'next/link'
 
 const DRAFT_KEY = 'irian_motor_tx_draft'
@@ -99,7 +99,7 @@ export default function NewTransactionClient({
   useEffect(() => {
     const draft: DraftState = { customerId, isCorporate, items, discount, paymentMethod, mechanicId, notes }
     saveDraft(draft)
-    setHasDraft(items.length > 0)
+    startTransition(() => setHasDraft(items.length > 0))
   }, [customerId, isCorporate, items, discount, paymentMethod, mechanicId, notes])
 
   const handleResetDraft = () => {
@@ -310,7 +310,7 @@ export default function NewTransactionClient({
                     </div>
                   ) : (
                     <div className="p-4 text-center text-sm text-slate-500">
-                      Tidak ditemukan hasil untuk "{searchQuery}"
+                      Tidak ditemukan hasil untuk &quot;{searchQuery}&quot;
                     </div>
                   )}
                 </div>
