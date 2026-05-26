@@ -13,6 +13,8 @@ function createPrismaClient() {
     user: url.username,
     password: url.password,
     database: url.pathname.replace('/', ''),
+    allowPublicKeyRetrieval: true,
+    connectTimeout: 10000,
   })
   return new PrismaClient({ adapter })
 }

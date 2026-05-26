@@ -10,8 +10,8 @@ import { PrismaClient } from '../src/generated/prisma/client'
 import { PrismaMariaDb } from '@prisma/adapter-mariadb'
 import bcrypt from 'bcryptjs'
 
-const EMAIL = 'admin@irianmotor.com'   // ← ganti dengan email admin
-const PASSWORD_BARU = 'Mallikrs08!'     // ← ganti dengan password baru
+const EMAIL = 'indihiang@irianmotor.com'   // ← kasir cabang Indihiang
+const PASSWORD_BARU = 'KasirIrian@2026!'     // ← password baru
 
 async function main() {
   const url = new URL(process.env.DATABASE_URL!)
