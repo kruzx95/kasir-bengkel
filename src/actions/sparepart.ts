@@ -174,21 +174,14 @@ export async function deleteSparepart(id: string) {
   }
 
   try {
-    // Cek apakah sparepart sudah dipakai di transaksi
-    const usedInTransaction = await prisma.transactionItem.findFirst({
-      where: { sparepartId: id },
-    })
-
-    if (usedInTransaction) {
-      return { message: 'Tidak bisa dihapus karena sudah digunakan di transaksi.' }
-    }
-
-    await prisma.sparepart.delete({
+    // Soft delete: nonaktifkan sparepart agar riwayat transaksi & restock tetap utuh
+    await prisma.sparepart.update({
       where: { id },
+      data: { isActive: false },
     })
     revalidatePath('/admin/master/spareparts')
-    return { success: true, message: 'Sparepart berhasil dihapus' }
+    return { success: true, message: 'Sparepart berhasil dinonaktifkan' }
   } catch {
-    return { message: 'Gagal menghapus sparepart' }
+    return { message: 'Gagal menonaktifkan sparepart' }
   }
 }

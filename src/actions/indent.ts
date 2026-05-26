@@ -227,8 +227,8 @@ export async function receiveIndentOrder(payload: ReceiveIndentPayload) {
     revalidatePath('/admin/restock')
     revalidatePath('/admin/master/spareparts')
     return { success: true, message: 'Penerimaan barang berhasil dicatat' }
-  } catch {
-    console.error('Receive Indent Error')
+  } catch (error) {
+    console.error('Receive Indent Error:', error)
     return { success: false, message: 'Gagal mencatat penerimaan barang' }
   }
 }

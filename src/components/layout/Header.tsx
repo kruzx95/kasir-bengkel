@@ -1,28 +1,22 @@
-'use client'
-
-import { Bell, Search, Menu } from 'lucide-react'
-import { useSidebar } from '@/components/layout/DashboardShell'
+import MobileMenuButton from './MobileMenuButton'
+import NotificationPanel from './NotificationPanel'
+import { getNotifications } from '@/actions/notification'
 
 interface HeaderProps {
   title: string
   subtitle?: string
 }
 
-export default function Header({ title, subtitle }: HeaderProps) {
-  const { openSidebar } = useSidebar()
+export default async function Header({ title, subtitle }: HeaderProps) {
+  // Fetch notifikasi langsung di server (tidak perlu loading state di client)
+  const notifications = await getNotifications()
 
   return (
     <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-200/80 px-4 sm:px-6 py-3 sm:py-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          {/* Hamburger menu — visible only on mobile */}
-          <button
-            onClick={openSidebar}
-            className="lg:hidden p-2 -ml-2 rounded-xl text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors"
-            aria-label="Buka menu navigasi"
-          >
-            <Menu className="w-5 h-5" />
-          </button>
+          {/* Hamburger menu — client component */}
+          <MobileMenuButton />
 
           <div>
             <h1 className="text-lg sm:text-xl font-bold text-slate-900">{title}</h1>
@@ -33,20 +27,8 @@ export default function Header({ title, subtitle }: HeaderProps) {
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
-          {/* Search */}
-          <div className="hidden md:flex items-center gap-2 px-3 py-2 bg-slate-100 rounded-xl text-sm text-slate-400 hover:bg-slate-200/70 transition-colors cursor-pointer">
-            <Search className="w-4 h-4" />
-            <span>Cari...</span>
-            <kbd className="ml-2 px-1.5 py-0.5 bg-white rounded text-[10px] font-mono text-slate-400 border border-slate-200">
-              ⌘K
-            </kbd>
-          </div>
-
-          {/* Notifications */}
-          <button className="relative p-2 rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors">
-            <Bell className="w-5 h-5" />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-danger rounded-full" />
-          </button>
+          {/* Notifications Panel */}
+          <NotificationPanel initialData={notifications} />
         </div>
       </div>
     </header>

@@ -15,24 +15,24 @@ Aplikasi web multi-cabang untuk manajemen bengkel motor. Mencakup kasir transaks
 
 ## ✨ Fitur Utama
 
-| Fitur | Admin | Kasir |
-|-------|-------|-------|
-| Dashboard ringkasan harian | ✅ semua cabang | ✅ cabang sendiri |
-| Transaksi (servis, sparepart, mixed) | ✅ | ✅ |
-| Draft transaksi (tersimpan otomatis) | ✅ | ✅ |
-| Invoice & cetak nota | ✅ | ✅ |
-| Data pelanggan + kendaraan | ✅ | ✅ |
-| Master sparepart + import Excel | ✅ | — |
-| Master jasa servis + import Excel | ✅ | — |
-| Master mekanik | ✅ | — |
-| Restock barang + foto nota | ✅ | — |
-| Indent order (pemesanan barang) | ✅ | — |
-| Pelanggan korporat + tagihan borongan | ✅ | — |
-| Laporan transaksi + ekspor Excel | ✅ | ✅ |
-| Laporan pembelian sparepart | ✅ | — |
-| Kelola cabang + media sosial | ✅ | — |
-| Kelola pengguna + ganti password | ✅ | — |
-| Profil & ganti password sendiri | ✅ | ✅ |
+| Fitur                                 | Admin           | Kasir             |
+| ------------------------------------- | --------------- | ----------------- |
+| Dashboard ringkasan harian            | ✅ semua cabang | ✅ cabang sendiri |
+| Transaksi (servis, sparepart, mixed)  | ✅              | ✅                |
+| Draft transaksi (tersimpan otomatis)  | ✅              | ✅                |
+| Invoice & cetak nota                  | ✅              | ✅                |
+| Data pelanggan + kendaraan            | ✅              | ✅                |
+| Master sparepart + import Excel       | ✅              | —                 |
+| Master jasa servis + import Excel     | ✅              | —                 |
+| Master mekanik                        | ✅              | —                 |
+| Restock barang + foto nota            | ✅              | —                 |
+| Indent order (pemesanan barang)       | ✅              | —                 |
+| Pelanggan korporat + tagihan borongan | ✅              | —                 |
+| Laporan transaksi + ekspor Excel      | ✅              | ✅                |
+| Laporan pembelian sparepart           | ✅              | —                 |
+| Kelola cabang + media sosial          | ✅              | —                 |
+| Kelola pengguna + ganti password      | ✅              | —                 |
+| Profil & ganti password sendiri       | ✅              | ✅                |
 
 ---
 
@@ -84,6 +84,7 @@ SESSION_SECRET="ganti-dengan-random-string-minimal-32-karakter"
 ```
 
 Generate `SESSION_SECRET` yang aman:
+
 ```bash
 openssl rand -base64 32
 ```
@@ -116,12 +117,12 @@ Buka **[http://localhost:3000](http://localhost:3000)**
 > ⚠️ **Ganti password sebelum digunakan di production!**
 > Jalankan: `npx tsx scripts/reset-password.ts`
 
-| Role | Email | Password Default |
-|------|-------|-----------------|
-| Admin | `admin@irianmotor.com` | *(set saat seed)* |
-| Kasir Indihiang | `kasir1@irianmotor.com` | *(set saat seed)* |
-| Kasir Irian Timur | `kasir2@irianmotor.com` | *(set saat seed)* |
-| Kasir Irian Barat | `kasir3@irianmotor.com` | *(set saat seed)* |
+| Role              | Email                   | Password Default             |
+| ----------------- | ----------------------- | ---------------------------- |
+| Admin             | `admin@irianmotor.com`  | *(set saat seed)*Mallikrs08! |
+| Kasir Indihiang   | `kasir1@irianmotor.com` | *(set saat seed)*kasir123    |
+| Kasir Irian Timur | `kasir2@irianmotor.com` | _(set saat seed)_            |
+| Kasir Irian Barat | `kasir3@irianmotor.com` | _(set saat seed)_            |
 
 ---
 
@@ -157,11 +158,13 @@ uploads/
 ## 🗄️ Backup
 
 Jalankan backup manual:
+
 ```bash
 bash scripts/backup.sh
 ```
 
 Atau jadwalkan otomatis setiap hari jam 02:00 via cron:
+
 ```bash
 crontab -e
 # Tambahkan:
@@ -175,6 +178,7 @@ Hasil backup tersimpan di `~/backup-irian-motor/` (database + foto nota).
 ## 🔄 Setelah Update Schema Prisma
 
 Setiap kali `schema.prisma` diubah:
+
 ```bash
 npx prisma migrate dev --name nama_perubahan
 npx prisma generate

@@ -130,21 +130,14 @@ export async function deleteService(id: string) {
   }
 
   try {
-    // Cek apakah servis sudah dipakai di transaksi
-    const usedInTransaction = await prisma.transactionItem.findFirst({
-      where: { serviceId: id },
-    })
-
-    if (usedInTransaction) {
-      return { message: 'Tidak bisa dihapus karena sudah digunakan di transaksi. Data dinonaktifkan.' }
-    }
-
-    await prisma.service.delete({
+    // Soft delete: nonaktifkan servis agar riwayat transaksi tetap utuh
+    await prisma.service.update({
       where: { id },
+      data: { isActive: false },
     })
     revalidatePath('/admin/master/services')
-    return { success: true, message: 'Jasa servis berhasil dihapus' }
+    return { success: true, message: 'Jasa servis berhasil dinonaktifkan' }
   } catch {
-    return { message: 'Gagal menghapus jasa servis' }
+    return { message: 'Gagal menonaktifkan jasa servis' }
   }
 }

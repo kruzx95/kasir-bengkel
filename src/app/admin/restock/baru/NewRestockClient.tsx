@@ -364,7 +364,7 @@ export default function NewRestockClient({ branches, spareparts }: NewRestockCli
                             min="0"
                             className="w-full bg-white border border-slate-200 rounded-lg px-3 py-1.5 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none"
                             value={item.buyPrice}
-                            onChange={(e) => handleUpdateItem(index, 'buyPrice', parseInt(e.target.value) || 0)}
+                            onChange={(e) => handleUpdateItem(index, 'buyPrice', parseFloat(e.target.value) || 0)}
                           />
                         </td>
                         <td className="px-4 py-3 text-right font-bold text-slate-900">

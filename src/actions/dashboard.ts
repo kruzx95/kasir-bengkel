@@ -18,89 +18,112 @@ export async function getDashboardMetrics() {
   const sevenDaysAgo = new Date(today)
   sevenDaysAgo.setDate(today.getDate() - 6) // Last 7 days including today
 
-  // 2. Fetch Data
-  
-  // Today's Revenue
-  const todayTransactions = await prisma.transaction.findMany({
-    where: {
-      ...(targetBranch ? { branchId: targetBranch } : {}),
-      transactionDate: { gte: today },
-      status: 'COMPLETED'
-    },
-    select: { total: true }
-  })
-  const dailyRevenue = todayTransactions.reduce((acc, curr) => acc + curr.total, 0)
+  // 2. Fetch semua data secara parallel untuk performa optimal
+  const [
+    todayTransactions,
+    monthTransactions,
+    allMonthTransForBranch,
+    last7DaysTrans,
+    items,
+    lowStockItems,
+  ] = await Promise.all([
+    // Today's Revenue
+    prisma.transaction.aggregate({
+      where: {
+        ...(targetBranch ? { branchId: targetBranch } : {}),
+        transactionDate: { gte: today },
+        status: 'COMPLETED',
+      },
+      _sum: { total: true },
+    }),
 
-  // This Month's Revenue
-  const monthTransactions = await prisma.transaction.findMany({
-    where: {
-      ...(targetBranch ? { branchId: targetBranch } : {}),
-      transactionDate: { gte: startOfMonth },
-      status: 'COMPLETED'
-    },
-    select: { total: true }
-  })
-  const monthlyRevenue = monthTransactions.reduce((acc, curr) => acc + curr.total, 0)
+    // This Month's Revenue
+    prisma.transaction.aggregate({
+      where: {
+        ...(targetBranch ? { branchId: targetBranch } : {}),
+        transactionDate: { gte: startOfMonth },
+        status: 'COMPLETED',
+      },
+      _sum: { total: true },
+    }),
 
-  // Revenue by Branch (Admin only)
+    // Revenue by Branch (Admin only) — empty for KASIR
+    session.role === 'ADMIN'
+      ? prisma.transaction.findMany({
+          where: {
+            transactionDate: { gte: startOfMonth },
+            status: 'COMPLETED',
+          },
+          select: { branch: { select: { name: true } }, total: true },
+        })
+      : Promise.resolve([]),
+
+    // Trend 7 Days
+    prisma.transaction.findMany({
+      where: {
+        ...(targetBranch ? { branchId: targetBranch } : {}),
+        transactionDate: { gte: sevenDaysAgo },
+        status: 'COMPLETED',
+      },
+      select: { transactionDate: true, total: true },
+    }),
+
+    // Top Items (This Month)
+    prisma.transactionItem.findMany({
+      where: {
+        transaction: {
+          ...(targetBranch ? { branchId: targetBranch } : {}),
+          transactionDate: { gte: startOfMonth },
+          status: 'COMPLETED',
+        },
+      },
+      select: { itemName: true, itemType: true, quantity: true, subtotal: true },
+    }),
+
+    // Low Stock Items (< 5)
+    prisma.sparepart.findMany({
+      where: {
+        ...(targetBranch ? { branchId: targetBranch } : {}),
+        isActive: true,
+        stock: { lt: 5 },
+      },
+      select: { name: true, stock: true, branch: { select: { name: true } } },
+      orderBy: { stock: 'asc' },
+      take: 10,
+    }),
+  ])
+
+  // 3. Process results
+  const dailyRevenue = todayTransactions._sum?.total || 0
+  const monthlyRevenue = monthTransactions._sum?.total || 0
+
+  // Revenue by Branch
   let branchRevenueData: { name: string; revenue: number }[] = []
   if (session.role === 'ADMIN') {
-    const allMonthTrans = await prisma.transaction.findMany({
-      where: { 
-        transactionDate: { gte: startOfMonth },
-        status: 'COMPLETED'
-      },
-      select: { branch: { select: { name: true } }, total: true }
-    })
-    
     const branchMap: Record<string, number> = {}
-    allMonthTrans.forEach(t => {
+    allMonthTransForBranch.forEach(t => {
       branchMap[t.branch.name] = (branchMap[t.branch.name] || 0) + t.total
     })
-    
     branchRevenueData = Object.entries(branchMap).map(([name, revenue]) => ({ name, revenue }))
   }
 
   // Trend 7 Days
-  const last7DaysTrans = await prisma.transaction.findMany({
-    where: {
-      ...(targetBranch ? { branchId: targetBranch } : {}),
-      transactionDate: { gte: sevenDaysAgo },
-      status: 'COMPLETED'
-    },
-    select: { transactionDate: true, total: true }
-  })
-
   const trendMap: Record<string, number> = {}
-  // Initialize last 7 days
   for (let i = 0; i < 7; i++) {
     const d = new Date(sevenDaysAgo)
     d.setDate(sevenDaysAgo.getDate() + i)
     const label = d.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric' })
     trendMap[label] = 0
   }
-
   last7DaysTrans.forEach(t => {
     const label = new Date(t.transactionDate).toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric' })
     if (trendMap[label] !== undefined) {
       trendMap[label] += t.total
     }
   })
-
   const trendData = Object.entries(trendMap).map(([date, revenue]) => ({ date, revenue }))
 
-  // Top Items (This Month)
-  const items = await prisma.transactionItem.findMany({
-    where: {
-      transaction: {
-        ...(targetBranch ? { branchId: targetBranch } : {}),
-        transactionDate: { gte: startOfMonth },
-        status: 'COMPLETED'
-      }
-    },
-    select: { itemName: true, itemType: true, quantity: true, subtotal: true }
-  })
-
+  // Top Items
   const itemMap: Record<string, { name: string, type: string, qty: number, revenue: number }> = {}
   items.forEach(item => {
     if (!itemMap[item.itemName]) {
@@ -109,23 +132,9 @@ export async function getDashboardMetrics() {
     itemMap[item.itemName].qty += item.quantity
     itemMap[item.itemName].revenue += item.subtotal
   })
-
   const sortedItems = Object.values(itemMap).sort((a, b) => b.qty - a.qty)
-  
   const topServices = sortedItems.filter(i => i.type === 'SERVICE').slice(0, 5)
   const topSpareparts = sortedItems.filter(i => i.type === 'SPAREPART').slice(0, 5)
-
-  // Low Stock Items (< 5)
-  const lowStockItems = await prisma.sparepart.findMany({
-    where: {
-      ...(targetBranch ? { branchId: targetBranch } : {}),
-      isActive: true,
-      stock: { lt: 5 } // Threshold is less than 5
-    },
-    select: { name: true, stock: true, branch: { select: { name: true } } },
-    orderBy: { stock: 'asc' },
-    take: 10
-  })
 
   return {
     dailyRevenue,
