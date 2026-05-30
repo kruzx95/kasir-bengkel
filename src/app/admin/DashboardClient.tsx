@@ -88,7 +88,7 @@ export default function DashboardClient({ metrics }: DashboardClientProps) {
         <div className={`bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm ${metrics.branchRevenueData.length > 0 ? 'lg:col-span-2' : 'lg:col-span-3'}`}>
           <h3 className="text-base font-bold text-slate-900 mb-6">Tren Pendapatan (7 Hari Terakhir)</h3>
           <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
               <LineChart data={metrics.trendData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                 <XAxis 
@@ -123,7 +123,7 @@ export default function DashboardClient({ metrics }: DashboardClientProps) {
           <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
             <h3 className="text-base font-bold text-slate-900 mb-6">Kontribusi Cabang (Bulan Ini)</h3>
             <div className="h-[250px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                 <PieChart>
                   <Pie
                     data={metrics.branchRevenueData}
