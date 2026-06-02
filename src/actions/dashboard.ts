@@ -15,6 +15,9 @@ export async function getDashboardMetrics() {
   
   const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
   
+  const startOfPrevMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1)
+  const endOfPrevMonth = new Date(today.getFullYear(), today.getMonth(), 0, 23, 59, 59, 999)
+  
   const sevenDaysAgo = new Date(today)
   sevenDaysAgo.setDate(today.getDate() - 6) // Last 7 days including today
 
@@ -22,9 +25,11 @@ export async function getDashboardMetrics() {
   const [
     todayTransactions,
     monthTransactions,
+    prevMonthTransactions,
     allMonthTransForBranch,
     last7DaysTrans,
     items,
+    prevMonthItems,
     lowStockItems,
   ] = await Promise.all([
     // Today's Revenue
@@ -42,6 +47,16 @@ export async function getDashboardMetrics() {
       where: {
         ...(targetBranch !== undefined ? { branchId: targetBranch } : {}),
         transactionDate: { gte: startOfMonth },
+        status: 'COMPLETED',
+      },
+      _sum: { total: true },
+    }),
+
+    // Previous Month's Revenue
+    prisma.transaction.aggregate({
+      where: {
+        ...(targetBranch !== undefined ? { branchId: targetBranch } : {}),
+        transactionDate: { gte: startOfPrevMonth, lte: endOfPrevMonth },
         status: 'COMPLETED',
       },
       _sum: { total: true },
@@ -80,6 +95,18 @@ export async function getDashboardMetrics() {
       select: { itemName: true, itemType: true, quantity: true, subtotal: true },
     }),
 
+    // Top Items (Previous Month)
+    prisma.transactionItem.findMany({
+      where: {
+        transaction: {
+          ...(targetBranch !== undefined ? { branchId: targetBranch } : {}),
+          transactionDate: { gte: startOfPrevMonth, lte: endOfPrevMonth },
+          status: 'COMPLETED',
+        },
+      },
+      select: { itemName: true, itemType: true, quantity: true, subtotal: true },
+    }),
+
     // Low Stock Items (< 5)
     prisma.sparepart.findMany({
       where: {
@@ -96,6 +123,8 @@ export async function getDashboardMetrics() {
   // 3. Process results
   const dailyRevenue = todayTransactions._sum?.total || 0
   const monthlyRevenue = monthTransactions._sum?.total || 0
+  const prevMonthRevenue = prevMonthTransactions._sum?.total || 0
+  const prevMonthName = startOfPrevMonth.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })
 
   // Revenue by Branch
   let branchRevenueData: { name: string; revenue: number }[] = []
@@ -136,6 +165,19 @@ export async function getDashboardMetrics() {
   const topServices = sortedItems.filter(i => i.type === 'SERVICE').slice(0, 5)
   const topSpareparts = sortedItems.filter(i => i.type === 'SPAREPART').slice(0, 5)
 
+  // Top Items (Previous Month)
+  const prevItemMap: Record<string, { name: string, type: string, qty: number, revenue: number }> = {}
+  prevMonthItems.forEach(item => {
+    if (!prevItemMap[item.itemName]) {
+      prevItemMap[item.itemName] = { name: item.itemName, type: item.itemType, qty: 0, revenue: 0 }
+    }
+    prevItemMap[item.itemName].qty += item.quantity
+    prevItemMap[item.itemName].revenue += item.subtotal
+  })
+  const prevSortedItems = Object.values(prevItemMap).sort((a, b) => b.qty - a.qty)
+  const prevTopServices = prevSortedItems.filter(i => i.type === 'SERVICE').slice(0, 5)
+  const prevTopSpareparts = prevSortedItems.filter(i => i.type === 'SPAREPART').slice(0, 5)
+
   return {
     dailyRevenue,
     monthlyRevenue,
@@ -143,6 +185,12 @@ export async function getDashboardMetrics() {
     branchRevenueData,
     topServices,
     topSpareparts,
-    lowStockItems
+    lowStockItems,
+    prevMonth: {
+      name: prevMonthName,
+      revenue: prevMonthRevenue,
+      topServices: prevTopServices,
+      topSpareparts: prevTopSpareparts,
+    }
   }
 }

@@ -4,7 +4,7 @@ import { formatCurrency } from '@/lib/utils'
 import {
   LineChart, Line, PieChart, Pie, Cell, Legend, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer
 } from 'recharts'
-import { TrendingUp, Wallet, Wrench, Package, ArrowUpRight } from 'lucide-react'
+import { TrendingUp, Wallet, Wrench, Package, ArrowUpRight, CalendarClock } from 'lucide-react'
 
 interface DashboardClientProps {
   metrics: {
@@ -15,6 +15,12 @@ interface DashboardClientProps {
     topServices: { name: string, qty: number, revenue: number }[]
     topSpareparts: { name: string, qty: number, revenue: number }[]
     lowStockItems: { name: string, stock: number, branch: { name: string } }[]
+    prevMonth: {
+      name: string
+      revenue: number
+      topServices: { name: string, qty: number, revenue: number }[]
+      topSpareparts: { name: string, qty: number, revenue: number }[]
+    }
   }
 }
 
@@ -243,6 +249,89 @@ export default function DashboardClient({ metrics }: DashboardClientProps) {
         </div>
 
       </div>
+
+      {/* Previous Month Summary */}
+      {metrics.prevMonth.revenue > 0 && (
+        <div className="space-y-6">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-violet-100 rounded-xl flex items-center justify-center text-violet-600">
+              <CalendarClock className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-slate-900 capitalize">Ringkasan {metrics.prevMonth.name}</h3>
+              <p className="text-xs text-slate-500">Data bulan sebelumnya</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Prev Month Revenue Card */}
+            <div className="bg-gradient-to-br from-violet-500 to-indigo-600 p-6 rounded-2xl shadow-lg shadow-violet-500/20 text-white relative overflow-hidden">
+              <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-white/10 rounded-full" />
+              <div className="absolute -right-2 -bottom-2 w-20 h-20 bg-white/10 rounded-full" />
+              <div className="relative z-10">
+                <p className="text-sm font-medium text-violet-100 mb-1 capitalize">Total Pendapatan {metrics.prevMonth.name}</p>
+                <p className="text-3xl font-bold">{formatCurrency(metrics.prevMonth.revenue)}</p>
+              </div>
+            </div>
+
+            {/* Prev Month Top Services */}
+            <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-8 h-8 bg-primary-50 rounded-lg flex items-center justify-center text-primary-600">
+                  <Wrench className="w-4 h-4" />
+                </div>
+                <h4 className="text-sm font-bold text-slate-900">Jasa Servis Terlaris</h4>
+              </div>
+              <div className="space-y-3">
+                {metrics.prevMonth.topServices.length === 0 ? (
+                  <p className="text-sm text-slate-500">Tidak ada data.</p>
+                ) : (
+                  metrics.prevMonth.topServices.map((item, idx) => (
+                    <div key={idx} className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs font-bold text-slate-400 w-3">{idx + 1}</span>
+                        <div>
+                          <p className="text-sm font-medium text-slate-900">{item.name}</p>
+                          <p className="text-xs text-slate-500">{item.qty} kali</p>
+                        </div>
+                      </div>
+                      <span className="text-sm font-semibold text-emerald-600">{formatCurrency(item.revenue)}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Prev Month Top Spareparts */}
+            <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-8 h-8 bg-warning-50 rounded-lg flex items-center justify-center text-warning-600">
+                  <Package className="w-4 h-4" />
+                </div>
+                <h4 className="text-sm font-bold text-slate-900">Sparepart Terlaris</h4>
+              </div>
+              <div className="space-y-3">
+                {metrics.prevMonth.topSpareparts.length === 0 ? (
+                  <p className="text-sm text-slate-500">Tidak ada data.</p>
+                ) : (
+                  metrics.prevMonth.topSpareparts.map((item, idx) => (
+                    <div key={idx} className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs font-bold text-slate-400 w-3">{idx + 1}</span>
+                        <div>
+                          <p className="text-sm font-medium text-slate-900">{item.name}</p>
+                          <p className="text-xs text-slate-500">{item.qty} terjual</p>
+                        </div>
+                      </div>
+                      <span className="text-sm font-semibold text-emerald-600">{formatCurrency(item.revenue)}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   )

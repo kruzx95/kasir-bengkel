@@ -139,9 +139,29 @@ export default function NewTransactionClient({
   }, [services, spareparts])
 
   const searchResults = useMemo(() => {
-    if (!searchQuery) return []
-    const lowerQ = searchQuery.toLowerCase()
-    return catalog.filter(item => item.name.toLowerCase().includes(lowerQ)).slice(0, 5)
+    if (!searchQuery.trim()) return []
+    const tokens = searchQuery.toLowerCase().trim().split(/\s+/).filter(Boolean)
+    
+    const scored = catalog
+      .map(item => {
+        const name = item.name.toLowerCase()
+        // Every token must match somewhere in the name
+        const allMatch = tokens.every(t => name.includes(t))
+        if (!allMatch) return null
+        
+        // Score: bonus for starts-with match, bonus for exact substring of full query
+        let score = 0
+        if (name.startsWith(tokens[0])) score += 10
+        if (name.includes(searchQuery.toLowerCase().trim())) score += 5
+        tokens.forEach(t => { if (name.includes(t)) score += 1 })
+        
+        return { item, score }
+      })
+      .filter((r): r is { item: ItemData; score: number } => r !== null)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 10)
+    
+    return scored.map(r => r.item)
   }, [searchQuery, catalog])
 
   // Computed Totals
