@@ -359,3 +359,15 @@ model IndentOrderItem {
 
   @@map("indent_order_items")
 }
+
+// ============================================
+// APP SETTINGS — Konfigurasi Aplikasi
+// ============================================
+model AppSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+
+  @@map("app_settings")
+}

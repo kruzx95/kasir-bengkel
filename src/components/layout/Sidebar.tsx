@@ -19,6 +19,7 @@ import {
   X,
   ClipboardList,
   Briefcase,
+  Settings,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { logout } from '@/actions/auth'
@@ -27,6 +28,7 @@ interface SidebarProps {
   role: 'ADMIN' | 'KASIR'
   userName: string
   branchName: string | null
+  shopName: string
   mobileOpen?: boolean
   onMobileClose?: () => void
 }
@@ -50,9 +52,10 @@ const adminMenuItems = [
   { href: '/admin/master/mechanics', label: 'Mekanik', icon: Users },
   { href: '/admin/cabang', label: 'Cabang', icon: Building2 },
   { href: '/admin/users', label: 'Pengguna', icon: UserCog },
+  { href: '/admin/pengaturan', label: 'Pengaturan', icon: Settings },
 ]
 
-export default function Sidebar({ role, userName, branchName, mobileOpen = false, onMobileClose }: SidebarProps) {
+export default function Sidebar({ role, userName, branchName, shopName, mobileOpen = false, onMobileClose }: SidebarProps) {
   const pathname = usePathname()
   const [collapsed, setCollapsed] = useState(false)
   const menuItems = role === 'ADMIN' ? adminMenuItems : kasirMenuItems
@@ -103,7 +106,7 @@ export default function Sidebar({ role, userName, branchName, mobileOpen = false
             {(!collapsed || mobileOpen) && (
               <div className="overflow-hidden animate-fade-in">
                 <h1 className="text-sm font-bold text-white truncate">
-                  Irian Motor
+                  {shopName}
                 </h1>
                 <p className="text-xs text-slate-400 truncate">
                   {branchName ?? 'Semua Cabang'}

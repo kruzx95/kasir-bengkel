@@ -1,4 +1,5 @@
 import { getTransactionDetails } from '@/actions/transaction'
+import { getShopName } from '@/actions/settings'
 import { notFound } from 'next/navigation'
 import { formatCurrency } from '@/lib/utils'
 import Link from 'next/link'
@@ -37,10 +38,9 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
   const resolvedParams = await params
   const tx = await getTransactionDetails(resolvedParams.id)
   const session = await getSession()
+  const shopName = await getShopName()
 
-  if (!tx) {
-    notFound()
-  }
+  if (!tx) notFound()
 
   return (
     <div className="p-4 sm:p-6 max-w-4xl mx-auto animate-fade-in">
@@ -68,7 +68,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
                 <Receipt className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Irian Motor</h1>
+                <h1 className="text-xl sm:text-2xl font-bold text-slate-900">{shopName}</h1>
                 <p className="text-sm text-slate-500 font-medium">Cabang {tx.branch.name}</p>
               </div>
             </div>

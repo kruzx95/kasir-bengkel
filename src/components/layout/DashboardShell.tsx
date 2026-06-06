@@ -17,10 +17,11 @@ interface DashboardShellProps {
   role: 'ADMIN' | 'KASIR'
   userName: string
   branchName: string | null
+  shopName: string
   children: React.ReactNode
 }
 
-export default function DashboardShell({ role, userName, branchName, children }: DashboardShellProps) {
+export default function DashboardShell({ role, userName, branchName, shopName, children }: DashboardShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const openSidebar = useCallback(() => setSidebarOpen(true), [])
 
@@ -31,6 +32,7 @@ export default function DashboardShell({ role, userName, branchName, children }:
           role={role}
           userName={userName}
           branchName={branchName}
+          shopName={shopName}
           mobileOpen={sidebarOpen}
           onMobileClose={() => setSidebarOpen(false)}
         />
