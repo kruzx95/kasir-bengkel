@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Irian Motor — Sistem Manajemen Bengkel",
-    template: "%s | Irian Motor",
+    default: "Sistem Manajemen Bengkel",
+    template: "%s | Bengkel",
   },
   description:
     "Aplikasi manajemen bengkel motor multi-cabang. Pencatatan transaksi, monitoring, dan laporan otomatis.",

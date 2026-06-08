@@ -70,7 +70,7 @@ async function main() {
     where: { email: 'admin@irianmotor.com' },
     update: {},
     create: {
-      name: 'Owner Irian Motor',
+      name: 'Owner Bengkel',
       email: 'admin@irianmotor.com',
       passwordHash: adminPassword,
       role: 'ADMIN',
