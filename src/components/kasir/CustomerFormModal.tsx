@@ -28,6 +28,7 @@ interface CustomerFormModalProps {
   onClose: () => void
   branchId?: string
   editData?: CustomerData | null
+  branches?: { id: string; name: string }[]
 }
 
 export default function CustomerFormModal({
@@ -35,6 +36,7 @@ export default function CustomerFormModal({
   onClose,
   branchId,
   editData,
+  branches,
 }: CustomerFormModalProps) {
   const isEditing = !!editData
 
@@ -78,9 +80,23 @@ export default function CustomerFormModal({
 
       <form action={formAction} className="space-y-4">
         {/* Hidden branchId for kasir */}
-        {branchId && (
+        {branchId ? (
           <input type="hidden" name="branchId" value={branchId} />
-        )}
+        ) : branches && branches.length > 0 ? (
+          <div className="mb-4">
+            <Select
+              id="branchId"
+              name="branchId"
+              label="Pilih Cabang"
+              options={[
+                { value: '', label: 'Pilih cabang...' },
+                ...branches.map(b => ({ value: b.id, label: b.name }))
+              ]}
+              defaultValue={editData?.branchId || ''}
+              required
+            />
+          </div>
+        ) : null}
 
         {/* Data Pemilik */}
         <div className="pb-1">

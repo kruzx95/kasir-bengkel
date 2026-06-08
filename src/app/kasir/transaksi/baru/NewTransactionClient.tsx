@@ -71,6 +71,8 @@ interface NewTransactionClientProps {
   services: { id: string; name: string; price: number }[]
   spareparts: { id: string; name: string; sellPrice: number; stock: number; sku: string | null }[]
   mechanics?: { id: string; name: string }[]
+  basePath?: string
+  branchId?: string | null
 }
 
 export default function NewTransactionClient({
@@ -78,6 +80,8 @@ export default function NewTransactionClient({
   services,
   spareparts,
   mechanics = [],
+  basePath = '/kasir/transaksi',
+  branchId: txBranchId,
 }: NewTransactionClientProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -203,14 +207,13 @@ export default function NewTransactionClient({
   }
 
   const handleUpdateQty = (index: number, newQty: number) => {
-    if (newQty < 1) return
     const item = items[index]
     
     if (item.itemType === 'SPAREPART') {
       const sp = spareparts.find(s => s.id === item.itemId)
       if (sp && newQty > sp.stock) {
         alert(`Maksimal stok: ${sp.stock}`)
-        return
+        newQty = sp.stock
       }
     }
 
@@ -236,12 +239,13 @@ export default function NewTransactionClient({
         notes: notes || null,
         odometer: odometer === '' ? null : odometer,
         isCorporate: isSelectedCorporate && isCorporate,
+        branchId: txBranchId || null,
       }
       
       const res = await createTransaction(payload)
       if (res.success) {
         clearDraft()
-        router.push(`/kasir/transaksi/${res.invoiceNumber || ''}`)
+        router.push(`${basePath}/${res.invoiceNumber || ''}`)
       } else {
         setError(res.message || 'Gagal membuat transaksi')
       }
@@ -251,7 +255,7 @@ export default function NewTransactionClient({
   return (
     <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6">
       <div className="flex items-center gap-3 sm:gap-4">
-        <Link href="/kasir/transaksi">
+        <Link href={basePath}>
           <Button variant="ghost" icon={ArrowLeft} className="w-10 h-10 p-0" />
         </Link>
         <div className="flex-1">
@@ -370,12 +374,25 @@ export default function NewTransactionClient({
                     </div>
                     
                     <div className="flex items-center justify-between sm:justify-end gap-3">
-                      <div className="flex items-center gap-3 bg-white border border-slate-200 rounded-lg p-1">
+                      <div className="flex items-center gap-1 sm:gap-3 bg-white border border-slate-200 rounded-lg p-1">
                         <button 
-                          onClick={() => handleUpdateQty(index, item.quantity - 1)}
+                          onClick={() => {
+                            if (item.quantity > 1) handleUpdateQty(index, item.quantity - 1)
+                          }}
                           className="w-7 h-7 rounded-md hover:bg-slate-100 flex items-center justify-center text-slate-600 transition-colors"
                         >-</button>
-                        <span className="w-6 text-center text-sm font-semibold text-slate-900">{item.quantity}</span>
+                        <input
+                          type="number"
+                          value={item.quantity === 0 ? '' : item.quantity}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            handleUpdateQty(index, val === '' ? 0 : parseInt(val) || 0);
+                          }}
+                          onBlur={(e) => {
+                            if (item.quantity < 1) handleUpdateQty(index, 1);
+                          }}
+                          className="w-10 text-center text-sm font-semibold text-slate-900 bg-transparent border-none p-0 focus:ring-0 [&::-webkit-inner-spin-button]:appearance-none"
+                        />
                         <button 
                           onClick={() => handleUpdateQty(index, item.quantity + 1)}
                           className="w-7 h-7 rounded-md hover:bg-slate-100 flex items-center justify-center text-slate-600 transition-colors"

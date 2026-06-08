@@ -1,7 +1,7 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
-import { getSession } from '@/lib/session'
+import { getSession, getBranchFilter } from '@/lib/session'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
@@ -21,11 +21,9 @@ export async function getServices(branchId?: string | null) {
   const session = await getSession()
   if (!session) return []
 
-  const where: Record<string, unknown> = { isActive: true }
-  if (branchId) {
-    where.branchId = branchId
-  } else if (session.role === 'KASIR') {
-    where.branchId = session.branchId || 'UNASSIGNED'
+  const where: Record<string, unknown> = { 
+    isActive: true,
+    ...getBranchFilter(session, branchId)
   }
 
   return prisma.service.findMany({
@@ -62,12 +60,14 @@ export async function createService(
   }
 
   try {
-    // Ambil semua cabang aktif
-    const branches = await prisma.branch.findMany({
-      where: { isActive: true },
-    })
+    const isSuperAdmin = session.role === 'ADMIN' && !session.branchId
+    let branches = []
+    if (isSuperAdmin) {
+      branches = await prisma.branch.findMany({ where: { isActive: true } })
+    } else {
+      branches = [{ id: session.branchId! }]
+    }
 
-    // Buat servis untuk semua cabang sekaligus
     await prisma.service.createMany({
       data: branches.map((branch) => ({
         name: validatedFields.data.name,

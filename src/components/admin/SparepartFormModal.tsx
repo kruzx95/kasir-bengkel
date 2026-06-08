@@ -185,7 +185,7 @@ export default function SparepartFormModal({
           </div>
         </div>
 
-        {isEditing && (
+        {isEditing && branches.length > 0 && (
           <Select
             id="branchId"
             name="branchId"

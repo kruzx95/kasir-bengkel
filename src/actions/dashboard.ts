@@ -1,13 +1,14 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
-import { getSession } from '@/lib/session'
+import { getSession, getBranchFilter } from '@/lib/session'
 
 export async function getDashboardMetrics() {
   const session = await getSession()
   if (!session) return null
 
-  const targetBranch = session.role === 'KASIR' ? (session.branchId || 'UNASSIGNED') : undefined
+  const branchFilter = getBranchFilter(session)
+  const isSuperAdmin = session.role === 'ADMIN' && !session.branchId
 
   // 1. Date ranges
   const today = new Date()
@@ -35,7 +36,7 @@ export async function getDashboardMetrics() {
     // Today's Revenue
     prisma.transaction.aggregate({
       where: {
-        ...(targetBranch !== undefined ? { branchId: targetBranch } : {}),
+        ...branchFilter,
         transactionDate: { gte: today },
         status: 'COMPLETED',
       },
@@ -45,7 +46,7 @@ export async function getDashboardMetrics() {
     // This Month's Revenue
     prisma.transaction.aggregate({
       where: {
-        ...(targetBranch !== undefined ? { branchId: targetBranch } : {}),
+        ...branchFilter,
         transactionDate: { gte: startOfMonth },
         status: 'COMPLETED',
       },
@@ -55,15 +56,15 @@ export async function getDashboardMetrics() {
     // Previous Month's Revenue
     prisma.transaction.aggregate({
       where: {
-        ...(targetBranch !== undefined ? { branchId: targetBranch } : {}),
+        ...branchFilter,
         transactionDate: { gte: startOfPrevMonth, lte: endOfPrevMonth },
         status: 'COMPLETED',
       },
       _sum: { total: true },
     }),
 
-    // Revenue by Branch (Admin only) — empty for KASIR
-    session.role === 'ADMIN'
+    // Revenue by Branch (Super Admin only)
+    isSuperAdmin
       ? prisma.transaction.findMany({
           where: {
             transactionDate: { gte: startOfMonth },
@@ -76,7 +77,7 @@ export async function getDashboardMetrics() {
     // Trend 7 Days
     prisma.transaction.findMany({
       where: {
-        ...(targetBranch !== undefined ? { branchId: targetBranch } : {}),
+        ...branchFilter,
         transactionDate: { gte: sevenDaysAgo },
         status: 'COMPLETED',
       },
@@ -87,7 +88,7 @@ export async function getDashboardMetrics() {
     prisma.transactionItem.findMany({
       where: {
         transaction: {
-          ...(targetBranch !== undefined ? { branchId: targetBranch } : {}),
+          ...branchFilter,
           transactionDate: { gte: startOfMonth },
           status: 'COMPLETED',
         },
@@ -99,7 +100,7 @@ export async function getDashboardMetrics() {
     prisma.transactionItem.findMany({
       where: {
         transaction: {
-          ...(targetBranch !== undefined ? { branchId: targetBranch } : {}),
+          ...branchFilter,
           transactionDate: { gte: startOfPrevMonth, lte: endOfPrevMonth },
           status: 'COMPLETED',
         },
@@ -110,7 +111,7 @@ export async function getDashboardMetrics() {
     // Low Stock Items (< 5)
     prisma.sparepart.findMany({
       where: {
-        ...(targetBranch !== undefined ? { branchId: targetBranch } : {}),
+        ...branchFilter,
         isActive: true,
         stock: { lt: 5 },
       },
@@ -128,7 +129,7 @@ export async function getDashboardMetrics() {
 
   // Revenue by Branch
   let branchRevenueData: { name: string; revenue: number }[] = []
-  if (session.role === 'ADMIN') {
+  if (isSuperAdmin) {
     const branchMap: Record<string, number> = {}
     allMonthTransForBranch.forEach(t => {
       branchMap[t.branch.name] = (branchMap[t.branch.name] || 0) + t.total

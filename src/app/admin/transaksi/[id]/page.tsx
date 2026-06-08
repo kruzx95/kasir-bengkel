@@ -46,7 +46,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
     <div className="p-4 sm:p-6 max-w-4xl mx-auto animate-fade-in">
       {/* Top Actions - Hide when printing */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 sm:mb-8 print:hidden">
-        <Link href="/kasir/transaksi">
+        <Link href="/admin/transaksi">
           <Button variant="ghost" icon={ArrowLeft}>Kembali</Button>
         </Link>
         <div className="flex items-center gap-2">
@@ -179,7 +179,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
               <div className="flex justify-between text-sm text-emerald-600">
                 <span>Diskon</span>
                 <span>-{formatCurrency(tx.discount)}</span>
-              </div>
+            </div>
             )}
             <div className="flex justify-between items-center pt-4 border-t border-slate-200 mt-4">
               <span className="text-base font-bold text-slate-900">Total Akhir</span>

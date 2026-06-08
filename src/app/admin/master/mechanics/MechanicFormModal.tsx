@@ -116,7 +116,7 @@ export default function MechanicFormModal({ isOpen, onClose, mechanic, branches 
             onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
           />
 
-          {!mechanic && (
+          {!mechanic && branches.length > 0 && (
             <Select
               label="Cabang"
               options={branches.map(b => ({ label: b.name, value: b.id }))}

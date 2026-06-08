@@ -56,6 +56,8 @@ export async function createUser(data: {
       return { success: false, message: 'Password minimal 6 karakter' }
     }
 
+    // KASIR wajib punya cabang, Admin Toko punya cabang, Super Admin null
+    // Untuk membedakan, jika tidak ada branchId yg di-pass, kita anggap dia Super Admin (atau KASIR yg error)
     if (data.role === 'KASIR' && !data.branchId) {
       return { success: false, message: 'Kasir wajib memilih cabang' }
     }
@@ -73,7 +75,7 @@ export async function createUser(data: {
         email: data.email.trim(),
         passwordHash,
         role: data.role,
-        branchId: data.role === 'ADMIN' ? null : data.branchId,
+        branchId: data.branchId || null,
       },
     })
 
@@ -93,7 +95,10 @@ export async function deleteUser(id: string) {
       return { success: false, message: 'Tidak dapat menghapus akun sendiri' }
     }
 
-    await prisma.user.delete({ where: { id } })
+    await prisma.user.update({
+      where: { id },
+      data: { isActive: false },
+    })
     return { success: true, message: 'Pengguna berhasil dihapus' }
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Gagal menghapus pengguna'

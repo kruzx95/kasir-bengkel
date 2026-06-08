@@ -1,7 +1,7 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
-import { getSession } from '@/lib/session'
+import { getSession, getBranchFilter } from '@/lib/session'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
@@ -38,9 +38,12 @@ export async function createIndentOrder(payload: IndentPayload) {
 
     const data = validated.data
 
+    const isSuperAdmin = session.role === 'ADMIN' && !session.branchId
+    const targetBranchId = isSuperAdmin ? data.branchId : session.branchId!
+
     await prisma.indentOrder.create({
       data: {
-        branchId: data.branchId,
+        branchId: targetBranchId,
         userId: session.userId,
         supplierName: data.supplierName,
         orderDate: new Date(data.orderDate),
@@ -74,7 +77,7 @@ export async function getIndentOrders(branchId?: string, status?: IndentOrderSta
 
     return await prisma.indentOrder.findMany({
       where: {
-        ...(branchId ? { branchId } : {}),
+        ...getBranchFilter(session, branchId),
         ...(status ? { status } : {}),
       },
       include: {

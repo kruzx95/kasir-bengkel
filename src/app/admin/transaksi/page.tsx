@@ -1,4 +1,5 @@
 import Header from '@/components/layout/Header'
+import { getSession } from '@/lib/session'
 import { getPaginatedTransactions } from '@/actions/transaction'
 import { prisma } from '@/lib/prisma'
 import AdminTransactionsClient from './AdminTransactionsClient'
@@ -13,13 +14,16 @@ export const metadata: Metadata = {
 export default async function AdminTransaksiPage() {
   const todayStr = new Date().toISOString().slice(0, 10)
 
+  const session = await getSession()
+  const isSuperAdmin = session?.role === 'ADMIN' && !session.branchId
+
   const [result, branches] = await Promise.all([
     getPaginatedTransactions(1, 50, undefined, todayStr),
-    prisma.branch.findMany({
+    isSuperAdmin ? prisma.branch.findMany({
       where: { isActive: true },
       select: { id: true, name: true },
       orderBy: { name: 'asc' },
-    }),
+    }) : Promise.resolve([]),
   ])
 
   return (

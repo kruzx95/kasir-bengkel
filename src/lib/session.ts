@@ -77,3 +77,11 @@ export async function deleteSession() {
   const cookieStore = await cookies()
   cookieStore.delete('session')
 }
+
+export function getBranchFilter(session: SessionPayload, requestedBranchId?: string | null) {
+  const isSuperAdmin = session.role === 'ADMIN' && !session.branchId
+  if (isSuperAdmin) {
+    return requestedBranchId ? { branchId: requestedBranchId } : {}
+  }
+  return { branchId: session.branchId || 'UNASSIGNED' }
+}

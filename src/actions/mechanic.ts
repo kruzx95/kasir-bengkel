@@ -1,18 +1,16 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
-import { getSession } from '@/lib/session'
+import { getSession, getBranchFilter } from '@/lib/session'
 import { revalidatePath } from 'next/cache'
 
 export async function getMechanics(branchId?: string) {
   const session = await getSession()
   if (!session) return []
 
-  const targetBranch = session.role === 'KASIR' ? (session.branchId || 'UNASSIGNED') : branchId
-
   try {
     return await prisma.mechanic.findMany({
-      where: targetBranch !== undefined ? { branchId: targetBranch } : {},
+      where: getBranchFilter(session, branchId),
       include: {
         branch: { select: { name: true } }
       },
@@ -29,11 +27,15 @@ export async function createMechanic(data: { name: string; phone?: string; branc
     const session = await getSession()
     if (!session || session.role !== 'ADMIN') throw new Error('Unauthorized')
 
+    const isSuperAdmin = session.role === 'ADMIN' && !session.branchId
+    const targetBranchId = !isSuperAdmin ? session.branchId : data.branchId
+    if (!targetBranchId) throw new Error('Cabang harus dipilih')
+
     await prisma.mechanic.create({
       data: {
         name: data.name,
         phone: data.phone || null,
-        branchId: data.branchId
+        branchId: targetBranchId
       }
     })
 

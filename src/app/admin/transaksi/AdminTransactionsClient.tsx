@@ -5,7 +5,7 @@ import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import { formatCurrency } from '@/lib/utils'
-import { Receipt, Eye, Filter, Calendar } from 'lucide-react'
+import { Receipt, Eye, Filter, Calendar, Plus } from 'lucide-react'
 import { getPaginatedTransactions } from '@/actions/transaction'
 import Link from 'next/link'
 
@@ -84,22 +84,28 @@ export default function AdminTransactionsClient({ initialData, initialDate, bran
             onChange={(e) => setSelectedDate(e.target.value)}
           />
         </div>
-        <div className="w-full sm:w-56">
-          <label className="block text-sm font-medium text-slate-700 mb-1.5">Cabang</label>
-          <select
-            value={selectedBranch}
-            onChange={(e) => setSelectedBranch(e.target.value)}
-            className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none transition-all"
-          >
-            <option value="">Semua Cabang</option>
-            {branches.map(b => (
-              <option key={b.id} value={b.id}>{b.name}</option>
-            ))}
-          </select>
-        </div>
+        {branches.length > 0 && (
+          <div className="w-full sm:w-56">
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">Cabang</label>
+            <select
+              value={selectedBranch}
+              onChange={(e) => setSelectedBranch(e.target.value)}
+              className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none transition-all"
+            >
+              <option value="">Semua Cabang</option>
+              {branches.map(b => (
+                <option key={b.id} value={b.id}>{b.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
         <Button onClick={handleFilter} loading={isPending} icon={Filter}>
           Filter
         </Button>
+        <div className="flex-1 hidden sm:block"></div>
+        <Link href="/admin/transaksi/baru" className="w-full sm:w-auto">
+          <Button icon={Plus} className="w-full sm:w-auto">Transaksi Baru</Button>
+        </Link>
       </div>
 
       {/* Summary Cards */}
@@ -202,7 +208,7 @@ export default function AdminTransactionsClient({ initialData, initialDate, bran
                       </span>
                     </td>
                     <td className="p-4 text-right">
-                      <Link href={`/kasir/transaksi/${tx.id}`}>
+                      <Link href={`/admin/transaksi/${tx.id}`}>
                         <Button size="sm" variant="ghost" icon={Eye} aria-label="Lihat detail invoice" />
                       </Link>
                     </td>

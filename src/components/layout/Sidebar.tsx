@@ -43,6 +43,7 @@ const kasirMenuItems = [
 const adminMenuItems = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/admin/transaksi', label: 'Transaksi', icon: Receipt },
+  { href: '/admin/pelanggan', label: 'Pelanggan', icon: Users },
   { href: '/admin/laporan', label: 'Laporan', icon: BarChart3 },
   { href: '/admin/master/services', label: 'Jasa Servis', icon: Wrench },
   { href: '/admin/master/spareparts', label: 'Sparepart', icon: Package },
@@ -58,7 +59,15 @@ const adminMenuItems = [
 export default function Sidebar({ role, userName, branchName, shopName, mobileOpen = false, onMobileClose }: SidebarProps) {
   const pathname = usePathname()
   const [collapsed, setCollapsed] = useState(false)
-  const menuItems = role === 'ADMIN' ? adminMenuItems : kasirMenuItems
+  const isSuperAdmin = role === 'ADMIN' && !branchName
+  const menuItems = role === 'ADMIN' 
+    ? adminMenuItems.filter(item => {
+        if (['Cabang', 'Pengguna', 'Pengaturan'].includes(item.label)) {
+          return isSuperAdmin
+        }
+        return true
+      })
+    : kasirMenuItems
 
   // Close mobile sidebar on route change
   useEffect(() => {

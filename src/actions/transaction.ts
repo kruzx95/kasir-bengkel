@@ -1,7 +1,7 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
-import { getSession } from '@/lib/session'
+import { getSession, getBranchFilter } from '@/lib/session'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
@@ -22,6 +22,7 @@ const transactionSchema = z.object({
   notes: z.string().optional().nullable(),
   isCorporate: z.boolean().optional().default(false),
   odometer: z.number().int().min(0).optional().nullable(),
+  branchId: z.string().optional().nullable(),
 })
 
 export type TransactionPayload = z.infer<typeof transactionSchema>
@@ -36,8 +37,13 @@ export type TransactionState = {
 export async function createTransaction(payload: TransactionPayload): Promise<TransactionState> {
   try {
     const session = await getSession()
-    if (!session || !session.branchId) {
+    if (!session) {
       return { success: false, message: 'Unauthorized' }
+    }
+
+    const isSuperAdmin = session.role === 'ADMIN' && !session.branchId
+    if (isSuperAdmin && !payload.branchId) {
+      return { success: false, message: 'Admin harus memilih cabang untuk transaksi.' }
     }
 
     const validated = transactionSchema.safeParse(payload)
@@ -50,7 +56,7 @@ export async function createTransaction(payload: TransactionPayload): Promise<Tr
     }
 
     const data = validated.data
-    const branchId = session.branchId
+    const branchId = isSuperAdmin ? payload.branchId! : session.branchId!
     const userId = session.userId
 
     // Begin Prisma Transaction
@@ -157,6 +163,7 @@ export async function createTransaction(payload: TransactionPayload): Promise<Tr
 
     revalidatePath('/kasir/transaksi')
     revalidatePath('/kasir/sparepart')
+    revalidatePath('/admin/transaksi')
     return { success: true, message: 'Transaksi berhasil disimpan', invoiceNumber: result.invoiceNumber }
   } catch (error: unknown) {
     console.error('Create Transaction Error:', error)
@@ -170,19 +177,15 @@ export async function getTransactions(branchId?: string, dateStr?: string) {
     const session = await getSession()
     if (!session) return []
 
-    // If kasir, force branchId
-    const targetBranch = session.role === 'KASIR' ? (session.branchId || 'UNASSIGNED') : branchId
-
     const targetDate = dateStr ? new Date(dateStr) : new Date()
     const startOfDay = new Date(targetDate)
     startOfDay.setHours(0, 0, 0, 0)
-    
     const endOfDay = new Date(targetDate)
     endOfDay.setHours(23, 59, 59, 999)
 
     const transactions = await prisma.transaction.findMany({
       where: {
-        ...(targetBranch !== undefined ? { branchId: targetBranch } : {}),
+        ...getBranchFilter(session, branchId),
         transactionDate: {
           gte: startOfDay,
           lte: endOfDay,
@@ -238,9 +241,7 @@ export async function getPaginatedTransactions(
     const session = await getSession()
     if (!session) return { data: [], totalCount: 0, totalPages: 0, currentPage: page }
 
-    const targetBranch = session.role === 'KASIR' ? (session.branchId || 'UNASSIGNED') : branchId
     const targetDate = dateStr ? new Date(dateStr) : undefined
-    
     let dateFilter = {}
     if (targetDate) {
       const startOfDay = new Date(targetDate)
@@ -256,7 +257,7 @@ export async function getPaginatedTransactions(
     }
 
     const where = {
-      ...(targetBranch !== undefined ? { branchId: targetBranch } : {}),
+      ...getBranchFilter(session, branchId),
       ...dateFilter
     }
 

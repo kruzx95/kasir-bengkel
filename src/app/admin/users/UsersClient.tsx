@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { Shield, Store, Mail, Edit2, Plus, Trash2 } from 'lucide-react'
+import { Shield, Store, Mail, Edit2, Plus, Trash2, Crown } from 'lucide-react'
 import Badge from '@/components/ui/Badge'
 import Modal, { ModalFooter } from '@/components/ui/Modal'
 import Input from '@/components/ui/Input'
@@ -107,7 +107,7 @@ export default function UsersClient({ users, branches }: { users: UserData[], br
           email: formData.email,
           password: formData.password,
           role: formData.role as 'ADMIN' | 'KASIR',
-          branchId: formData.role === 'KASIR' ? formData.branchId : null,
+          branchId: formData.branchId || null,
         })
         if (res.success) {
           setIsCreating(false)
@@ -147,12 +147,16 @@ export default function UsersClient({ users, branches }: { users: UserData[], br
               className="flex items-center justify-between px-6 py-4 hover:bg-slate-50/50 transition-colors group relative"
             >
               <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                  user.role === 'ADMIN'
-                    ? 'bg-linear-to-br from-amber-400 to-amber-600'
-                    : 'bg-linear-to-br from-primary-400 to-primary-600'
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-sm ${
+                  user.role === 'ADMIN' && !user.branch
+                    ? 'bg-linear-to-br from-violet-500 to-violet-700 shadow-violet-200'
+                    : user.role === 'ADMIN'
+                    ? 'bg-linear-to-br from-amber-400 to-amber-600 shadow-amber-200'
+                    : 'bg-linear-to-br from-primary-400 to-primary-600 shadow-primary-200'
                 }`}>
-                  {user.role === 'ADMIN' ? (
+                  {user.role === 'ADMIN' && !user.branch ? (
+                    <Crown className="w-5 h-5 text-white" />
+                  ) : user.role === 'ADMIN' ? (
                     <Shield className="w-5 h-5 text-white" />
                   ) : (
                     <Store className="w-5 h-5 text-white" />
@@ -174,10 +178,10 @@ export default function UsersClient({ users, branches }: { users: UserData[], br
                   </Badge>
                 )}
                 <Badge
-                  variant={user.role === 'ADMIN' ? 'warning' : 'info'}
+                  variant={user.role === 'ADMIN' && !user.branch ? 'primary' : user.role === 'ADMIN' ? 'warning' : 'info'}
                   size="md"
                 >
-                  {user.role === 'ADMIN' ? 'Admin' : 'Kasir'}
+                  {user.role === 'ADMIN' && !user.branch ? 'Super Admin' : user.role === 'ADMIN' ? 'Admin' : 'Kasir'}
                 </Badge>
                 
                 {/* Edit Button */}
@@ -210,7 +214,7 @@ export default function UsersClient({ users, branches }: { users: UserData[], br
           setIsCreating(false)
         }}
         title={isCreating ? "Tambah Pengguna Baru" : "Edit Data Pengguna"}
-        description={isCreating ? "Buat akun akses untuk Admin atau Kasir cabang." : (editingUser?.role === 'KASIR' ? `Kasir Cabang: ${editingUser?.branch?.name}` : 'Admin Sistem')}
+        description={isCreating ? "Buat akun akses untuk Super Admin atau Admin/Kasir toko." : (editingUser?.role === 'KASIR' ? `Kasir Cabang: ${editingUser?.branch?.name}` : (editingUser?.branch ? `Admin Toko: ${editingUser?.branch?.name}` : 'Super Admin Sistem'))}
       >
         <form onSubmit={handleSubmit} className="p-6">
           {error && (
@@ -245,18 +249,16 @@ export default function UsersClient({ users, branches }: { users: UserData[], br
                   ]}
                   required
                 />
-                {formData.role === 'KASIR' && (
-                  <Select
-                    label="Pilih Cabang"
-                    value={formData.branchId}
-                    onChange={(e) => setFormData({ ...formData, branchId: e.target.value })}
-                    options={[
-                      { label: 'Pilih Cabang...', value: '' },
-                      ...branches.map(b => ({ label: b.name, value: b.id }))
-                    ]}
-                    required={formData.role === 'KASIR'}
-                  />
-                )}
+                <Select
+                  label="Pilih Cabang (Kosongkan untuk Super Admin)"
+                  value={formData.branchId}
+                  onChange={(e) => setFormData({ ...formData, branchId: e.target.value })}
+                  options={[
+                    { label: formData.role === 'KASIR' ? 'Pilih Cabang...' : 'Akses Semua Cabang (Super Admin)', value: '' },
+                    ...branches.map(b => ({ label: b.name, value: b.id }))
+                  ]}
+                  required={formData.role === 'KASIR'}
+                />
               </div>
             )}
             <Input

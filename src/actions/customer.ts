@@ -1,7 +1,7 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
-import { getSession } from '@/lib/session'
+import { getSession, getBranchFilter } from '@/lib/session'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
@@ -29,12 +29,8 @@ export async function getCustomers(branchId?: string | null, search?: string) {
   const session = await getSession()
   if (!session) return []
 
-  const where: Record<string, unknown> = {}
-
-  if (branchId) {
-    where.branchId = branchId
-  } else if (session.role === 'KASIR') {
-    where.branchId = session.branchId || 'UNASSIGNED'
+  const where: Record<string, unknown> = {
+    ...getBranchFilter(session, branchId)
   }
 
   if (search) {
@@ -70,12 +66,8 @@ export async function getPaginatedCustomers(
     const session = await getSession()
     if (!session) return { data: [], totalCount: 0, totalPages: 0, currentPage: page }
 
-    const where: Record<string, unknown> = {}
-
-    if (branchId) {
-      where.branchId = branchId
-    } else if (session.role === 'KASIR') {
-      where.branchId = session.branchId || 'UNASSIGNED'
+    const where: Record<string, unknown> = {
+      ...getBranchFilter(session, branchId)
     }
 
     if (search) {
@@ -130,8 +122,9 @@ export async function createCustomer(
   const session = await getSession()
   if (!session) return { message: 'Unauthorized' }
 
-  const branchId = session.role === 'KASIR' && session.branchId
-    ? session.branchId
+  const isSuperAdmin = session.role === 'ADMIN' && !session.branchId
+  const branchId = !isSuperAdmin
+    ? (session.branchId || 'UNASSIGNED')
     : formData.get('branchId') as string
 
   const validatedFields = CustomerSchema.safeParse({
@@ -184,8 +177,9 @@ export async function updateCustomer(
   const session = await getSession()
   if (!session) return { message: 'Unauthorized' }
 
-  const branchId = session.role === 'KASIR' && session.branchId
-    ? session.branchId
+  const isSuperAdmin = session.role === 'ADMIN' && !session.branchId
+  const branchId = !isSuperAdmin
+    ? (session.branchId || 'UNASSIGNED')
     : formData.get('branchId') as string
 
   const validatedFields = CustomerSchema.safeParse({

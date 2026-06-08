@@ -1,7 +1,7 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
-import { getSession } from '@/lib/session'
+import { getSession, getBranchFilter } from '@/lib/session'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
@@ -32,7 +32,7 @@ export async function getCorporateCustomers(branchId?: string) {
   return prisma.corporateCustomer.findMany({
     where: {
       isActive: true,
-      ...(branchId ? { branchId } : {}),
+      ...getBranchFilter(session, branchId),
     },
     include: {
       branch: { select: { name: true } },
@@ -74,12 +74,17 @@ export async function createCorporateCustomer(
     branchId: formData.get('branchId'),
   })
 
-  if (!validated.success) {
-    return { errors: validated.error.flatten().fieldErrors }
+  const isSuperAdmin = session.role === 'ADMIN' && !session.branchId
+  const targetBranchId = isSuperAdmin ? formData.get('branchId') as string : session.branchId!
+
+  if (!validated.success || !targetBranchId) {
+    return { errors: validated.error?.flatten().fieldErrors || { branchId: ['Cabang wajib dipilih'] } }
   }
 
   try {
-    await prisma.corporateCustomer.create({ data: validated.data })
+    await prisma.corporateCustomer.create({ 
+      data: { ...validated.data, branchId: targetBranchId } 
+    })
     revalidatePath('/admin/korporat')
     return { success: true, message: 'Pelanggan korporat berhasil ditambahkan' }
   } catch {
@@ -105,12 +110,18 @@ export async function updateCorporateCustomer(
     branchId: formData.get('branchId'),
   })
 
-  if (!validated.success) {
-    return { errors: validated.error.flatten().fieldErrors }
+  const isSuperAdmin = session.role === 'ADMIN' && !session.branchId
+  const targetBranchId = isSuperAdmin ? formData.get('branchId') as string : session.branchId!
+
+  if (!validated.success || !targetBranchId) {
+    return { errors: validated.error?.flatten().fieldErrors || { branchId: ['Cabang wajib dipilih'] } }
   }
 
   try {
-    await prisma.corporateCustomer.update({ where: { id }, data: validated.data })
+    await prisma.corporateCustomer.update({ 
+      where: { id }, 
+      data: { ...validated.data, branchId: targetBranchId } 
+    })
     revalidatePath('/admin/korporat')
     return { success: true, message: 'Data berhasil diperbarui' }
   } catch {

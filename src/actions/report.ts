@@ -1,14 +1,13 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
-import { getSession } from '@/lib/session'
+import { getSession, getBranchFilter } from '@/lib/session'
 
 export async function getReportData(startDateStr?: string, endDateStr?: string, branchId?: string) {
   const session = await getSession()
   if (!session) return { transactions: [], summary: { total: 0, service: 0, sparepart: 0, discount: 0 } }
 
-  // Enforce branch filter for Kasir
-  const targetBranch = session.role === 'KASIR' ? (session.branchId || 'UNASSIGNED') : (branchId || undefined)
+  // Let getBranchFilter handle the logic
 
   // Defaults: 1st of current month to today
   const today = new Date()
@@ -23,7 +22,7 @@ export async function getReportData(startDateStr?: string, endDateStr?: string, 
   try {
     const transactions = await prisma.transaction.findMany({
       where: {
-        ...(targetBranch !== undefined ? { branchId: targetBranch } : {}),
+        ...getBranchFilter(session, branchId),
         transactionDate: {
           gte: startDate,
           lte: endDate,
@@ -104,7 +103,7 @@ export async function getRestockReportData(startDateStr?: string, endDateStr?: s
   try {
     const restocks = await prisma.restock.findMany({
       where: {
-        ...(branchId ? { branchId } : {}),
+        ...getBranchFilter(session, branchId),
         date: { gte: startDate, lte: endDate },
       },
       include: {

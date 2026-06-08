@@ -1,7 +1,7 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
-import { getSession } from '@/lib/session'
+import { getSession, getBranchFilter } from '@/lib/session'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
@@ -47,9 +47,12 @@ export async function createRestock(payload: RestockPayload) {
         }
       })
 
+      const isSuperAdmin = session.role === 'ADMIN' && !session.branchId
+      const targetBranchId = isSuperAdmin ? data.branchId : session.branchId!
+
       const restock = await tx.restock.create({
         data: {
-          branchId: data.branchId,
+          branchId: targetBranchId,
           userId: session.userId,
           supplierName: data.supplierName,
           date: new Date(data.date),
@@ -91,7 +94,7 @@ export async function getRestocks(branchId?: string) {
     if (!session || session.role !== 'ADMIN') return []
 
     return await prisma.restock.findMany({
-      where: branchId ? { branchId } : {},
+      where: getBranchFilter(session, branchId),
       include: {
         branch: { select: { name: true } },
         user: { select: { name: true } },

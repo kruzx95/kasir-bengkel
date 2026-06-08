@@ -1,7 +1,7 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
-import { getSession } from '@/lib/session'
+import { getSession, getBranchFilter } from '@/lib/session'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
@@ -27,11 +27,9 @@ export async function getSpareparts(branchId?: string | null) {
   const session = await getSession()
   if (!session) return []
 
-  const where: Record<string, unknown> = { isActive: true }
-  if (branchId) {
-    where.branchId = branchId
-  } else if (session.role === 'KASIR') {
-    where.branchId = session.branchId || 'UNASSIGNED'
+  const where: Record<string, unknown> = {
+    isActive: true,
+    ...getBranchFilter(session, branchId)
   }
 
   return prisma.sparepart.findMany({
@@ -58,11 +56,9 @@ export async function getPaginatedSpareparts(
     const session = await getSession()
     if (!session) return { data: [], totalCount: 0, totalPages: 0, currentPage: page }
 
-    const where: Record<string, unknown> = { isActive: true }
-    if (branchId) {
-      where.branchId = branchId
-    } else if (session.role === 'KASIR') {
-      where.branchId = session.branchId || 'UNASSIGNED'
+    const where: Record<string, unknown> = {
+      isActive: true,
+      ...getBranchFilter(session, branchId)
     }
 
     if (search) {
@@ -105,11 +101,14 @@ export async function getSparepartById(id: string) {
 }
 
 export async function getLowStockSpareparts(branchId?: string | null, threshold = 5) {
+  const session = await getSession()
+  if (!session) return []
+
   const where: Record<string, unknown> = {
     isActive: true,
     stock: { lte: threshold },
+    ...getBranchFilter(session, branchId)
   }
-  if (branchId) where.branchId = branchId
 
   return prisma.sparepart.findMany({
     where,
@@ -144,12 +143,14 @@ export async function createSparepart(
   }
 
   try {
-    // Ambil semua cabang aktif
-    const branches = await prisma.branch.findMany({
-      where: { isActive: true },
-    })
+    const isSuperAdmin = session.role === 'ADMIN' && !session.branchId
+    let branches = []
+    if (isSuperAdmin) {
+      branches = await prisma.branch.findMany({ where: { isActive: true } })
+    } else {
+      branches = [{ id: session.branchId! }]
+    }
 
-    // Buat sparepart untuk semua cabang sekaligus
     await prisma.sparepart.createMany({
       data: branches.map((branch) => ({
         name: validatedFields.data.name,

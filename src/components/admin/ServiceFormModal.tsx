@@ -108,7 +108,7 @@ export default function ServiceFormModal({
           defaultValue={editData?.category || ''}
         />
 
-        {isEditing && (
+        {isEditing && branches.length > 0 && (
           <Select
             id="branchId"
             name="branchId"

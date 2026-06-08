@@ -159,6 +159,10 @@ textarea {
 
 /* EPSON LX-310 (Dot Matrix) Print Styles */
 @media print {
+  @page {
+    margin: 0; /* Removes browser default header (title) and footer (url) */
+  }
+
   /* Force monochrome & transparent backgrounds for crisp ink ribbon */
   * {
     color: #000 !important;
@@ -169,6 +173,7 @@ textarea {
   
   /* Use monospace font for perfect column alignment & fast draft printing */
   body {
+    padding: 1cm; /* Re-add padding since @page margin is 0 */
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
     font-size: 11pt; /* standard readable size for continuous form */
     line-height: 1.3;
