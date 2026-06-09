@@ -1,67 +1,40 @@
-# 🏍️ Irian Motor — Sistem Manajemen Bengkel
+# Irian Motor - Sistem Manajemen Bengkel
 
-Aplikasi web multi-cabang untuk manajemen bengkel motor. Mencakup kasir transaksi harian, master data, restock & indent barang, pelanggan korporat, laporan, dan monitoring dashboard.
+Aplikasi berbasis web untuk manajemen operasional bengkel motor (multi-cabang). Mencakup fitur point-of-sale (kasir), rekap transaksi, manajemen stok sparepart, dan laporan operasional harian.
 
-## 🚀 Tech Stack
-
-- **Framework**: Next.js 16 (App Router, Turbopack)
-- **Styling**: Tailwind CSS v4
-- **Database**: MySQL 8.0
-- **ORM**: Prisma 7 (`@prisma/adapter-mariadb`)
-- **Authentication**: Custom JWT Session (`jose`)
-- **Excel**: `xlsx` (import & ekspor)
+Dibangun menggunakan:
+- **Next.js (App Router)** - Framework frontend & backend
+- **Prisma ORM** - Interaksi database
+- **MySQL / MariaDB** - Database utama
+- **Tailwind CSS** - Styling
+- **Zod** - Validasi data
 
 ---
 
-## ✨ Fitur Utama
+## 🛠️ Instalasi & Setup di Komputer Baru
 
-| Fitur                                 | Admin           | Kasir             |
-| ------------------------------------- | --------------- | ----------------- |
-| Dashboard ringkasan harian            | ✅ semua cabang | ✅ cabang sendiri |
-| Transaksi (servis, sparepart, mixed)  | ✅              | ✅                |
-| Draft transaksi (tersimpan otomatis)  | ✅              | ✅                |
-| Invoice & cetak nota                  | ✅              | ✅                |
-| Data pelanggan + kendaraan            | ✅              | ✅                |
-| Master sparepart + import Excel       | ✅              | —                 |
-| Master jasa servis + import Excel     | ✅              | —                 |
-| Master mekanik                        | ✅              | —                 |
-| Restock barang + foto nota            | ✅              | —                 |
-| Indent order (pemesanan barang)       | ✅              | —                 |
-| Pelanggan korporat + tagihan borongan | ✅              | —                 |
-| Laporan transaksi + ekspor Excel      | ✅              | ✅                |
-| Laporan pembelian sparepart           | ✅              | —                 |
-| Kelola cabang (Tambah, Edit, Hapus)   | ✅              | —                 |
-| Kelola pengguna + ganti password      | ✅              | —                 |
-| Profil & ganti password sendiri       | ✅              | ✅                |
-
-### ⚡ Pembaruan Performa & Keamanan
-- **Server-Side Pagination:** Tabel data berskala besar (Transaksi, Pelanggan, Sparepart) kini dimuat secara bertahap (per 50 data) langsung dari server, sehingga performa aplikasi tetap sangat ringan tanpa membebani _browser_.
-- **Isolasi Data Cabang:** Akun Kasir dikunci secara absolut (_backend-level_) agar hanya dapat membaca dan mencatat data (transaksi, stok, pelanggan) yang berada di cabang penugasannya sendiri, mencegah kebocoran data antar cabang.
-- **Soft Delete:** Data krusial seperti cabang dan pengguna tidak dihapus secara permanen jika sudah memiliki riwayat transaksi, melainkan dinonaktifkan untuk menjaga integritas laporan riwayat masa lalu.
-
----
-
-## 🛠️ Instalasi & Setup
+Ikuti langkah-langkah di bawah ini untuk menjalankan *project* ini di komputer atau server baru.
 
 ### 1. Persyaratan Sistem
 
-- [Node.js](https://nodejs.org/) v18 atau lebih baru
-- MySQL 8.0 (berjalan di lokal)
-- Git
+Pastikan Anda sudah menginstal perangkat lunak berikut:
+- [Node.js](https://nodejs.org/) (Versi 20 LTS atau yang lebih baru)
+- [MySQL](https://dev.mysql.com/downloads/) atau [MariaDB](https://mariadb.org/download/) (Versi 8.0+ untuk MySQL, atau versi stabil terbaru MariaDB)
+- [Git](https://git-scm.com/)
 
-### 2. Setup Database MySQL
+### 2. Setup Database MySQL / MariaDB
 
-Pastikan service MySQL sudah berjalan, lalu masuk ke MySQL:
+Pastikan *service* MySQL sudah berjalan, lalu masuk ke MySQL CLI (melalui terminal atau CMD):
 
 ```bash
-# Linux
+# Linux / macOS
 sudo mysql -u root -p
 
-# Windows (CMD)
+# Windows (CMD / PowerShell)
 mysql -u root -p
 ```
 
-Jalankan perintah berikut di dalam prompt MySQL:
+Jalankan perintah SQL berikut untuk membuat *database* dan *user* baru:
 
 ```sql
 CREATE USER 'irianmotor'@'localhost' IDENTIFIED BY 'irianmotor123';
@@ -71,131 +44,84 @@ GRANT ALL PRIVILEGES ON *.* TO 'irianmotor'@'localhost';
 FLUSH PRIVILEGES;
 ```
 
-### 3. Clone & Install
+### 3. Clone Repository & Install Dependencies
+
+Clone *project* ini dari Git (sesuaikan URL dengan repositori Anda), masuk ke foldernya, dan instal semua paket yang dibutuhkan:
 
 ```bash
+# Clone repository
 git clone https://github.com/username/irian-motor.git
 cd irian-motor
+
+# Install NPM dependencies
 npm install
 ```
 
-### 4. Konfigurasi Environment
+### 4. Setup Environment Variables
 
-Salin file template environment yang sudah tersedia:
+Gunakan file `.env.example` sebagai referensi. Duplikat file tersebut dan ubah namanya menjadi `.env`:
 
 ```bash
+# Linux / macOS
 cp .env.example .env
+
+# Windows
+copy .env.example .env
 ```
 
-Lalu edit file `.env` dan sesuaikan nilainya:
-
+Buka file `.env` di *code editor* Anda dan pastikan nilai koneksi database sudah sesuai dengan yang dibuat pada langkah 2:
 ```env
-# Koneksi database MySQL
-DATABASE_URL="mysql://USER:PASSWORD@HOST:3306/irian_motor?allowPublicKeyRetrieval=true&sslAccept=strict"
-
-# Kunci enkripsi sesi JWT — generate dengan:
-# openssl rand -base64 32
-SESSION_SECRET="isi-dengan-random-string-minimal-32-karakter"
+DATABASE_URL="mysql://irianmotor:irianmotor123@127.0.0.1:3306/irian_motor?allowPublicKeyRetrieval=true&sslAccept=strict"
+SESSION_SECRET="ganti-dengan-random-string-minimal-32-karakter-disini-12345"
 ```
+*(Catatan: Buat string acak yang aman untuk `SESSION_SECRET`)*
 
-### 5. Migrasi Database & Data Awal
+### 5. Setup Prisma (Migrasi Database)
 
-> ℹ️ Langkah `prisma generate` dan `prisma migrate deploy` sudah **berjalan otomatis** saat `npm install` (via script `postinstall`). Anda hanya perlu menjalankan seed untuk data awal:
+Terapkan struktur tabel ke *database* dan *generate* Prisma Client:
 
 ```bash
-# Isi data awal (cabang, user, servis, sparepart)
-npx prisma db seed
+# Push schema ke database
+npx prisma db push
+
+# Generate Prisma Client
+npx prisma generate
 ```
 
-### 6. Jalankan Aplikasi
+> **Penting**: Setelah `prisma generate` dijalankan, jika *Next.js server* sedang menyala, Anda harus mematikan dan merestart server tersebut agar perubahan klien Prisma dikenali.
+
+### 6. Menjalankan Mode Development
+
+Jalankan *server development* lokal:
 
 ```bash
 npm run dev
 ```
 
-Buka **[http://localhost:3000](http://localhost:3000)**
+Buka browser dan akses: **http://localhost:3000**
 
 ---
 
-## 🔐 Kredensial Default
+## 📦 Menjalankan Mode Production
 
-> ⚠️ **Ganti password sebelum digunakan di production!**
-> Jalankan: `npx tsx scripts/reset-password.ts`
-
-| Role              | Email                   | Password Default             |
-| ----------------- | ----------------------- | ---------------------------- |
-| Admin             | `admin@irianmotor.com`  | *(set saat seed)*Mallikrs08! |
-| Kasir Indihiang   | `kasir1@irianmotor.com` | *(set saat seed)*kasir123    |
-| Kasir Irian Timur | `kasir2@irianmotor.com` | _(set saat seed)_            |
-| Kasir Irian Barat | `kasir3@irianmotor.com` | _(set saat seed)_            |
-
----
-
-## 📁 Struktur Kode
-
-```
-src/
-├── app/
-│   ├── admin/          # Halaman admin (dashboard, laporan, master data, dll)
-│   ├── kasir/          # Halaman kasir (transaksi, pelanggan, sparepart)
-│   ├── profil/         # Halaman profil & ganti password (semua role)
-│   ├── login/          # Halaman login
-│   └── api/            # API routes (upload foto, import Excel)
-├── actions/            # Server Actions — logika CRUD ke database
-├── components/         # Komponen UI (Layout, Modal, Table, Button, dll)
-└── lib/                # Prisma client, session, utils
-
-prisma/
-├── schema.prisma       # Definisi skema database
-├── seed.ts             # Data awal (cabang, user, servis, sparepart)
-└── migrations/         # Riwayat migrasi database
-
-scripts/
-├── backup.sh           # Script backup database & uploads
-└── reset-password.ts   # Script reset password user via CLI
-
-uploads/
-└── receipts/           # Foto nota pembelian (tidak di-commit ke Git)
-```
-
----
-
-## 🗄️ Backup
-
-Jalankan backup manual:
+Jika ingin menjalankan aplikasi untuk produksi (lebih cepat dan optimal):
 
 ```bash
-bash scripts/backup.sh
+# Buat build produksi
+npm run build
+
+# Jalankan server
+npm run start
 ```
 
-Atau jadwalkan otomatis setiap hari jam 02:00 via cron:
+## 🔑 Catatan Tambahan (Reset Password / User Pertama)
 
+Jika ini adalah database kosong, Anda perlu memasukkan data *seed* atau membuat *user Admin* secara manual melalui *database client* (seperti DBeaver/phpMyAdmin).
+
+Jika *user* sudah ada tetapi Anda lupa *password*, Anda bisa menggunakan *script* reset *password*:
+1. Buka file `scripts/reset-password.ts`.
+2. Ubah variabel `EMAIL` dan `PASSWORD_BARU` di dalam *script* tersebut sesuai kebutuhan.
+3. Jalankan:
 ```bash
-crontab -e
-# Tambahkan:
-0 2 * * * bash /path/to/project/scripts/backup.sh >> /tmp/backup-irian.log 2>&1
+npx tsx scripts/reset-password.ts
 ```
-
-Hasil backup tersimpan di `~/backup-irian-motor/` (database + foto nota).
-
----
-
-## 🔄 Setelah Update Schema Prisma
-
-Setiap kali `schema.prisma` diubah:
-
-```bash
-npx prisma migrate dev --name nama_perubahan
-npx prisma generate
-```
-
----
-
-## 📋 Catatan Production
-
-- Gunakan **Ubuntu 22.04 LTS** di VPS
-- Pasang **SSL/HTTPS** via Certbot (Let's Encrypt)
-- Gunakan **PM2** untuk menjaga proses Node.js tetap berjalan
-- Gunakan **Nginx** sebagai reverse proxy
-- Folder `uploads/` harus di-backup secara berkala
-- Jangan commit file `.env` ke repository
