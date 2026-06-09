@@ -6,9 +6,13 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
 const restockItemSchema = z.object({
-  sparepartId: z.string(),
+  sparepartId: z.string().optional().nullable(),
+  isNew: z.boolean().optional(),
+  name: z.string().optional(),
+  sku: z.string().optional().nullable(),
   quantity: z.number().min(1),
   buyPrice: z.number().min(0),
+  sellPrice: z.number().optional(),
 })
 
 const restockSchema = z.object({
@@ -17,6 +21,7 @@ const restockSchema = z.object({
   date: z.string(), // ISO date string
   notes: z.string().optional().nullable(),
   receiptImagePath: z.string().optional().nullable(),
+  paidAmount: z.number().min(0).optional(),
   items: z.array(restockItemSchema).min(1, 'Pilih minimal satu sparepart'),
 })
 
@@ -35,20 +40,44 @@ export async function createRestock(payload: RestockPayload) {
     const data = validated.data
 
     await prisma.$transaction(async (tx) => {
+      const isSuperAdmin = session.role === 'ADMIN' && !session.branchId
+      const targetBranchId = isSuperAdmin ? data.branchId : session.branchId!
+
       let total = 0
-      const restockItems = data.items.map(item => {
+      
+      // Process items: create new spareparts if needed
+      const restockItemsData = await Promise.all(data.items.map(async (item) => {
+        let actualSparepartId = item.sparepartId
+
+        if (item.isNew && item.name) {
+          const newSp = await tx.sparepart.create({
+            data: {
+              branchId: targetBranchId,
+              name: item.name,
+              sku: item.sku || null,
+              buyPrice: item.buyPrice,
+              sellPrice: item.sellPrice || item.buyPrice,
+              stock: 0, // will be incremented below
+            }
+          })
+          actualSparepartId = newSp.id
+        }
+
+        if (!actualSparepartId) throw new Error('Missing sparepartId')
+
         const subtotal = item.quantity * item.buyPrice
         total += subtotal
+        
         return {
-          sparepartId: item.sparepartId,
+          sparepartId: actualSparepartId,
           quantity: item.quantity,
           buyPrice: item.buyPrice,
           subtotal
         }
-      })
+      }))
 
-      const isSuperAdmin = session.role === 'ADMIN' && !session.branchId
-      const targetBranchId = isSuperAdmin ? data.branchId : session.branchId!
+      const paidAmount = data.paidAmount || 0
+      const paymentStatus = paidAmount >= total ? 'LUNAS' : 'HUTANG'
 
       const restock = await tx.restock.create({
         data: {
@@ -59,19 +88,21 @@ export async function createRestock(payload: RestockPayload) {
           notes: data.notes,
           receiptImagePath: data.receiptImagePath || null,
           total,
+          paidAmount,
+          paymentStatus,
           items: {
-            create: restockItems
+            create: restockItemsData
           }
         }
       })
 
       // Update Stock and Buy Price
-      for (const item of data.items) {
+      for (const itemData of restockItemsData) {
         await tx.sparepart.update({
-          where: { id: item.sparepartId },
+          where: { id: itemData.sparepartId },
           data: {
-            stock: { increment: item.quantity },
-            buyPrice: item.buyPrice // Update with the latest buy price
+            stock: { increment: itemData.quantity },
+            buyPrice: itemData.buyPrice
           }
         })
       }
@@ -82,8 +113,8 @@ export async function createRestock(payload: RestockPayload) {
     revalidatePath('/admin/restock')
     revalidatePath('/admin/master/spareparts')
     return { success: true, message: 'Barang masuk berhasil dicatat' }
-  } catch {
-    console.error('Create Restock Error')
+  } catch (error) {
+    console.error('Create Restock Error:', error)
     return { success: false, message: 'Gagal menyimpan barang masuk' }
   }
 }

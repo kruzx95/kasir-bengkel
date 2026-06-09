@@ -286,6 +286,8 @@ model Restock {
   total             Float    @default(0)
   receiptImagePath  String?  @map("receipt_image_path")
   indentOrderId     String?  @map("indent_order_id")
+  paidAmount        Float    @default(0) @map("paid_amount")
+  paymentStatus     String   @default("LUNAS") @map("payment_status")
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 

@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Table from '@/components/ui/Table'
 import Button from '@/components/ui/Button'
 import { formatCurrency } from '@/lib/utils'
-import { Plus, PackagePlus, Search, ImageIcon, ChevronRight } from 'lucide-react'
+import { Plus, PackagePlus, Search, ImageIcon, ChevronRight, Printer } from 'lucide-react'
 import Link from 'next/link'
 
 interface RestockRow {
@@ -16,6 +16,8 @@ interface RestockRow {
   branch: { name: string }
   user: { name: string }
   items: { quantity: number }[]
+  paymentStatus: string
+  paidAmount: number
 }
 
 export default function RestocksClient({ initialData }: { initialData: RestockRow[] }) {
@@ -76,19 +78,35 @@ export default function RestocksClient({ initialData }: { initialData: RestockRo
       key: 'total',
       header: 'Total Pembelian',
       render: (row: RestockRow) => (
-        <span className="text-sm font-bold text-slate-900">{formatCurrency(row.total)}</span>
+        <div>
+          <span className="text-sm font-bold text-slate-900">{formatCurrency(row.total)}</span>
+          <div className="mt-1">
+            {row.paymentStatus === 'LUNAS' ? (
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 tracking-wider">LUNAS</span>
+            ) : (
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-rose-100 text-rose-700 tracking-wider">HUTANG</span>
+            )}
+          </div>
+        </div>
       ),
     },
     {
       key: 'actions',
       header: '',
-      className: 'w-12 text-right',
+      className: 'w-24 text-right',
       render: (row: RestockRow) => (
-        <Link href={`/admin/restock/${row.id}`}>
-          <button className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors">
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        </Link>
+        <div className="flex items-center justify-end gap-1">
+          <Link href={`/cetak-po/${row.id}`} target="_blank">
+            <button title="Cetak PO" className="p-1.5 rounded-lg text-slate-400 hover:text-primary-600 hover:bg-primary-50 transition-colors">
+              <Printer className="w-4 h-4" />
+            </button>
+          </Link>
+          <Link href={`/admin/restock/${row.id}`}>
+            <button title="Lihat Detail" className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors">
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </Link>
+        </div>
       ),
     },
   ]

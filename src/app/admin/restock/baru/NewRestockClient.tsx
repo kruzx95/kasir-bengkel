@@ -23,14 +23,18 @@ export default function NewRestockClient({ branches, spareparts }: NewRestockCli
   const [branchId, setBranchId] = useState(branches[0]?.id || '')
   const [supplierName, setSupplierName] = useState('')
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
+  const [paidAmount, setPaidAmount] = useState(0)
   const [notes, setNotes] = useState('')
   const [receiptImagePath, setReceiptImagePath] = useState<string | null>(null)
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null)
   const [uploadingReceipt, setUploadingReceipt] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
   
-  const [items, setItems] = useState<{ id: string; sparepartId: string; name: string; sku: string | null; quantity: number; buyPrice: number }[]>([])
+  const [items, setItems] = useState<{ id: string; sparepartId: string | null; isNew?: boolean; name: string; sku: string | null; quantity: number; buyPrice: number; sellPrice?: number }[]>([])
   
+  const [showManualModal, setShowManualModal] = useState(false)
+  const [manualItem, setManualItem] = useState({ name: '', sku: '', buyPrice: 0, sellPrice: 0, quantity: 1 })
+
   const [searchQuery, setSearchQuery] = useState('')
   const [error, setError] = useState<string | null>(null)
 
@@ -100,7 +104,28 @@ export default function NewRestockClient({ branches, spareparts }: NewRestockCli
     setSearchQuery('')
   }
 
-  const handleUpdateItem = (index: number, field: 'quantity' | 'buyPrice', value: number) => {
+  const handleAddManualItem = () => {
+    if (!manualItem.name || manualItem.buyPrice < 0 || manualItem.sellPrice < 0 || manualItem.quantity < 1) {
+      setError('Mohon lengkapi semua field barang baru dengan benar.')
+      return
+    }
+    setItems([...items, {
+      id: crypto.randomUUID(),
+      sparepartId: null,
+      isNew: true,
+      name: manualItem.name,
+      sku: manualItem.sku || null,
+      buyPrice: manualItem.buyPrice,
+      sellPrice: manualItem.sellPrice,
+      quantity: manualItem.quantity
+    }])
+    setShowManualModal(false)
+    setManualItem({ name: '', sku: '', buyPrice: 0, sellPrice: 0, quantity: 1 })
+    setSearchQuery('')
+    setError(null)
+  }
+
+  const handleUpdateItem = (index: number, field: 'quantity' | 'buyPrice' | 'sellPrice', value: number) => {
     if (value < 0) return
     const newItems = [...items]
     newItems[index][field] = value
@@ -127,12 +152,17 @@ export default function NewRestockClient({ branches, spareparts }: NewRestockCli
         branchId,
         supplierName,
         date,
+        paidAmount,
         notes: notes || null,
         receiptImagePath: receiptImagePath || null,
         items: items.map(i => ({
-          sparepartId: i.sparepartId,
+          sparepartId: i.sparepartId || null,
+          isNew: i.isNew,
+          name: i.name,
+          sku: i.sku,
           quantity: i.quantity,
-          buyPrice: i.buyPrice
+          buyPrice: i.buyPrice,
+          sellPrice: i.sellPrice
         }))
       }
       
@@ -308,8 +338,16 @@ export default function NewRestockClient({ branches, spareparts }: NewRestockCli
                       ))}
                     </div>
                   ) : (
-                    <div className="p-4 text-center text-sm text-slate-500">
-                      Tidak ditemukan sparepart untuk pencarian ini di cabang terpilih.
+                    <div className="p-4 text-center">
+                      <p className="text-sm text-slate-500 mb-3">
+                        Tidak ditemukan sparepart untuk pencarian ini di cabang terpilih.
+                      </p>
+                      <Button size="sm" variant="outline" onClick={() => {
+                        setManualItem({ ...manualItem, name: searchQuery })
+                        setShowManualModal(true)
+                      }}>
+                        + Tambah Barang Manual
+                      </Button>
                     </div>
                   )}
                 </div>
@@ -328,9 +366,10 @@ export default function NewRestockClient({ branches, spareparts }: NewRestockCli
               <table className="w-full text-sm text-left">
                 <thead className="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-200">
                   <tr>
-                    <th className="px-4 py-3 w-1/3">Sparepart</th>
-                    <th className="px-4 py-3 w-32">Qty (Pcs)</th>
-                    <th className="px-4 py-3 w-40">Harga Beli Satuan</th>
+                    <th className="px-4 py-3 w-1/4">Sparepart</th>
+                    <th className="px-4 py-3 w-28">Qty (Pcs)</th>
+                    <th className="px-4 py-3 w-36">Harga Beli Satuan</th>
+                    <th className="px-4 py-3 w-36">Harga Jual Satuan</th>
                     <th className="px-4 py-3 text-right">Subtotal</th>
                     <th className="px-4 py-3 w-10"></th>
                   </tr>
@@ -338,7 +377,7 @@ export default function NewRestockClient({ branches, spareparts }: NewRestockCli
                 <tbody className="divide-y divide-slate-100">
                   {items.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="px-4 py-8 text-center text-slate-500">
+                      <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
                         Belum ada barang yang ditambahkan.
                       </td>
                     </tr>
@@ -346,7 +385,10 @@ export default function NewRestockClient({ branches, spareparts }: NewRestockCli
                     items.map((item, index) => (
                       <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
                         <td className="px-4 py-3 font-medium text-slate-900">
-                          {item.name}
+                          <div className="flex items-center gap-2">
+                            {item.name}
+                            {item.isNew && <span className="bg-emerald-100 text-emerald-700 text-[10px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">Baru</span>}
+                          </div>
                           {item.sku && <p className="text-xs text-slate-400 font-normal">{item.sku}</p>}
                         </td>
                         <td className="px-4 py-3">
@@ -367,6 +409,19 @@ export default function NewRestockClient({ branches, spareparts }: NewRestockCli
                             onChange={(e) => handleUpdateItem(index, 'buyPrice', parseFloat(e.target.value) || 0)}
                           />
                         </td>
+                        <td className="px-4 py-3">
+                          {item.isNew ? (
+                            <input 
+                              type="number" 
+                              min="0"
+                              className="w-full bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none"
+                              value={item.sellPrice || 0}
+                              onChange={(e) => handleUpdateItem(index, 'sellPrice', parseFloat(e.target.value) || 0)}
+                            />
+                          ) : (
+                            <span className="text-slate-400 italic text-xs">— (Sesuai Master)</span>
+                          )}
+                        </td>
                         <td className="px-4 py-3 text-right font-bold text-slate-900">
                           {formatCurrency(item.quantity * item.buyPrice)}
                         </td>
@@ -386,10 +441,25 @@ export default function NewRestockClient({ branches, spareparts }: NewRestockCli
             </div>
 
             {/* Total Footer */}
-            <div className="p-5 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
-              <div>
-                 <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">Total Pembelian</p>
-                 <p className="text-2xl font-black text-slate-900">{formatCurrency(subtotal)}</p>
+            <div className="p-5 border-t border-slate-200 bg-slate-50 flex items-end justify-between">
+              <div className="flex flex-col gap-3 w-64">
+                 <div>
+                   <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">Total Pembelian</p>
+                   <p className="text-2xl font-black text-slate-900">{formatCurrency(subtotal)}</p>
+                 </div>
+                 <Input
+                   type="number"
+                   label="Jumlah Dibayar (DP/Lunas)"
+                   value={paidAmount.toString()}
+                   onChange={(e) => setPaidAmount(parseFloat(e.target.value) || 0)}
+                 />
+                 <div className="text-sm mt-1">
+                   {paidAmount >= subtotal && subtotal > 0 ? (
+                     <span className="text-emerald-600 font-semibold text-xs bg-emerald-100 px-2 py-1 rounded">LUNAS</span>
+                   ) : (
+                     <span className="text-rose-600 font-semibold text-xs bg-rose-100 px-2 py-1 rounded">HUTANG / BELUM LUNAS</span>
+                   )}
+                 </div>
               </div>
               <Button
                 size="lg"
@@ -406,6 +476,58 @@ export default function NewRestockClient({ branches, spareparts }: NewRestockCli
           </div>
         </div>
       </div>
+
+      {/* Manual Item Modal */}
+      {showManualModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
+            <div className="p-5 border-b border-slate-100 flex justify-between items-center">
+              <h3 className="font-semibold text-slate-900">Tambah Barang Manual</h3>
+              <button onClick={() => setShowManualModal(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <Input
+                label="Nama Barang"
+                value={manualItem.name}
+                onChange={(e) => setManualItem({ ...manualItem, name: e.target.value })}
+                placeholder="Contoh: Kampas Rem Depan Vario"
+              />
+              <Input
+                label="SKU / Kode (Opsional)"
+                value={manualItem.sku}
+                onChange={(e) => setManualItem({ ...manualItem, sku: e.target.value })}
+                placeholder="Contoh: KVB-900"
+              />
+              <div className="grid grid-cols-2 gap-4">
+                <Input
+                  type="number"
+                  label="Harga Beli (Modal)"
+                  value={manualItem.buyPrice.toString()}
+                  onChange={(e) => setManualItem({ ...manualItem, buyPrice: parseFloat(e.target.value) || 0 })}
+                />
+                <Input
+                  type="number"
+                  label="Harga Jual"
+                  value={manualItem.sellPrice.toString()}
+                  onChange={(e) => setManualItem({ ...manualItem, sellPrice: parseFloat(e.target.value) || 0 })}
+                />
+              </div>
+              <Input
+                type="number"
+                label="Qty Pembelian"
+                value={manualItem.quantity.toString()}
+                onChange={(e) => setManualItem({ ...manualItem, quantity: parseInt(e.target.value) || 1 })}
+              />
+            </div>
+            <div className="p-5 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
+              <Button variant="outline" onClick={() => setShowManualModal(false)}>Batal</Button>
+              <Button onClick={handleAddManualItem}>Tambahkan ke PO</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

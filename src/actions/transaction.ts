@@ -132,7 +132,7 @@ export async function createTransaction(payload: TransactionPayload): Promise<Tr
 
       // 4. Update Sparepart Stock
       for (const item of data.items) {
-        if (item.itemType === 'SPAREPART') {
+        if (item.itemType === 'SPAREPART' && item.itemId && !item.itemId.startsWith('MANUAL_')) {
           // Verify stock first
           const sp = await tx.sparepart.findUnique({
             where: { id: item.itemId },
