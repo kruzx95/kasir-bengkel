@@ -116,6 +116,7 @@ model Customer {
   vehicleYear         String?   @map("vehicle_year")
   fuelType            FuelType? @map("fuel_type")
   odometer            Int?
+  lastReminderSentAt  DateTime? @map("last_reminder_sent_at")
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 

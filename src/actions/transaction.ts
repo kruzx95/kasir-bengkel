@@ -7,7 +7,7 @@ import { z } from 'zod'
 
 const transactionItemSchema = z.object({
   itemType: z.enum(['SERVICE', 'SPAREPART']),
-  itemId: z.string(), // ID of Service or Sparepart
+  itemId: z.string().nullable().optional(), // ID of Service or Sparepart, null for manual
   itemName: z.string(),
   quantity: z.number().min(1),
   unitPrice: z.number().min(0),
@@ -119,8 +119,8 @@ export async function createTransaction(payload: TransactionPayload): Promise<Tr
           items: {
             create: data.items.map((item) => ({
               itemType: item.itemType,
-              serviceId: item.itemType === 'SERVICE' ? item.itemId : null,
-              sparepartId: item.itemType === 'SPAREPART' ? item.itemId : null,
+              serviceId: item.itemType === 'SERVICE' && item.itemId && !item.itemId.startsWith('MANUAL_') ? item.itemId : null,
+              sparepartId: item.itemType === 'SPAREPART' && item.itemId && !item.itemId.startsWith('MANUAL_') ? item.itemId : null,
               itemName: item.itemName,
               quantity: item.quantity,
               unitPrice: item.unitPrice,

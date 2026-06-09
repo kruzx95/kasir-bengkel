@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useMemo } from 'react'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Badge from '@/components/ui/Badge'
@@ -149,10 +149,21 @@ export default function TagihanClient({ corporate, allCustomers }: TagihanClient
   )
   const assignedCustomers = allCustomers.filter(c => c.corporateCustomerId === corporate.id)
 
+  const groupedByDate = useMemo(() => {
+    if (!billingData?.transactions) return []
+    const groups: Record<string, BillingRow[]> = {}
+    billingData.transactions.forEach(tx => {
+      const dateStr = new Date(tx.transactionDate).toISOString().slice(0, 10)
+      if (!groups[dateStr]) groups[dateStr] = []
+      groups[dateStr].push(tx)
+    })
+    return Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0]))
+  }, [billingData])
+
   return (
     <div className="space-y-6">
       {/* Tab */}
-      <div className="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit">
+      <div className="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit print:hidden">
         <button
           onClick={() => setActiveTab('tagihan')}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
@@ -181,7 +192,7 @@ export default function TagihanClient({ corporate, allCustomers }: TagihanClient
           )}
 
           {/* Filter */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col md:flex-row items-end gap-4">
+          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col md:flex-row items-end gap-4 print:hidden">
             <div className="w-full md:w-auto">
               <Input label="Mulai Tanggal" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
             </div>
@@ -212,7 +223,7 @@ export default function TagihanClient({ corporate, allCustomers }: TagihanClient
           ) : (
             <>
               {/* Summary */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 print:hidden">
                 <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Total Tagihan</p>
                   <p className="text-2xl font-black text-slate-900">{formatCurrency(billingData?.grandTotal || 0)}</p>
@@ -228,7 +239,7 @@ export default function TagihanClient({ corporate, allCustomers }: TagihanClient
               </div>
 
               {/* Table */}
-              <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden print:shadow-none">
+              <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden print:hidden">
                 <div className="p-5 border-b border-slate-100">
                   <h3 className="font-bold text-slate-900">
                     Tagihan {corporate.name} — {new Date(startDate).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
@@ -248,6 +259,103 @@ export default function TagihanClient({ corporate, allCustomers }: TagihanClient
                     </div>
                   </div>
                 )}
+              </div>
+
+              {/* ===== INVOICE PRINT (HIDDEN ON SCREEN) ===== */}
+              <div className="hidden print:block w-full text-black">
+                {/* Header */}
+                <div className="border-b-2 border-black pb-4 mb-6">
+                  <h1 className="text-2xl font-black uppercase mb-1">INVOICE TAGIHAN</h1>
+                  <h2 className="text-lg font-bold">{corporate.branch.name}</h2>
+                  <div className="mt-4 flex justify-between items-end">
+                    <div>
+                      <p className="text-sm font-semibold uppercase text-gray-600">Ditagihkan Kepada:</p>
+                      <p className="text-lg font-bold">{corporate.name}</p>
+                    </div>
+                    <div className="text-right text-sm">
+                      <p><span className="font-semibold">Periode:</span> {new Date(startDate).toLocaleDateString('id-ID', { month: 'short', year: 'numeric' })} - {new Date(endDate).toLocaleDateString('id-ID', { month: 'short', year: 'numeric' })}</p>
+                      <p><span className="font-semibold">Tanggal Cetak:</span> {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Content Grouped by Date */}
+                <div className="space-y-8">
+                  {groupedByDate.map(([dateStr, txs]) => (
+                    <div key={dateStr}>
+                      <div className="bg-gray-100 font-bold p-2 mb-2 border border-gray-300">
+                        Tanggal Servis: {new Date(dateStr).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                      </div>
+                      <table className="w-full text-sm border-collapse">
+                        <thead>
+                          <tr className="border-b border-black">
+                            <th className="text-left py-2 px-1">Kendaraan</th>
+                            <th className="text-left py-2 px-1">Layanan / Sparepart</th>
+                            <th className="text-center py-2 px-1">Qty</th>
+                            <th className="text-right py-2 px-1">Harga</th>
+                            <th className="text-right py-2 px-1">Subtotal</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-300">
+                          {txs.map((tx) => (
+                            <tr key={tx.id}>
+                              <td className="py-3 px-1 align-top w-1/4">
+                                <p className="font-bold">{tx.customer?.name || '—'}</p>
+                                {tx.customer?.plateNumber && <p className="font-mono text-xs">{tx.customer.plateNumber}</p>}
+                                <p className="text-xs text-gray-500 mt-1">{tx.invoiceNumber}</p>
+                              </td>
+                              <td className="py-3 px-1 align-top" colSpan={4}>
+                                <table className="w-full">
+                                  <tbody>
+                                    {tx.items.map((item, i) => (
+                                      <tr key={i}>
+                                        <td className="w-1/2 py-1">{item.itemName}</td>
+                                        <td className="w-1/6 py-1 text-center">{item.quantity}</td>
+                                        <td className="w-1/6 py-1 text-right">{formatCurrency(item.unitPrice)}</td>
+                                        <td className="w-1/6 py-1 text-right font-semibold">{formatCurrency(item.subtotal)}</td>
+                                      </tr>
+                                    ))}
+                                    {/* Transaction Subtotal Row */}
+                                    <tr>
+                                      <td colSpan={3} className="py-2 text-right text-xs font-semibold uppercase text-gray-600 border-t border-dashed border-gray-300">Total Kendaraan Ini:</td>
+                                      <td className="py-2 text-right font-bold border-t border-dashed border-gray-300">{formatCurrency(tx.total)}</td>
+                                    </tr>
+                                  </tbody>
+                                </table>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Grand Total */}
+                <div className="mt-8 pt-4 border-t-2 border-black flex justify-end">
+                  <div className="w-1/2 md:w-1/3">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="font-semibold text-gray-600">Total Transaksi</span>
+                      <span className="font-bold">{billingData?.transactions?.length || 0}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-xl border-t border-black pt-2">
+                      <span className="font-black uppercase">Grand Total</span>
+                      <span className="font-black">{formatCurrency(billingData?.grandTotal || 0)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Signature */}
+                <div className="mt-16 flex justify-between px-8">
+                  <div className="text-center">
+                    <p className="mb-16 font-semibold">{corporate.name}</p>
+                    <p className="border-t border-black pt-1 px-4 text-sm">( Tanda Tangan & Cap )</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="mb-16 font-semibold">{corporate.branch.name}</p>
+                    <p className="border-t border-black pt-1 px-4 text-sm">( Admin Bengkel )</p>
+                  </div>
+                </div>
               </div>
             </>
           )}

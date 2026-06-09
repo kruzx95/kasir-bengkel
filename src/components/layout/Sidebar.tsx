@@ -20,6 +20,7 @@ import {
   ClipboardList,
   Briefcase,
   Settings,
+  BellRing,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { logout } from '@/actions/auth'
@@ -45,6 +46,7 @@ const adminMenuItems = [
   { href: '/admin/transaksi', label: 'Transaksi', icon: Receipt },
   { href: '/admin/pelanggan', label: 'Pelanggan', icon: Users },
   { href: '/admin/laporan', label: 'Laporan', icon: BarChart3 },
+  { href: '/admin/reminder', label: 'Reminder', icon: BellRing },
   { href: '/admin/master/services', label: 'Jasa Servis', icon: Wrench },
   { href: '/admin/master/spareparts', label: 'Sparepart', icon: Package },
   { href: '/admin/restock', label: 'Barang Masuk', icon: PackagePlus },

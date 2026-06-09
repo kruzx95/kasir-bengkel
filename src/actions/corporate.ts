@@ -29,7 +29,7 @@ export async function getCorporateCustomers(branchId?: string) {
   const session = await getSession()
   if (!session || session.role !== 'ADMIN') return []
 
-  return prisma.corporateCustomer.findMany({
+  const corporates = await prisma.corporateCustomer.findMany({
     where: {
       isActive: true,
       ...getBranchFilter(session, branchId),
@@ -40,6 +40,29 @@ export async function getCorporateCustomers(branchId?: string) {
     },
     orderBy: { name: 'asc' },
   })
+
+  const today = new Date()
+  const firstDay = new Date(today.getFullYear(), today.getMonth(), 1)
+
+  const result = await Promise.all(
+    corporates.map(async (corp) => {
+      const customerIds = corp.customers.map((c) => c.id)
+      if (customerIds.length === 0) return { ...corp, currentMonthTotal: 0 }
+
+      const { _sum } = await prisma.transaction.aggregate({
+        where: {
+          customerId: { in: customerIds },
+          status: 'PENDING_CORPORATE',
+          transactionDate: { gte: firstDay },
+        },
+        _sum: { total: true },
+      })
+
+      return { ...corp, currentMonthTotal: _sum.total || 0 }
+    })
+  )
+
+  return result
 }
 
 export async function getCorporateCustomerById(id: string) {

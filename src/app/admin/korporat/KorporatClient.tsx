@@ -7,6 +7,7 @@ import Badge from '@/components/ui/Badge'
 import CorporateFormModal from './CorporateFormModal'
 import { deleteCorporateCustomer } from '@/actions/corporate'
 import { Plus, Pencil, Trash2, Building2, Users, FileText } from 'lucide-react'
+import { formatCurrency } from '@/lib/utils'
 import Link from 'next/link'
 
 interface CorporateRow {
@@ -18,6 +19,7 @@ interface CorporateRow {
   isActive: boolean
   branch: { name: string }
   customers: { id: string; name: string; plateNumber: string | null }[]
+  currentMonthTotal: number
 }
 
 interface KorporatClientProps {
@@ -94,6 +96,16 @@ export default function KorporatClient({ initialData, branches }: KorporatClient
         <div className="flex items-center gap-1.5">
           <Users className="w-3.5 h-3.5 text-slate-400" />
           <span className="text-sm text-slate-700">{row.customers.length} kendaraan</span>
+        </div>
+      ),
+    },
+    {
+      key: 'billingTotal',
+      header: 'Tagihan Berjalan',
+      render: (row: CorporateRow) => (
+        <div className="flex flex-col">
+          <span className="text-sm font-bold text-slate-900">{formatCurrency(row.currentMonthTotal)}</span>
+          <span className="text-[10px] text-slate-400 uppercase">Bulan Ini</span>
         </div>
       ),
     },

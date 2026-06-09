@@ -8,7 +8,7 @@ import Select from '@/components/ui/Select'
 import Badge from '@/components/ui/Badge'
 import { createTransaction, type TransactionPayload } from '@/actions/transaction'
 import { formatCurrency } from '@/lib/utils'
-import { Trash2, Search, ArrowLeft, Receipt, Wrench, Package, User, RotateCcw } from 'lucide-react'
+import { Trash2, Search, ArrowLeft, Receipt, Wrench, Package, User, RotateCcw, Plus } from 'lucide-react'
 import Link from 'next/link'
 
 const DRAFT_KEY = 'irian_motor_tx_draft'
@@ -126,6 +126,7 @@ export default function NewTransactionClient({
   // Catalog search state
   const [searchQuery, setSearchQuery] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [manualJasaPrice, setManualJasaPrice] = useState<number | ''>('')
 
   // Detect if selected customer is corporate
   const selectedCustomer = customers.find(c => c.id === customerId)
@@ -200,6 +201,22 @@ export default function NewTransactionClient({
       }])
     }
     setSearchQuery('')
+  }
+
+  const handleAddManualJasa = () => {
+    if (typeof manualJasaPrice !== 'number' || manualJasaPrice <= 0) {
+      alert('Masukkan nominal jasa yang valid')
+      return
+    }
+
+    setItems([...items, {
+      itemType: 'SERVICE',
+      itemId: 'MANUAL_JASA_' + Date.now(), // Generate a unique ID so it doesn't merge incorrectly, or keep it the same to merge
+      itemName: 'Jasa',
+      quantity: 1,
+      unitPrice: manualJasaPrice
+    }])
+    setManualJasaPrice('')
   }
 
   const handleRemoveItem = (index: number) => {
@@ -344,6 +361,25 @@ export default function NewTransactionClient({
                   )}
                 </div>
               )}
+            </div>
+
+            <div className="mt-6 pt-6 border-t border-slate-100 flex items-end gap-3">
+              <div className="flex-1">
+                <Input
+                  label="Input Jasa Manual"
+                  placeholder="Contoh: 50000"
+                  type="number"
+                  value={manualJasaPrice === '' ? '' : manualJasaPrice}
+                  onChange={(e) => setManualJasaPrice(e.target.value ? Number(e.target.value) : '')}
+                />
+              </div>
+              <Button 
+                onClick={handleAddManualJasa}
+                disabled={typeof manualJasaPrice !== 'number' || manualJasaPrice <= 0}
+                icon={Plus}
+              >
+                Tambah Jasa
+              </Button>
             </div>
           </div>
 
