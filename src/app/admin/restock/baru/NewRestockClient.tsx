@@ -193,7 +193,7 @@ export default function NewRestockClient({ branches, spareparts }: NewRestockCli
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         
         {/* Left Col: Master Data PO */}
         <div className="space-y-6">
@@ -290,7 +290,7 @@ export default function NewRestockClient({ branches, spareparts }: NewRestockCli
         </div>
 
         {/* Right Col: Items Selection */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="xl:col-span-2 space-y-6">
           
           {/* Search Box */}
           <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm overflow-visible relative">
@@ -366,11 +366,11 @@ export default function NewRestockClient({ branches, spareparts }: NewRestockCli
               <table className="w-full text-sm text-left">
                 <thead className="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-200">
                   <tr>
-                    <th className="px-4 py-3 w-1/4">Sparepart</th>
-                    <th className="px-4 py-3 w-28">Qty (Pcs)</th>
-                    <th className="px-4 py-3 w-36">Harga Beli Satuan</th>
-                    <th className="px-4 py-3 w-36">Harga Jual Satuan</th>
-                    <th className="px-4 py-3 text-right">Subtotal</th>
+                    <th className="px-4 py-3 min-w-[150px]">Sparepart</th>
+                    <th className="px-4 py-3 w-28 min-w-[100px]">Qty (Pcs)</th>
+                    <th className="px-4 py-3 w-36 min-w-[120px]">Harga Beli Satuan</th>
+                    <th className="px-4 py-3 w-36 min-w-[120px]">Harga Jual Satuan</th>
+                    <th className="px-4 py-3 text-right min-w-[120px]">Subtotal</th>
                     <th className="px-4 py-3 w-10"></th>
                   </tr>
                 </thead>
@@ -385,17 +385,40 @@ export default function NewRestockClient({ branches, spareparts }: NewRestockCli
                     items.map((item, index) => (
                       <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
                         <td className="px-4 py-3 font-medium text-slate-900">
-                          <div className="flex items-center gap-2">
-                            {item.name}
-                            {item.isNew && <span className="bg-emerald-100 text-emerald-700 text-[10px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">Baru</span>}
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {item.isNew ? (
+                              <input
+                                type="text"
+                                className="bg-transparent border-b border-dashed border-slate-300 hover:border-primary-400 focus:border-primary-500 focus:border-solid outline-none px-1 min-w-[120px] text-slate-900 font-medium"
+                                value={item.name}
+                                onChange={(e) => handleUpdateItem(index, 'name', e.target.value)}
+                                title="Edit nama barang"
+                              />
+                            ) : (
+                              <span className="line-clamp-1 break-all">{item.name}</span>
+                            )}
+                            {item.isNew && <span className="bg-emerald-100 text-emerald-700 text-[10px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider shrink-0">Baru</span>}
                           </div>
-                          {item.sku && <p className="text-xs text-slate-400 font-normal">{item.sku}</p>}
+                          {item.isNew ? (
+                            <div className="mt-1">
+                              <input
+                                type="text"
+                                placeholder="SKU (opsional)"
+                                className="text-xs bg-transparent border-b border-dashed border-slate-300 hover:border-primary-400 focus:border-primary-500 focus:border-solid outline-none px-1 w-24 text-slate-500 font-normal"
+                                value={item.sku || ''}
+                                onChange={(e) => handleUpdateItem(index, 'sku', e.target.value)}
+                                title="Edit SKU"
+                              />
+                            </div>
+                          ) : (
+                            item.sku && <p className="text-xs text-slate-400 font-normal mt-1 px-1">{item.sku}</p>
+                          )}
                         </td>
                         <td className="px-4 py-3">
                           <input 
                             type="number" 
                             min="1"
-                            className="w-full bg-white border border-slate-200 rounded-lg px-3 py-1.5 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none"
+                            className="w-full bg-white border border-slate-200 rounded-lg pl-3 pr-1 py-1.5 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none"
                             value={item.quantity}
                             onChange={(e) => handleUpdateItem(index, 'quantity', parseInt(e.target.value) || 0)}
                           />

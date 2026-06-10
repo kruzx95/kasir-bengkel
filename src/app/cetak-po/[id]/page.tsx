@@ -45,19 +45,19 @@ export default async function CetakPOPage({ params }: { params: Promise<{ id: st
     <>
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
-          @page { size: A5 landscape; margin: 10mm; }
+          @page { size: A4 portrait; margin: 10mm; }
           body { -webkit-print-color-adjust: exact; print-color-adjust: exact; background: white; }
           .no-print { display: none !important; }
         }
         .cetak-page { font-family: 'Inter', sans-serif; background: #f8fafc; min-height: 100vh; padding: 20px; color: #0f172a; }
         .print-container { 
-          width: 210mm; /* A5 Landscape width */
-            min-height: 148mm; /* A5 Landscape height */
-            background: white; 
-            margin: 0 auto; 
-            padding: 8mm; 
-            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); 
-          }
+          width: 210mm; /* A4 Portrait width */
+          min-height: 297mm; /* A4 Portrait height */
+          background: white; 
+          margin: 0 auto; 
+          padding: 10mm; 
+          box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); 
+        }
           @media print {
             body { padding: 0; background: white; }
             .print-container { box-shadow: none; padding: 0; width: 100%; min-height: auto; }
@@ -93,7 +93,6 @@ export default async function CetakPOPage({ params }: { params: Promise<{ id: st
           <div className="header-grid">
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-                <Image src="/logo.png" alt="Logo" width={40} height={40} style={{ objectFit: 'contain' }} />
                 <div>
                   <h1>{restock.branch.name}</h1>
                   <h2>PURCHASE ORDER (PO)</h2>

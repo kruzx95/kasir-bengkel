@@ -8,7 +8,10 @@ import { z } from 'zod'
 type IndentOrderStatus = 'PENDING' | 'PARTIAL' | 'RECEIVED'
 
 const indentItemSchema = z.object({
-  sparepartId: z.string(),
+  sparepartId: z.string().nullable().optional(),
+  isManual: z.boolean().optional(),
+  name: z.string().optional(),
+  sku: z.string().nullable().optional(),
   quantity: z.number().min(1),
   estimatedPrice: z.number().min(0),
 })
@@ -19,6 +22,7 @@ const indentSchema = z.object({
   orderDate: z.string(),
   expectedDate: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
+  dpAmount: z.number().min(0).optional(),
   items: z.array(indentItemSchema).min(1, 'Pilih minimal satu sparepart'),
 })
 
@@ -41,6 +45,38 @@ export async function createIndentOrder(payload: IndentPayload) {
     const isSuperAdmin = session.role === 'ADMIN' && !session.branchId
     const targetBranchId = isSuperAdmin ? data.branchId : session.branchId!
 
+    // For manual items, create the sparepart first
+    const processedItems = []
+    for (const item of data.items) {
+      if (item.isManual && !item.sparepartId) {
+        // Create new sparepart for manual item
+        const newSparepart = await prisma.sparepart.create({
+          data: {
+            name: item.name || 'Barang Baru',
+            sku: item.sku || null,
+            branchId: targetBranchId,
+            stock: 0,
+            buyPrice: item.estimatedPrice,
+            sellPrice: 0,
+            unit: 'PCS',
+          },
+        })
+        processedItems.push({
+          sparepartId: newSparepart.id,
+          quantity: item.quantity,
+          estimatedPrice: item.estimatedPrice,
+          receivedQty: 0,
+        })
+      } else {
+        processedItems.push({
+          sparepartId: item.sparepartId!,
+          quantity: item.quantity,
+          estimatedPrice: item.estimatedPrice,
+          receivedQty: 0,
+        })
+      }
+    }
+
     await prisma.indentOrder.create({
       data: {
         branchId: targetBranchId,
@@ -49,14 +85,10 @@ export async function createIndentOrder(payload: IndentPayload) {
         orderDate: new Date(data.orderDate),
         expectedDate: data.expectedDate ? new Date(data.expectedDate) : null,
         notes: data.notes,
+        dpAmount: data.dpAmount || 0,
         status: 'PENDING',
         items: {
-          create: data.items.map((item) => ({
-            sparepartId: item.sparepartId,
-            quantity: item.quantity,
-            estimatedPrice: item.estimatedPrice,
-            receivedQty: 0,
-          })),
+          create: processedItems,
         },
       },
     })

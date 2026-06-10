@@ -7,7 +7,7 @@ import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
 import { createIndentOrder, type IndentPayload } from '@/actions/indent'
 import { formatCurrency } from '@/lib/utils'
-import { ArrowLeft, Trash2, Search, Package, Plus, ClipboardList } from 'lucide-react'
+import { ArrowLeft, Trash2, Search, Package, Plus, ClipboardList, PlusCircle } from 'lucide-react'
 import Link from 'next/link'
 
 interface NewIndentClientProps {
@@ -23,10 +23,14 @@ export default function NewIndentClient({ branches, spareparts }: NewIndentClien
   const [supplierName, setSupplierName] = useState('')
   const [orderDate, setOrderDate] = useState(new Date().toISOString().slice(0, 10))
   const [expectedDate, setExpectedDate] = useState('')
+  const [dpAmount, setDpAmount] = useState<number>(0)
   const [notes, setNotes] = useState('')
-  const [items, setItems] = useState<{ id: string; sparepartId: string; name: string; sku: string | null; quantity: number; estimatedPrice: number }[]>([])
+  const [items, setItems] = useState<{ id: string; sparepartId: string | null; isManual?: boolean; name: string; sku: string | null; quantity: number; estimatedPrice: number }[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [error, setError] = useState<string | null>(null)
+
+  const [showManualModal, setShowManualModal] = useState(false)
+  const [manualItem, setManualItem] = useState({ name: '', sku: '', estimatedPrice: 0, quantity: 1 })
 
   const branchSpareparts = useMemo(() =>
     spareparts.filter(sp => sp.branchId === branchId),
@@ -62,11 +66,31 @@ export default function NewIndentClient({ branches, spareparts }: NewIndentClien
     setSearchQuery('')
   }
 
-  const handleUpdateItem = (index: number, field: 'quantity' | 'estimatedPrice', value: number) => {
-    if (value < 0) return
+  const handleUpdateItem = (index: number, field: 'quantity' | 'estimatedPrice' | 'name' | 'sku', value: number | string) => {
+    if (typeof value === 'number' && value < 0) return
     const updated = [...items]
-    updated[index][field] = value
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(updated[index] as any)[field] = value
     setItems(updated)
+  }
+
+  const handleAddManualItem = () => {
+    if (!manualItem.name) {
+      setError('Nama barang wajib diisi.')
+      return
+    }
+    setItems([...items, {
+      id: crypto.randomUUID(),
+      sparepartId: null,
+      isManual: true,
+      name: manualItem.name,
+      sku: manualItem.sku || null,
+      quantity: manualItem.quantity,
+      estimatedPrice: manualItem.estimatedPrice,
+    }])
+    setShowManualModal(false)
+    setManualItem({ name: '', sku: '', estimatedPrice: 0, quantity: 1 })
+    setError(null)
   }
 
   const handleRemoveItem = (index: number) => {
@@ -85,8 +109,12 @@ export default function NewIndentClient({ branches, spareparts }: NewIndentClien
         orderDate,
         expectedDate: expectedDate || null,
         notes: notes || null,
+        dpAmount,
         items: items.map(i => ({
-          sparepartId: i.sparepartId,
+          sparepartId: i.sparepartId || null,
+          isManual: i.isManual,
+          name: i.name,
+          sku: i.sku,
           quantity: i.quantity,
           estimatedPrice: i.estimatedPrice,
         })),
@@ -156,6 +184,13 @@ export default function NewIndentClient({ branches, spareparts }: NewIndentClien
           />
 
           <Input
+            type="number"
+            label="Jumlah DP (Dibayar)"
+            value={dpAmount}
+            onChange={(e) => setDpAmount(parseInt(e.target.value) || 0)}
+          />
+
+          <Input
             label="Catatan"
             placeholder="Keterangan tambahan..."
             value={notes}
@@ -202,11 +237,26 @@ export default function NewIndentClient({ branches, spareparts }: NewIndentClien
                       ))}
                     </div>
                   ) : (
-                    <div className="p-4 text-center text-sm text-slate-500">Sparepart tidak ditemukan.</div>
+                    <div className="p-4 text-center text-sm text-slate-500">
+                      <p>Sparepart tidak ditemukan.</p>
+                      <button
+                        onClick={() => { setSearchQuery(''); setShowManualModal(true) }}
+                        className="mt-2 text-violet-600 font-semibold hover:underline"
+                      >
+                        + Tambah barang manual
+                      </button>
+                    </div>
                   )}
                 </div>
               )}
             </div>
+            <button
+              onClick={() => setShowManualModal(true)}
+              className="mt-3 flex items-center gap-2 text-sm font-semibold text-violet-600 hover:text-violet-700 transition-colors"
+            >
+              <PlusCircle className="w-4 h-4" />
+              Tambah Barang Manual (Belum Ada di Sistem)
+            </button>
           </div>
 
           {/* Items Table */}
@@ -236,8 +286,33 @@ export default function NewIndentClient({ branches, spareparts }: NewIndentClien
                   ) : items.map((item, index) => (
                     <tr key={item.id} className="hover:bg-slate-50/50">
                       <td className="px-4 py-3 font-medium text-slate-900">
-                        {item.name}
-                        {item.sku && <p className="text-xs text-slate-400 font-normal">{item.sku}</p>}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {item.isManual ? (
+                            <input
+                              type="text"
+                              className="bg-transparent border-b border-dashed border-slate-300 hover:border-violet-400 focus:border-violet-500 focus:border-solid outline-none px-1 min-w-[120px] text-slate-900 font-medium"
+                              value={item.name}
+                              onChange={(e) => handleUpdateItem(index, 'name', e.target.value)}
+                              title="Edit nama barang"
+                            />
+                          ) : (
+                            <span className="line-clamp-1 break-all">{item.name}</span>
+                          )}
+                          {item.isManual && <span className="bg-violet-100 text-violet-700 text-[10px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider shrink-0">Manual</span>}
+                        </div>
+                        {item.isManual ? (
+                          <div className="mt-1">
+                            <input
+                              type="text"
+                              placeholder="SKU (opsional)"
+                              className="text-xs bg-transparent border-b border-dashed border-slate-300 hover:border-violet-400 focus:border-violet-500 focus:border-solid outline-none px-1 w-24 text-slate-500 font-normal"
+                              value={item.sku || ''}
+                              onChange={(e) => handleUpdateItem(index, 'sku', e.target.value)}
+                            />
+                          </div>
+                        ) : (
+                          item.sku && <p className="text-xs text-slate-400 font-normal">{item.sku}</p>
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         <input type="number" min="1"
@@ -279,6 +354,55 @@ export default function NewIndentClient({ branches, spareparts }: NewIndentClien
           </div>
         </div>
       </div>
+
+      {/* Manual Item Modal */}
+      {showManualModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl mx-4 space-y-4">
+            <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <PlusCircle className="w-5 h-5 text-violet-500" />
+              Tambah Barang Manual
+            </h3>
+            <p className="text-sm text-slate-500">Barang ini akan otomatis terdaftar di sistem saat pesanan disimpan.</p>
+            <Input
+              label="Nama Barang"
+              placeholder="Contoh: Kampas rem depan Vario"
+              value={manualItem.name}
+              onChange={(e) => setManualItem({ ...manualItem, name: e.target.value })}
+              required
+            />
+            <Input
+              label="Kode / SKU (opsional)"
+              placeholder="Contoh: KRM-001"
+              value={manualItem.sku}
+              onChange={(e) => setManualItem({ ...manualItem, sku: e.target.value })}
+            />
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                type="number"
+                label="Jumlah"
+                value={manualItem.quantity}
+                onChange={(e) => setManualItem({ ...manualItem, quantity: parseInt(e.target.value) || 1 })}
+                required
+              />
+              <Input
+                type="number"
+                label="Harga Estimasi"
+                value={manualItem.estimatedPrice}
+                onChange={(e) => setManualItem({ ...manualItem, estimatedPrice: parseInt(e.target.value) || 0 })}
+              />
+            </div>
+            <div className="flex justify-end gap-3 pt-2">
+              <Button variant="outline" onClick={() => { setShowManualModal(false); setManualItem({ name: '', sku: '', estimatedPrice: 0, quantity: 1 }) }}>
+                Batal
+              </Button>
+              <Button onClick={handleAddManualItem} icon={Plus}>
+                Tambah Barang
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

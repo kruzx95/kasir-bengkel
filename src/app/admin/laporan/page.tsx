@@ -1,6 +1,7 @@
 import Header from '@/components/layout/Header'
 import ReportClient from './ReportClient'
 import { getReportData } from '@/actions/report'
+import { getShopName } from '@/actions/settings'
 import { prisma } from '@/lib/prisma'
 import { getSession } from '@/lib/session'
 import { redirect } from 'next/navigation'
@@ -24,6 +25,8 @@ export default async function AdminLaporanPage() {
     select: { id: true, name: true }
   })
 
+  const shopName = await getShopName()
+
   return (
     <>
       <Header
@@ -35,6 +38,7 @@ export default async function AdminLaporanPage() {
           branches={branches} 
           initialData={initialReport.transactions} 
           initialSummary={initialReport.summary}
+          shopName={shopName}
         />
       </div>
     </>

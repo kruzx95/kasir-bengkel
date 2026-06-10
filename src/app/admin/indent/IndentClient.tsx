@@ -5,7 +5,7 @@ import Table from '@/components/ui/Table'
 import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
 import Select from '@/components/ui/Select'
-import { Plus, ClipboardList, AlertTriangle } from 'lucide-react'
+import { Plus, ClipboardList, AlertTriangle, Printer } from 'lucide-react'
 import Link from 'next/link'
 
 interface IndentRow {
@@ -117,17 +117,24 @@ export default function IndentClient({ initialData }: IndentClientProps) {
     {
       key: 'actions',
       header: '',
-      className: 'text-right w-32',
+      className: 'text-right w-44',
       render: (row: IndentRow) => (
-        row.status !== 'RECEIVED' ? (
-          <Link href={`/admin/indent/${row.id}/terima`}>
-            <Button size="sm" variant="outline">
-              Terima Barang
-            </Button>
+        <div className="flex items-center justify-end gap-1">
+          <Link href={`/cetak-indent/${row.id}`} target="_blank">
+            <button title="Cetak Struk" className="p-1.5 rounded-lg text-slate-400 hover:text-violet-600 hover:bg-violet-50 transition-colors">
+              <Printer className="w-4 h-4" />
+            </button>
           </Link>
-        ) : (
-          <span className="text-xs text-slate-400">Selesai</span>
-        )
+          {row.status !== 'RECEIVED' ? (
+            <Link href={`/admin/indent/${row.id}/terima`}>
+              <Button size="sm" variant="outline">
+                Terima Barang
+              </Button>
+            </Link>
+          ) : (
+            <span className="text-xs text-slate-400 ml-1">Selesai</span>
+          )}
+        </div>
       ),
     },
   ]

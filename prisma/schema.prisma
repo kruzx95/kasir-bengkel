@@ -334,6 +334,7 @@ model IndentOrder {
   orderDate    DateTime     @map("order_date") @db.Date
   expectedDate DateTime?    @map("expected_date") @db.Date
   notes        String?
+  dpAmount     Float        @default(0) @map("dp_amount")
   status       IndentStatus @default(PENDING)
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
