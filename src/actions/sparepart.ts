@@ -51,6 +51,7 @@ export async function getPaginatedSpareparts(
   limit = 50,
   branchId?: string | null,
   search?: string
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<PaginatedResult<any>> {
   try {
     const session = await getSession()

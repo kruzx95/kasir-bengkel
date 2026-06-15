@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition, useMemo } from 'react'
+import { useState, useTransition } from 'react'
 import Table from '@/components/ui/Table'
 import Button from '@/components/ui/Button'
 import Select from '@/components/ui/Select'
@@ -13,9 +13,10 @@ interface ReminderClientProps {
   initialData: ReminderData[]
   branches: { id: string; name: string }[]
   defaultMonths: number
+  shopName: string
 }
 
-export default function ReminderClient({ initialData, branches, defaultMonths }: ReminderClientProps) {
+export default function ReminderClient({ initialData, branches, defaultMonths, shopName }: ReminderClientProps) {
   const [data, setData] = useState(initialData)
   const [months, setMonths] = useState(defaultMonths)
   const [branchId, setBranchId] = useState('')
@@ -50,7 +51,7 @@ export default function ReminderClient({ initialData, branches, defaultMonths }:
     const dateStr = new Date(row.lastServiceDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
     const vehicle = [row.vehicleBrand, row.vehicleType, row.plateNumber ? `(${row.plateNumber})` : ''].filter(Boolean).join(' ')
     
-    const text = `Halo Bapak/Ibu ${row.name},\n\nKami dari *Irian Motor* ingin mengingatkan bahwa kendaraan kesayangan Anda ${vehicle} sudah waktunya untuk diservis rutin/ganti oli, karena sudah mencapai ${months} bulan sejak servis terakhir pada tanggal ${dateStr}.\n\nDitunggu kedatangannya di bengkel kami ya! 🙏`
+    const text = `Halo Bapak/Ibu ${row.name},\n\nKami dari *${shopName}* ingin mengingatkan bahwa kendaraan kesayangan Anda ${vehicle} sudah waktunya untuk diservis rutin/ganti oli, karena sudah mencapai ${months} bulan sejak servis terakhir pada tanggal ${dateStr}.\n\nDitunggu kedatangannya di bengkel kami ya! 🙏`
     
     return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`
   }

@@ -2,7 +2,6 @@ import { prisma } from '@/lib/prisma'
 import { getSession } from '@/lib/session'
 import { notFound, redirect } from 'next/navigation'
 import { formatCurrency } from '@/lib/utils'
-import Image from 'next/image'
 import PrintButton from './PrintButton'
 import type { Metadata } from 'next'
 

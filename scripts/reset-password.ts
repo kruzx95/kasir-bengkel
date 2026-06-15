@@ -22,6 +22,7 @@ async function main() {
     password: url.password,
     database: url.pathname.replace('/', ''),
   })
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const prisma = new PrismaClient({ adapter } as any)
 
   const user = await prisma.user.findUnique({ where: { email: EMAIL } })

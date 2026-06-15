@@ -16,6 +16,7 @@ interface IndentRow {
   status: string
   branch: { name: string }
   user: { name: string }
+  customer: { name: string; phone: string | null } | null
   items: { quantity: number; receivedQty: number; sparepart: { name: string } }[]
 }
 
@@ -58,8 +59,11 @@ export default function IndentClient({ initialData }: IndentClientProps) {
             <ClipboardList className="w-4 h-4 text-violet-600" />
           </div>
           <div>
-            <p className="text-sm font-medium text-slate-900">{row.supplierName}</p>
-            <p className="text-xs text-slate-400">{row.branch.name}</p>
+            <p className="text-sm font-medium text-slate-900">{row.customer ? row.customer.name : row.supplierName}</p>
+            <p className="text-xs text-slate-400">
+              {row.customer ? `Supplier: ${row.supplierName} • ` : ''}
+              Cabang {row.branch.name}
+            </p>
           </div>
         </div>
       ),

@@ -1,6 +1,7 @@
 import Header from '@/components/layout/Header'
 import RestocksClient from './RestocksClient'
 import { getRestocks } from '@/actions/restock'
+import { getIndentOrders } from '@/actions/indent'
 import { getSession } from '@/lib/session'
 import { redirect } from 'next/navigation'
 import type { Metadata } from 'next'
@@ -15,7 +16,10 @@ export default async function AdminRestockPage() {
     redirect('/kasir')
   }
 
-  const restocks = await getRestocks()
+  const [restockPOs, history] = await Promise.all([
+    getIndentOrders(undefined, undefined, 'RESTOCK'),
+    getRestocks()
+  ])
 
   return (
     <>
@@ -24,7 +28,7 @@ export default async function AdminRestockPage() {
         subtitle="Riwayat pembelian stok sparepart dari supplier"
       />
       <div className="p-4 sm:p-6 animate-fade-in">
-        <RestocksClient initialData={restocks} />
+        <RestocksClient initialPOs={restockPOs} initialHistory={history} />
       </div>
     </>
   )

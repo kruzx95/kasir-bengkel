@@ -13,13 +13,15 @@ import Link from 'next/link'
 interface NewIndentClientProps {
   branches: { id: string; name: string }[]
   spareparts: { id: string; name: string; sku: string | null; branchId: string; stock: number; buyPrice: number }[]
+  customers: { id: string; name: string }[]
 }
 
-export default function NewIndentClient({ branches, spareparts }: NewIndentClientProps) {
+export default function NewIndentClient({ branches, spareparts, customers }: NewIndentClientProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
 
   const [branchId, setBranchId] = useState(branches[0]?.id || '')
+  const [customerId, setCustomerId] = useState('')
   const [supplierName, setSupplierName] = useState('')
   const [orderDate, setOrderDate] = useState(new Date().toISOString().slice(0, 10))
   const [expectedDate, setExpectedDate] = useState('')
@@ -110,6 +112,8 @@ export default function NewIndentClient({ branches, spareparts }: NewIndentClien
         expectedDate: expectedDate || null,
         notes: notes || null,
         dpAmount,
+        type: 'CUSTOMER',
+        customerId: customerId || null,
         items: items.map(i => ({
           sparepartId: i.sparepartId || null,
           isManual: i.isManual,
@@ -162,10 +166,20 @@ export default function NewIndentClient({ branches, spareparts }: NewIndentClien
 
           <Input
             label="Nama Supplier"
-            placeholder="Contoh: PT. Astra Honda Motor"
             value={supplierName}
-            onChange={(e) => setSupplierName(e.target.value)}
+            onChange={e => setSupplierName(e.target.value)}
+            placeholder="Toko Sparepart XYZ"
             required
+          />
+
+          <Select
+            label="Pelanggan (Opsional)"
+            value={customerId}
+            onChange={e => setCustomerId(e.target.value)}
+            options={[
+              { value: '', label: '-- Pilih Pelanggan --' },
+              ...customers.map(c => ({ value: c.id, label: c.name }))
+            ]}
           />
 
           <Input

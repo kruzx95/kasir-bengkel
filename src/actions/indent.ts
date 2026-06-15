@@ -23,6 +23,8 @@ const indentSchema = z.object({
   expectedDate: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
   dpAmount: z.number().min(0).optional(),
+  type: z.enum(['RESTOCK', 'CUSTOMER']).default('CUSTOMER'),
+  customerId: z.string().optional().nullable(),
   items: z.array(indentItemSchema).min(1, 'Pilih minimal satu sparepart'),
 })
 
@@ -86,6 +88,8 @@ export async function createIndentOrder(payload: IndentPayload) {
         expectedDate: data.expectedDate ? new Date(data.expectedDate) : null,
         notes: data.notes,
         dpAmount: data.dpAmount || 0,
+        type: data.type,
+        customerId: data.customerId || null,
         status: 'PENDING',
         items: {
           create: processedItems,
@@ -102,7 +106,54 @@ export async function createIndentOrder(payload: IndentPayload) {
   }
 }
 
-export async function getIndentOrders(branchId?: string, status?: IndentOrderStatus) {
+export async function getPaginatedIndentOrders(
+  page = 1,
+  limit = 20,
+  branchId?: string | null,
+  type: 'RESTOCK' | 'CUSTOMER' = 'CUSTOMER'
+) {
+  try {
+    const session = await getSession()
+    if (!session) return { data: [], totalCount: 0, totalPages: 0, currentPage: page }
+
+    const where = {
+      ...getBranchFilter(session, branchId),
+      type,
+    }
+
+    const [data, totalCount] = await Promise.all([
+      prisma.indentOrder.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        include: {
+          branch: true,
+          customer: { select: { name: true, phone: true } },
+          items: {
+            include: { sparepart: true },
+          },
+        },
+        orderBy: { orderDate: 'desc' },
+      }),
+      prisma.indentOrder.count({ where }),
+    ])
+
+    return {
+      data,
+      totalCount,
+      totalPages: Math.ceil(totalCount / limit),
+      currentPage: page,
+    }
+  } catch {
+    return { data: [], totalCount: 0, totalPages: 0, currentPage: page }
+  }
+}
+
+export async function getIndentOrders(
+  branchId?: string,
+  status?: IndentOrderStatus,
+  type: 'RESTOCK' | 'CUSTOMER' = 'CUSTOMER'
+) {
   try {
     const session = await getSession()
     if (!session || session.role !== 'ADMIN') return []
@@ -110,11 +161,13 @@ export async function getIndentOrders(branchId?: string, status?: IndentOrderSta
     return await prisma.indentOrder.findMany({
       where: {
         ...getBranchFilter(session, branchId),
+        type,
         ...(status ? { status } : {}),
       },
       include: {
         branch: { select: { name: true } },
         user: { select: { name: true } },
+        customer: { select: { name: true, phone: true } },
         items: {
           include: {
             sparepart: { select: { name: true, sku: true } },
@@ -138,6 +191,7 @@ export async function getIndentOrderById(id: string) {
       include: {
         branch: { select: { id: true, name: true } },
         user: { select: { name: true } },
+        customer: { select: { id: true, name: true, phone: true } },
         items: {
           include: {
             sparepart: { select: { id: true, name: true, sku: true, unit: true } },
@@ -225,6 +279,8 @@ export async function receiveIndentOrder(payload: ReceiveIndentPayload) {
         })
       }
 
+      const paymentStatus = indentOrder.dpAmount >= total ? 'LUNAS' : 'HUTANG'
+
       // Create restock record linked to indent
       const restock = await tx.restock.create({
         data: {
@@ -235,6 +291,8 @@ export async function receiveIndentOrder(payload: ReceiveIndentPayload) {
           notes: data.notes,
           receiptImagePath: data.receiptImagePath || null,
           total,
+          paidAmount: indentOrder.dpAmount,
+          paymentStatus,
           indentOrderId: data.indentOrderId,
           items: { create: restockItems },
         },

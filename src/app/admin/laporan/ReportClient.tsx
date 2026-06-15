@@ -51,7 +51,7 @@ interface RestockRow {
 interface ReportClientProps {
   branches: { id: string; name: string }[]
   initialData: TransactionRow[]
-  initialSummary: { total: number; service: number; sparepart: number }
+  initialSummary: { total: number; service: number; sparepart: number; pendingCorporate: number }
   shopName: string
 }
 
@@ -271,7 +271,7 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Total Pendapatan</p>
               <p className="text-2xl font-black text-slate-900">{formatCurrency(summary.total)}</p>
@@ -283,6 +283,10 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
             <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Pendapatan Sparepart</p>
               <p className="text-xl font-bold text-warning-600">{formatCurrency(summary.sparepart)}</p>
+            </div>
+            <div className="bg-white p-5 rounded-2xl border border-amber-200/80 shadow-sm border-l-4 border-l-amber-400">
+              <p className="text-xs font-semibold text-amber-600 uppercase tracking-wider mb-1">Tagihan Korporat (Belum Lunas)</p>
+              <p className="text-xl font-bold text-amber-600">{formatCurrency(summary.pendingCorporate)}</p>
             </div>
             <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Total Transaksi</p>

@@ -31,6 +31,7 @@ export default async function SparepartStockPage(
       />
       <div className="p-4 sm:p-6 animate-fade-in">
         <StockClient
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           initialSpareparts={spareparts.map((sp: any) => ({
             id: sp.id,
             name: sp.name,

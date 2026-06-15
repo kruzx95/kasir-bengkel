@@ -9,8 +9,9 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const { id } = await params
   const indent = await prisma.indentOrder.findUnique({ where: { id } })
   if (!indent) return { title: 'Cetak Struk Indent' }
+  const title = indent.type === 'RESTOCK' ? 'PO Restock' : 'Struk Indent'
   const indentNumber = `IDT-${indent.orderDate.getFullYear()}${(indent.orderDate.getMonth() + 1).toString().padStart(2, '0')}${indent.orderDate.getDate().toString().padStart(2, '0')}-${indent.id.slice(-5).toUpperCase()}`
-  return { title: `Struk Indent - ${indentNumber}` }
+  return { title: `${title} - ${indentNumber}` }
 }
 
 export default async function CetakIndentPage({ params }: { params: Promise<{ id: string }> }) {
@@ -26,6 +27,7 @@ export default async function CetakIndentPage({ params }: { params: Promise<{ id
     include: {
       branch: true,
       user: true,
+      customer: true,
       items: {
         include: {
           sparepart: { select: { name: true, sku: true } }
@@ -106,7 +108,7 @@ export default async function CetakIndentPage({ params }: { params: Promise<{ id
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
                 <div>
                   <h1>{indent.branch.name}</h1>
-                  <h2>STRUK PESANAN INDENT</h2>
+                  <h2>{indent.type === 'RESTOCK' ? 'PURCHASE ORDER (PO)' : 'STRUK PESANAN INDENT'}</h2>
                 </div>
               </div>
             </div>
@@ -144,6 +146,12 @@ export default async function CetakIndentPage({ params }: { params: Promise<{ id
               )}
             </div>
             <div className="info-block">
+              {indent.customer && (
+                <div className="info-row">
+                  <span className="info-label">Pelanggan</span>
+                  <span className="info-value">: <strong>{indent.customer.name}</strong> {indent.customer.phone ? `(${indent.customer.phone})` : ''}</span>
+                </div>
+              )}
               <div className="info-row">
                 <span className="info-label">Supplier</span>
                 <span className="info-value">: <strong>{indent.supplierName}</strong></span>
@@ -204,19 +212,28 @@ export default async function CetakIndentPage({ params }: { params: Promise<{ id
             </tbody>
           </table>
 
-          <div className="customer-notice">
-            <strong>Informasi untuk Pelanggan:</strong> Barang yang dipesan akan dikirim sesuai estimasi tanggal tiba. Harap konfirmasi kembali ke bengkel untuk pengambilan barang. Harga yang tertera adalah estimasi dan dapat berubah saat barang diterima.
-          </div>
+          {indent.type === 'CUSTOMER' && (
+            <div className="customer-notice">
+              <strong>Informasi untuk Pelanggan:</strong> Barang yang dipesan akan dikirim sesuai estimasi tanggal tiba. Harap konfirmasi kembali ke bengkel untuk pengambilan barang. Harga yang tertera adalah estimasi dan dapat berubah saat barang diterima.
+            </div>
+          )}
 
           <div className="signature-section">
             <div className="signature-box">
-              <span>Pemesan / Bengkel,</span>
-              <div className="signature-line">{indent.branch.name}</div>
+              <span>{indent.type === 'RESTOCK' ? 'Dibuat Oleh,' : 'Pemesan / Bengkel,'}</span>
+              <div className="signature-line">{indent.type === 'RESTOCK' ? indent.user.name : indent.branch.name}</div>
             </div>
-            <div className="signature-box">
-              <span>Pelanggan,</span>
-              <div className="signature-line">(...............................)</div>
-            </div>
+            {indent.type === 'CUSTOMER' ? (
+              <div className="signature-box">
+                <span>Pelanggan,</span>
+                <div className="signature-line">{indent.customer ? indent.customer.name : '(...............................)'}</div>
+              </div>
+            ) : (
+              <div className="signature-box">
+                <span>Mengetahui,</span>
+                <div className="signature-line">(...............................)</div>
+              </div>
+            )}
           </div>
         </div>
       </div>

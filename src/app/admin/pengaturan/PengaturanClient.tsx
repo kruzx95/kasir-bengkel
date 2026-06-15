@@ -36,7 +36,7 @@ export default function PengaturanClient({ shopName }: { shopName: string }) {
             label="Nama Toko"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Contoh: Irian Motor"
+            placeholder="Contoh: Bengkel Maju Jaya"
             hint="Ditampilkan di sidebar, halaman login, dan nota transaksi"
             required
           />

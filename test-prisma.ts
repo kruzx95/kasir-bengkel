@@ -1,5 +1,5 @@
 import { prisma } from './src/lib/prisma';
-async function test() {
+export async function test() {
   const result = await prisma.transactionItem.groupBy({
     by: ['itemName', 'itemType'],
     where: {

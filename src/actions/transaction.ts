@@ -236,6 +236,7 @@ export async function getPaginatedTransactions(
   limit = 50,
   branchId?: string,
   dateStr?: string
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<PaginatedResult<any>> {
   try {
     const session = await getSession()

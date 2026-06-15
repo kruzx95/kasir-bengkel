@@ -72,6 +72,7 @@ export async function markReminderSent(customerId: string) {
     revalidatePath('/admin/reminder')
     return { success: true }
   } catch (error) {
+    console.error('Mark Reminder Sent Error:', error)
     return { success: false, message: 'Gagal menandai reminder' }
   }
 }

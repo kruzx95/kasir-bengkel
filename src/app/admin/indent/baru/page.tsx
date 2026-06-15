@@ -2,6 +2,7 @@ import Header from '@/components/layout/Header'
 import NewIndentClient from './NewIndentClient'
 import { getBranches } from '@/actions/branch'
 import { getSpareparts } from '@/actions/sparepart'
+import { getCustomers } from '@/actions/customer'
 import { getSession } from '@/lib/session'
 import { redirect } from 'next/navigation'
 import type { Metadata } from 'next'
@@ -16,9 +17,10 @@ export default async function NewIndentPage() {
     redirect('/kasir')
   }
 
-  const [branches, spareparts] = await Promise.all([
+  const [branches, spareparts, customers] = await Promise.all([
     getBranches(),
     getSpareparts(),
+    getCustomers(),
   ])
 
   return (
@@ -28,7 +30,7 @@ export default async function NewIndentPage() {
         subtitle="Catat pemesanan sparepart yang belum tersedia dari supplier"
       />
       <div className="p-4 sm:p-6 animate-fade-in max-w-5xl mx-auto">
-        <NewIndentClient branches={branches} spareparts={spareparts} />
+        <NewIndentClient branches={branches} spareparts={spareparts} customers={customers} />
       </div>
     </>
   )

@@ -39,6 +39,7 @@ export default async function AdminPelangganPage(
       />
       <div className="p-4 sm:p-6 animate-fade-in">
         <AdminCustomersClient
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           initialCustomers={result.data as any}
           branches={branches}
           totalCount={result.totalCount}

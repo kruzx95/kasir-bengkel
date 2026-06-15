@@ -424,7 +424,7 @@ export default function NewTransactionClient({
                             const val = e.target.value;
                             handleUpdateQty(index, val === '' ? 0 : parseInt(val) || 0);
                           }}
-                          onBlur={(e) => {
+                          onBlur={() => {
                             if (item.quantity < 1) handleUpdateQty(index, 1);
                           }}
                           className="w-10 text-center text-sm font-semibold text-slate-900 bg-transparent border-none p-0 focus:ring-0 [&::-webkit-inner-spin-button]:appearance-none"

@@ -19,6 +19,7 @@ const restockSchema = z.object({
   branchId: z.string(),
   supplierName: z.string().min(1, 'Nama supplier wajib diisi'),
   date: z.string(), // ISO date string
+  expectedDate: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
   receiptImagePath: z.string().optional().nullable(),
   paidAmount: z.number().min(0).optional(),
@@ -43,8 +44,6 @@ export async function createRestock(payload: RestockPayload) {
       const isSuperAdmin = session.role === 'ADMIN' && !session.branchId
       const targetBranchId = isSuperAdmin ? data.branchId : session.branchId!
 
-      let total = 0
-      
       // Process items: create new spareparts if needed
       const restockItemsData = await Promise.all(data.items.map(async (item) => {
         let actualSparepartId = item.sparepartId
@@ -63,51 +62,34 @@ export async function createRestock(payload: RestockPayload) {
           actualSparepartId = newSp.id
         }
 
-        if (!actualSparepartId) throw new Error('Missing sparepartId')
+        if (!actualSparepartId) throw new Error(`sparepartId tidak ditemukan untuk item: "${item.name || 'unknown'}". Pastikan item memiliki sparepartId atau flag isNew=true.`)
 
-        const subtotal = item.quantity * item.buyPrice
-        total += subtotal
-        
         return {
           sparepartId: actualSparepartId,
           quantity: item.quantity,
-          buyPrice: item.buyPrice,
-          subtotal
+          estimatedPrice: item.buyPrice,
+          receivedQty: 0
         }
       }))
 
-      const paidAmount = data.paidAmount || 0
-      const paymentStatus = paidAmount >= total ? 'LUNAS' : 'HUTANG'
-
-      const restock = await tx.restock.create({
+      const po = await tx.indentOrder.create({
         data: {
           branchId: targetBranchId,
           userId: session.userId,
           supplierName: data.supplierName,
-          date: new Date(data.date),
+          orderDate: new Date(data.date),
+          expectedDate: data.expectedDate ? new Date(data.expectedDate) : null,
           notes: data.notes,
-          receiptImagePath: data.receiptImagePath || null,
-          total,
-          paidAmount,
-          paymentStatus,
+          dpAmount: data.paidAmount || 0,
+          type: 'RESTOCK',
+          status: 'PENDING',
           items: {
             create: restockItemsData
           }
         }
       })
 
-      // Update Stock and Buy Price
-      for (const itemData of restockItemsData) {
-        await tx.sparepart.update({
-          where: { id: itemData.sparepartId },
-          data: {
-            stock: { increment: itemData.quantity },
-            buyPrice: itemData.buyPrice
-          }
-        })
-      }
-
-      return restock
+      return po
     })
 
     revalidatePath('/admin/restock')

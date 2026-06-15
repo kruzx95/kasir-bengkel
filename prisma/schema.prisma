@@ -124,6 +124,7 @@ model Customer {
   branch            Branch             @relation(fields: [branchId], references: [id])
   corporateCustomer CorporateCustomer? @relation(fields: [corporateCustomerId], references: [id])
   transactions      Transaction[]
+  indentOrders      IndentOrder[]
 
   @@map("customers")
 }
@@ -326,6 +327,11 @@ enum IndentStatus {
   RECEIVED
 }
 
+enum IndentType {
+  RESTOCK
+  CUSTOMER
+}
+
 model IndentOrder {
   id           String       @id @default(cuid())
   branchId     String       @map("branch_id")
@@ -336,12 +342,15 @@ model IndentOrder {
   notes        String?
   dpAmount     Float        @default(0) @map("dp_amount")
   status       IndentStatus @default(PENDING)
+  type         IndentType   @default(CUSTOMER)
+  customerId   String?      @map("customer_id")
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
   // Relations
   branch   Branch            @relation(fields: [branchId], references: [id])
   user     User              @relation(fields: [userId], references: [id])
+  customer Customer?         @relation(fields: [customerId], references: [id])
   items    IndentOrderItem[]
   restocks Restock[]
 

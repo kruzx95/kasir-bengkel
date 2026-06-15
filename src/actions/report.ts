@@ -5,7 +5,7 @@ import { getSession, getBranchFilter } from '@/lib/session'
 
 export async function getReportData(startDateStr?: string, endDateStr?: string, branchId?: string) {
   const session = await getSession()
-  if (!session) return { transactions: [], summary: { total: 0, service: 0, sparepart: 0, discount: 0 } }
+  if (!session) return { transactions: [], summary: { total: 0, service: 0, sparepart: 0, discount: 0, pendingCorporate: 0 } }
 
   // Let getBranchFilter handle the logic
 
@@ -27,13 +27,16 @@ export async function getReportData(startDateStr?: string, endDateStr?: string, 
           gte: startDate,
           lte: endDate,
         },
-        status: 'COMPLETED'
+        // Include COMPLETED and PENDING_CORPORATE so corporate transactions
+        // are visible in the report even before they are settled
+        status: { in: ['COMPLETED', 'PENDING_CORPORATE'] },
       },
       select: {
         id: true,
         invoiceNumber: true,
         transactionDate: true,
         type: true,
+        status: true,
         paymentMethod: true,
         subtotal: true,
         discount: true,
@@ -59,11 +62,13 @@ export async function getReportData(startDateStr?: string, endDateStr?: string, 
     let sparepartRev = 0
     let totalDiscount = 0
     let grandTotal = 0
+    let pendingCorporate = 0
 
     transactions.forEach(tx => {
       grandTotal += tx.total
       totalDiscount += tx.discount
-      
+      if (tx.status === 'PENDING_CORPORATE') pendingCorporate += tx.total
+
       tx.items.forEach(item => {
         if (item.itemType === 'SERVICE') serviceRev += item.subtotal
         if (item.itemType === 'SPAREPART') sparepartRev += item.subtotal
@@ -76,12 +81,13 @@ export async function getReportData(startDateStr?: string, endDateStr?: string, 
         total: grandTotal,
         service: serviceRev,
         sparepart: sparepartRev,
-        discount: totalDiscount
+        discount: totalDiscount,
+        pendingCorporate
       }
     }
   } catch (error) {
     console.error('Report fetching error:', error)
-    return { transactions: [], summary: { total: 0, service: 0, sparepart: 0, discount: 0 } }
+    return { transactions: [], summary: { total: 0, service: 0, sparepart: 0, discount: 0, pendingCorporate: 0 } }
   }
 }
 

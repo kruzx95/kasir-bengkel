@@ -23,6 +23,7 @@ export default function NewRestockClient({ branches, spareparts }: NewRestockCli
   const [branchId, setBranchId] = useState(branches[0]?.id || '')
   const [supplierName, setSupplierName] = useState('')
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
+  const [expectedDate, setExpectedDate] = useState('')
   const [paidAmount, setPaidAmount] = useState(0)
   const [notes, setNotes] = useState('')
   const [receiptImagePath, setReceiptImagePath] = useState<string | null>(null)
@@ -125,10 +126,10 @@ export default function NewRestockClient({ branches, spareparts }: NewRestockCli
     setError(null)
   }
 
-  const handleUpdateItem = (index: number, field: 'quantity' | 'buyPrice' | 'sellPrice', value: number) => {
-    if (value < 0) return
+  const handleUpdateItem = (index: number, field: 'quantity' | 'buyPrice' | 'sellPrice' | 'name' | 'sku', value: string | number) => {
+    if (typeof value === 'number' && value < 0) return
     const newItems = [...items]
-    newItems[index][field] = value
+    newItems[index] = { ...newItems[index], [field]: value as string & number }
     setItems(newItems)
   }
 
@@ -152,6 +153,7 @@ export default function NewRestockClient({ branches, spareparts }: NewRestockCli
         branchId,
         supplierName,
         date,
+        expectedDate: expectedDate || null,
         paidAmount,
         notes: notes || null,
         receiptImagePath: receiptImagePath || null,
@@ -220,10 +222,17 @@ export default function NewRestockClient({ branches, spareparts }: NewRestockCli
 
             <Input
               type="date"
-              label="Tanggal Masuk"
+              label="Tanggal Masuk / Pesan"
               value={date}
               onChange={(e) => setDate(e.target.value)}
               required
+            />
+
+            <Input
+              type="date"
+              label="Estimasi Kedatangan (Opsional)"
+              value={expectedDate}
+              onChange={(e) => setExpectedDate(e.target.value)}
             />
 
             <Input

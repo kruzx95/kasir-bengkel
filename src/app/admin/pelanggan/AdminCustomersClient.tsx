@@ -6,7 +6,7 @@ import Table from '@/components/ui/Table'
 import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
 import CustomerFormModal from '@/components/kasir/CustomerFormModal'
-import { Plus, Pencil, Users, Search, Bike, Filter } from 'lucide-react'
+import { Plus, Pencil, Users, Search, Bike } from 'lucide-react'
 
 interface CustomerRow {
   id: string
