@@ -93,7 +93,7 @@ export default function DashboardClient({ metrics }: DashboardClientProps) {
         {/* Line Chart: 7 Days Trend */}
         <div className={`bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm ${metrics.branchRevenueData.length > 0 ? 'lg:col-span-2' : 'lg:col-span-3'}`}>
           <h3 className="text-base font-bold text-slate-900 mb-6">Tren Pendapatan (7 Hari Terakhir)</h3>
-          <div className="h-[300px] w-full">
+          <div className="h-[300px] w-full min-w-0 min-h-0">
             <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
               <LineChart data={metrics.trendData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client'
 
 import { useState } from 'react'
@@ -9,7 +8,6 @@ import { formatCurrency } from '@/lib/utils'
 import { Plus, PackagePlus, Search, ImageIcon, ChevronRight, Printer, AlertTriangle, ClipboardList } from 'lucide-react'
 import Link from 'next/link'
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export default function RestocksClient({ initialPOs, initialHistory }: { initialPOs: any[], initialHistory: any[] }) {
   const [activeTab, setActiveTab] = useState<'PO' | 'HISTORY'>('PO')
   const [searchQuery, setSearchQuery] = useState('')
