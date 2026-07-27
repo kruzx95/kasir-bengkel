@@ -6,7 +6,7 @@ import Link from 'next/link'
 import type { NotificationItem } from '@/actions/notification'
 
 interface NotificationPanelProps {
-  initialData: {
+  initialData?: {
     items: NotificationItem[]
     count: number
   }
@@ -31,7 +31,7 @@ export default function NotificationPanel({ initialData }: NotificationPanelProp
     }
   }, [isOpen])
 
-  const { items, count } = initialData
+  const { items = [], count = 0 } = initialData || {}
 
   const getIcon = (type: NotificationItem['type']) => {
     switch (type) {

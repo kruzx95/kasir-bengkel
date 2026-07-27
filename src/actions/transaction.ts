@@ -46,6 +46,21 @@ export async function createTransaction(payload: TransactionPayload): Promise<Tr
       return { success: false, message: 'Admin harus memilih cabang untuk transaksi.' }
     }
 
+    // Validate against DB to prevent stale session branchId
+    const dbUser = await prisma.user.findUnique({
+      where: { id: session.userId },
+      select: { branchId: true, isActive: true }
+    })
+
+    if (!dbUser || !dbUser.isActive) {
+      return { success: false, message: 'User tidak ditemukan atau tidak aktif. Silakan login ulang.' }
+    }
+
+    // For non-super-admin, session branchId must match DB
+    if (!isSuperAdmin && session.branchId !== dbUser.branchId) {
+      return { success: false, message: 'Data cabang tidak sinkron. Silakan logout dan login ulang.' }
+    }
+
     const validated = transactionSchema.safeParse(payload)
     if (!validated.success) {
       return {
@@ -56,7 +71,7 @@ export async function createTransaction(payload: TransactionPayload): Promise<Tr
     }
 
     const data = validated.data
-    const branchId = isSuperAdmin ? payload.branchId! : session.branchId!
+    const branchId = isSuperAdmin ? payload.branchId! : dbUser.branchId!
     const userId = session.userId
 
     // Begin Prisma Transaction

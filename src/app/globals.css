@@ -120,6 +120,27 @@ body {
   background: var(--slate-400);
 }
 
+/* Dark scrollbar for sidebar */
+aside nav::-webkit-scrollbar {
+  width: 8px;
+}
+
+aside nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+aside nav::-webkit-scrollbar-thumb {
+  background: rgba(51, 65, 85, 0.5); /* slate-700/50 */
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+aside nav::-webkit-scrollbar-thumb:hover {
+  background: rgba(71, 85, 105, 0.7); /* slate-600/70 */
+  background-clip: padding-box;
+}
+
 /* Focus styles */
 *:focus-visible {
   outline: 2px solid var(--primary-500);

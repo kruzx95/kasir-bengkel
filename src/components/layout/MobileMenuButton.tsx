@@ -1,14 +1,15 @@
 'use client'
 
 import { Menu } from 'lucide-react'
-import { useSidebar } from '@/components/layout/DashboardShell'
 
-export default function MobileMenuButton() {
-  const { openSidebar } = useSidebar()
+interface MobileMenuButtonProps {
+  onClick: () => void
+}
 
+export default function MobileMenuButton({ onClick }: MobileMenuButtonProps) {
   return (
     <button
-      onClick={openSidebar}
+      onClick={onClick}
       className="lg:hidden p-2 -ml-2 rounded-xl text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors"
       aria-label="Buka menu navigasi"
     >

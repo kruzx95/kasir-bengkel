@@ -1,23 +1,33 @@
+'use client'
+
 import MobileMenuButton from './MobileMenuButton'
 import NotificationPanel from './NotificationPanel'
-import { getNotifications } from '@/actions/notification'
 
 interface HeaderProps {
   title: string
   subtitle?: string
+  openSidebar: () => void
+  notificationData?: {
+    items: Array<{
+      id: string
+      type: 'LOW_STOCK' | 'INDENT_OVERDUE' | 'CORPORATE_PENDING'
+      title: string
+      message: string
+      href: string
+      severity: 'warning' | 'danger' | 'info'
+      date?: string | Date
+    }>
+    count: number
+  }
 }
 
-export default async function Header({ title, subtitle }: HeaderProps) {
-  // Fetch notifikasi langsung di server (tidak perlu loading state di client)
-  const notifications = await getNotifications()
-
+export default function Header({ title, subtitle, openSidebar, notificationData }: HeaderProps) {
   return (
     <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-200/80 px-4 sm:px-6 py-3 sm:py-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           {/* Hamburger menu — client component */}
-          <MobileMenuButton />
-
+          <MobileMenuButton onClick={openSidebar} />
           <div>
             <h1 className="text-lg sm:text-xl font-bold text-slate-900">{title}</h1>
             {subtitle && (
@@ -28,7 +38,7 @@ export default async function Header({ title, subtitle }: HeaderProps) {
 
         <div className="flex items-center gap-2 sm:gap-3">
           {/* Notifications Panel */}
-          <NotificationPanel initialData={notifications} />
+          <NotificationPanel initialData={notificationData} />
         </div>
       </div>
     </header>
