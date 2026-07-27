@@ -110,21 +110,46 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
         </div>
 
         {/* Customer Info */}
-        <div className="bg-slate-50 rounded-xl p-4 sm:p-5 mb-6 sm:mb-8 flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
-          <div>
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Ditagihkan Kepada</p>
-            <div className="flex items-center gap-2 mb-1">
-              <User className="w-4 h-4 text-slate-400" />
-              <p className="text-base font-bold text-slate-900">{tx.customer?.name || 'Pelanggan Umum'}</p>
+        <div className="bg-slate-50 rounded-xl p-4 sm:p-5 mb-6 sm:mb-8">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-4">
+            <div>
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Ditagihkan Kepada</p>
+              <div className="flex items-center gap-2 mb-1">
+                <User className="w-4 h-4 text-slate-400" />
+                <p className="text-base font-bold text-slate-900">{tx.customer?.name || 'Pelanggan Umum'}</p>
+              </div>
+              {tx.customer?.phone && <p className="text-sm text-slate-600 ml-6">{tx.customer.phone}</p>}
             </div>
-            {tx.customer?.phone && <p className="text-sm text-slate-600 ml-6">{tx.customer.phone}</p>}
+            
+            {tx.customer?.vehicleType && (
+              <div className="sm:text-right">
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Kendaraan</p>
+                <p className="text-sm font-medium text-slate-900">{tx.customer.vehicleType}</p>
+                {tx.customer.plateNumber && <p className="text-sm text-slate-600 font-mono">{tx.customer.plateNumber}</p>}
+              </div>
+            )}
           </div>
-          
-          {tx.customer?.vehicleType && (
-            <div className="text-right">
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Kendaraan</p>
-              <p className="text-sm font-medium text-slate-900">{tx.customer.vehicleType}</p>
-              {tx.customer.plateNumber && <p className="text-sm text-slate-600 font-mono">{tx.customer.plateNumber}</p>}
+
+          {/* Odometer Section */}
+          {(tx.odometer || tx.odometerHistory?.length > 0) && (
+            <div className="border-t border-slate-200 pt-4">
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Riwayat Odometer</p>
+              <div className="space-y-2">
+                {tx.odometer && (
+                  <div className="flex items-center justify-between text-sm bg-primary-50 px-3 py-2 rounded-lg border border-primary-100">
+                    <span className="font-semibold text-primary-900">Kunjungan Ini</span>
+                    <span className="font-bold text-primary-700">{tx.odometer.toLocaleString('id-ID')} km</span>
+                  </div>
+                )}
+                {tx.odometerHistory?.map((history: { date: Date; odometer: number; invoiceNumber: string }, idx: number) => (
+                  <div key={idx} className="flex items-center justify-between text-sm text-slate-600 px-3 py-2">
+                    <span className="text-xs">
+                      {new Date(history.date).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    </span>
+                    <span className="font-mono font-medium">{history.odometer.toLocaleString('id-ID')} km</span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>

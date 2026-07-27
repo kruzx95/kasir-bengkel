@@ -1,0 +1,331 @@
+'use client'
+
+import { useState, useMemo } from 'react'
+import Link from 'next/link'
+import { ArrowLeft, Package, AlertTriangle, Warehouse } from 'lucide-react'
+import Button from '@/components/ui/Button'
+import Card from '@/components/ui/Card'
+import Table from '@/components/ui/Table'
+import Badge from '@/components/ui/Badge'
+
+interface Sparepart {
+  id: string
+  name: string
+  sku: string | null
+  warehouseStock: number
+  stock: number
+  minWarehouseStock: number
+  minStock: number
+  unit: string
+  buyPrice: number
+  sellPrice: number
+  sparepartBrand: string | null
+  sparepartType: string | null
+  sparepartSize: string | null
+  branch: {
+    name: string
+  }
+}
+
+interface StockGudangClientProps {
+  initialSpareparts: Sparepart[]
+}
+
+export default function StockGudangClient({ initialSpareparts }: StockGudangClientProps) {
+  const [spareparts] = useState(initialSpareparts)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [sortBy, setSortBy] = useState<'name' | 'stock'>('name')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
+
+  // Filter and sort spareparts
+  const filteredSpareparts = useMemo(() => {
+    // Only show items with warehouse stock > 0
+    let result = spareparts.filter((sp) => sp.warehouseStock > 0)
+    
+    // Filter by search term
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase()
+      result = result.filter(
+        (sp) =>
+          sp.name.toLowerCase().includes(term) ||
+          sp.sku?.toLowerCase().includes(term) ||
+          sp.sparepartBrand?.toLowerCase().includes(term) ||
+          sp.sparepartType?.toLowerCase().includes(term)
+      )
+    }
+    
+    // Sort
+    return [...result].sort((a, b) => {
+      let compareValue = 0
+      
+      if (sortBy === 'name') {
+        compareValue = a.name.localeCompare(b.name)
+      } else if (sortBy === 'stock') {
+        compareValue = a.warehouseStock - b.warehouseStock
+      }
+      
+      return sortOrder === 'asc' ? compareValue : -compareValue
+    })
+  }, [spareparts, searchTerm, sortBy, sortOrder])
+  
+  const handleSort = (field: 'name' | 'stock') => {
+    if (sortBy === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortBy(field)
+      setSortOrder('asc')
+    }
+  }
+
+  // Statistics - only count items with warehouse stock > 0
+  const stats = useMemo(() => {
+    const itemsInWarehouse = spareparts.filter((sp) => sp.warehouseStock > 0)
+    const totalWarehouseUnits = itemsInWarehouse.reduce((sum, sp) => sum + sp.warehouseStock, 0)
+    const lowWarehouseStock = itemsInWarehouse.filter(
+      (sp) => sp.warehouseStock < sp.minWarehouseStock
+    ).length
+
+    return {
+      totalItems: itemsInWarehouse.length,
+      totalWarehouseUnits,
+      lowWarehouseStock,
+    }
+  }, [spareparts])
+
+  const columns = [
+    {
+      key: 'name',
+      header: (
+        <button
+          onClick={() => handleSort('name')}
+          className="flex items-center gap-1 hover:text-blue-600 transition-colors"
+        >
+          <span>Nama Sparepart</span>
+          {sortBy === 'name' && (
+            <span className="text-blue-600">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+          )}
+        </button>
+      ),
+      render: (row: Sparepart) => (
+        <div>
+          <p className="text-sm font-medium text-slate-900">{row.name}</p>
+          {row.sku && <p className="text-xs text-slate-500">SKU: {row.sku}</p>}
+        </div>
+      ),
+    },
+    {
+      key: 'type',
+      header: 'Kategori',
+      render: (row: Sparepart) => (
+        <div className="text-sm text-slate-600">
+          {row.sparepartType && <p>{row.sparepartType}</p>}
+          {row.sparepartBrand && <p className="text-xs text-slate-500">{row.sparepartBrand}</p>}
+        </div>
+      ),
+    },
+    {
+      key: 'warehouseStock',
+      header: (
+        <button
+          onClick={() => handleSort('stock')}
+          className="flex items-center gap-1 hover:text-blue-600 transition-colors"
+        >
+          <span>Stock Gudang</span>
+          {sortBy === 'stock' && (
+            <span className="text-blue-600">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+          )}
+        </button>
+      ),
+      render: (row: Sparepart) => {
+        const isLow = row.warehouseStock < row.minWarehouseStock
+        return (
+          <div className="flex items-center gap-2">
+            <span
+              className={`text-sm font-semibold ${
+                isLow ? 'text-red-600' : 'text-slate-900'
+              }`}
+            >
+              {row.warehouseStock} {row.unit}
+            </span>
+            {isLow && <AlertTriangle className="w-4 h-4 text-red-500" />}
+          </div>
+        )
+      },
+    },
+    {
+      key: 'stock',
+      header: 'Stock Toko',
+      render: (row: Sparepart) => {
+        const isLow = row.stock < row.minStock
+        return (
+          <span
+            className={`text-sm font-semibold ${
+              isLow ? 'text-orange-600' : 'text-slate-700'
+            }`}
+          >
+            {row.stock} {row.unit}
+          </span>
+        )
+      },
+    },
+    {
+      key: 'minStock',
+      header: 'Min. Stock',
+      render: (row: Sparepart) => (
+        <div className="text-xs text-slate-500">
+          <p>Gudang: {row.minWarehouseStock}</p>
+          <p>Toko: {row.minStock}</p>
+        </div>
+      ),
+    },
+    {
+      key: 'price',
+      header: 'Harga',
+      render: (row: Sparepart) => (
+        <div className="text-xs">
+          <p className="text-slate-600">
+            Beli: Rp {row.buyPrice.toLocaleString('id-ID')}
+          </p>
+          <p className="text-slate-900 font-medium">
+            Jual: Rp {row.sellPrice.toLocaleString('id-ID')}
+          </p>
+        </div>
+      ),
+    },
+    {
+      key: 'branch',
+      header: 'Cabang',
+      render: (row: Sparepart) => (
+        <Badge variant="info">{row.branch.name}</Badge>
+      ),
+    },
+  ]
+
+  return (
+    <div className="space-y-6 animate-fade-in">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Link href="/admin">
+            <Button variant="ghost" icon={ArrowLeft} className="w-10 h-10 p-0" />
+          </Link>
+          <div>
+            <h1 className="text-xl font-bold text-slate-900">Stock Gudang</h1>
+            <p className="text-sm text-slate-500">
+              Kelola stock sparepart di gudang
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Statistics */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Card className="p-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+              <Package className="w-5 h-5 text-blue-600" />
+            </div>
+            <div>
+              <p className="text-xs text-slate-500 uppercase tracking-wider">
+                Total Item
+              </p>
+              <p className="text-xl font-bold text-slate-900">{stats.totalItems}</p>
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+              <Warehouse className="w-5 h-5 text-purple-600" />
+            </div>
+            <div>
+              <p className="text-xs text-slate-500 uppercase tracking-wider">
+                Stock Gudang
+              </p>
+              <p className="text-xl font-bold text-purple-600">
+                {stats.totalWarehouseUnits}
+              </p>
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+              <AlertTriangle className="w-5 h-5 text-red-600" />
+            </div>
+            <div>
+              <p className="text-xs text-slate-500 uppercase tracking-wider">
+                Stock Rendah
+              </p>
+              <p className="text-xl font-bold text-red-600">
+                {stats.lowWarehouseStock}
+              </p>
+              <p className="text-[10px] text-slate-400 mt-0.5">
+                Stock {'<'} minimum
+              </p>
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* Search */}
+      <Card className="p-4">
+        <input
+          type="text"
+          placeholder="Cari sparepart (nama, SKU, brand, tipe)..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </Card>
+
+      {/* Table */}
+      <Card>
+        <Table
+          columns={columns}
+          data={filteredSpareparts}
+          keyExtractor={(row) => row.id}
+          emptyMessage="Tidak ada data stock gudang."
+        />
+      </Card>
+
+      {/* Info Note */}
+      <Card className="p-4 bg-blue-50 border-blue-200">
+        <div className="flex gap-3">
+          <div className="shrink-0">
+            <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+              <Package className="w-4 h-4 text-blue-600" />
+            </div>
+          </div>
+          <div className="text-sm text-slate-700">
+            <p className="font-semibold text-slate-900 mb-1">
+              Informasi Stock Gudang
+            </p>
+            <ul className="space-y-1 text-xs">
+              <li>
+                • <strong>Menu ini HANYA menampilkan sparepart yang stock gudangnya {'>'} 0</strong>
+              </li>
+              <li>
+                • <strong>Barang Masuk:</strong> Saat terima PO/restock, otomatis masuk ke stock gudang
+              </li>
+              <li>
+                • <strong>Stock Rendah:</strong> Menghitung item yang stock gudangnya {'<'} minimum gudang (minWarehouseStock)
+              </li>
+              <li>
+                • <strong>Stock Toko:</strong> Stock yang siap dijual di toko (terpisah dari gudang)
+              </li>
+              <li>
+                • <strong>Transfer:</strong> Admin bisa transfer dari gudang ke toko jika diperlukan
+              </li>
+              <li>
+                • Jika belum ada barang masuk, semua statistik akan menampilkan 0
+              </li>
+            </ul>
+          </div>
+        </div>
+      </Card>
+    </div>
+  )
+}

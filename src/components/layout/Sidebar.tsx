@@ -21,6 +21,9 @@ import {
   Briefcase,
   Settings,
   BellRing,
+  ArrowLeftRight,
+  Store,
+  Warehouse,
 } from 'lucide-react'
 import { useEffect } from 'react'
 import { logout } from '@/actions/auth'
@@ -52,6 +55,8 @@ const adminMenuItems = [
   { href: '/admin/master/services', label: 'Jasa Servis', icon: Wrench },
   { href: '/admin/master/spareparts', label: 'Sparepart', icon: Package },
   { href: '/admin/restock', label: 'Barang Masuk', icon: PackagePlus },
+  { href: '/admin/stock-toko', label: 'Stock Toko', icon: Store },
+  { href: '/admin/stock-gudang', label: 'Stock Gudang', icon: Warehouse },
   { href: '/admin/indent', label: 'Barang Indent', icon: ClipboardList },
   { href: '/admin/korporat', label: 'Korporat', icon: Briefcase },
   { href: '/admin/master/mechanics', label: 'Mekanik', icon: Users },

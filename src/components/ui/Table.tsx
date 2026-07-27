@@ -3,7 +3,7 @@ import { PackageOpen } from 'lucide-react'
 
 interface Column<T> {
   key: string
-  header: string
+  header: string | React.ReactNode
   className?: string
   render?: (row: T) => React.ReactNode
 }

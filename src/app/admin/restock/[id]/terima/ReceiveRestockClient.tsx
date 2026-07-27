@@ -23,6 +23,7 @@ interface IndentOrder {
   supplierName: string
   orderDate: Date
   expectedDate: Date | null
+  dpAmount: number
   branch: { id: string; name: string }
   items: IndentItem[]
 }
@@ -79,6 +80,10 @@ export default function ReceiveRestockClient({ order }: { order: IndentOrder }) 
       setUploadingReceipt(false)
     }
   }
+
+  // Calculate totals
+  const totalActual = receivedItems.reduce((acc, i) => acc + i.receivedQty * i.actualPrice, 0)
+  const remainingPayment = totalActual - order.dpAmount
 
   const handleSubmit = () => {
     const hasAnyReceived = receivedItems.some((i) => i.receivedQty > 0)
@@ -143,6 +148,29 @@ export default function ReceiveRestockClient({ order }: { order: IndentOrder }) 
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
           />
+
+          {/* Payment Info */}
+          <div className="pt-4 border-t border-slate-100">
+            <h3 className="text-sm font-semibold text-slate-700 mb-3">Informasi Tagihan</h3>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-slate-500">Total Pesanan:</span>
+                <span className="font-semibold text-slate-900">{formatCurrency(totalActual)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">DP Sudah Dibayar:</span>
+                <span className="font-semibold text-green-600">
+                  {formatCurrency(order.dpAmount)}
+                </span>
+              </div>
+              <div className="flex justify-between pt-2 border-t border-slate-100">
+                <span className="text-slate-700 font-medium">Sisa Tagihan:</span>
+                <span className={`font-bold text-lg ${remainingPayment > 0 ? 'text-orange-600' : 'text-green-600'}`}>
+                  {formatCurrency(remainingPayment)}
+                </span>
+              </div>
+            </div>
+          </div>
 
           {/* Upload Foto Nota */}
           <div>
@@ -239,7 +267,7 @@ export default function ReceiveRestockClient({ order }: { order: IndentOrder }) 
               <div>
                 <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Total Aktual</p>
                 <p className="text-2xl font-black text-slate-900">
-                  {formatCurrency(receivedItems.reduce((acc, i) => acc + i.receivedQty * i.actualPrice, 0))}
+                  {formatCurrency(totalActual)}
                 </p>
               </div>
               <Button size="lg" icon={Save} onClick={handleSubmit} loading={isPending}>

@@ -26,6 +26,7 @@ model Branch {
   restocks           Restock[]
   services           Service[]
   spareparts         Sparepart[]
+  stockTransfers     StockTransfer[]
   transactions       Transaction[]
   users              User[]
 
@@ -33,19 +34,20 @@ model Branch {
 }
 
 model User {
-  id           String        @id @default(cuid())
-  branchId     String?       @map("branch_id")
-  name         String
-  email        String        @unique
-  passwordHash String        @map("password_hash")
-  role         Role          @default(KASIR)
-  isActive     Boolean       @default(true)
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  indentOrders IndentOrder[]
-  restocks     Restock[]
-  transactions Transaction[]
-  branch       Branch?       @relation(fields: [branchId], references: [id])
+  id             String           @id @default(cuid())
+  branchId       String?          @map("branch_id")
+  name           String
+  email          String           @unique
+  passwordHash   String           @map("password_hash")
+  role           Role             @default(KASIR)
+  isActive       Boolean          @default(true)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  indentOrders   IndentOrder[]
+  restocks       Restock[]
+  stockTransfers StockTransfer[]
+  transactions   Transaction[]
+  branch         Branch?          @relation(fields: [branchId], references: [id])
 
   @@index([branchId], map: "users_branch_id_fkey")
   @@map("users")
@@ -114,24 +116,28 @@ model Service {
 }
 
 model Sparepart {
-  id               String            @id @default(cuid())
-  branchId         String            @map("branch_id")
-  name             String
-  sku              String?
-  buyPrice         Float             @default(0) @map("buy_price")
-  sellPrice        Float             @map("sell_price")
-  stock            Int               @default(0)
-  unit             String            @default("pcs")
-  isActive         Boolean           @default(true)
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-  sparepartBrand   String?           @map("sparepart_brand")
-  sparepartSize    String?           @map("sparepart_size")
-  sparepartType    String?           @map("sparepart_type")
-  indentOrderItems IndentOrderItem[]
-  restockItems     RestockItem[]
-  branch           Branch            @relation(fields: [branchId], references: [id])
-  transactionItems TransactionItem[]
+  id                String            @id @default(cuid())
+  branchId          String            @map("branch_id")
+  name              String
+  sku               String?
+  buyPrice          Float             @default(0) @map("buy_price")
+  sellPrice         Float             @map("sell_price")
+  stock             Int               @default(0)
+  warehouseStock    Int               @default(0) @map("warehouse_stock")
+  minStock          Int               @default(0) @map("min_stock")
+  minWarehouseStock Int               @default(0) @map("min_warehouse_stock")
+  unit              String            @default("pcs")
+  isActive          Boolean           @default(true)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  sparepartBrand    String?           @map("sparepart_brand")
+  sparepartSize     String?           @map("sparepart_size")
+  sparepartType     String?           @map("sparepart_type")
+  indentOrderItems  IndentOrderItem[]
+  restockItems      RestockItem[]
+  stockTransfers    StockTransfer[]
+  branch            Branch            @relation(fields: [branchId], references: [id])
+  transactionItems  TransactionItem[]
 
   @@index([branchId], map: "spareparts_branch_id_fkey")
   @@map("spareparts")
@@ -152,6 +158,7 @@ model Transaction {
   paymentMethod   PaymentMethod     @default(CASH) @map("payment_method")
   notes           String?
   transactionDate DateTime          @map("transaction_date") @db.Date
+  odometer        Int?
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
   items           TransactionItem[]
@@ -343,4 +350,30 @@ enum IndentStatus {
 enum IndentType {
   RESTOCK
   CUSTOMER
+}
+
+model StockTransfer {
+  id           String            @id @default(cuid())
+  branchId     String            @map("branch_id")
+  userId       String            @map("user_id")
+  sparepartId  String            @map("sparepart_id")
+  type         StockTransferType
+  quantity     Int
+  notes        String?
+  transferDate DateTime          @default(now()) @map("transfer_date")
+  createdAt    DateTime          @default(now()) @map("created_at")
+  branch       Branch            @relation(fields: [branchId], references: [id])
+  user         User              @relation(fields: [userId], references: [id])
+  sparepart    Sparepart         @relation(fields: [sparepartId], references: [id])
+
+  @@index([branchId], map: "stock_transfers_branch_id_fkey")
+  @@index([userId], map: "stock_transfers_user_id_fkey")
+  @@index([sparepartId], map: "stock_transfers_sparepart_id_fkey")
+  @@index([transferDate])
+  @@map("stock_transfers")
+}
+
+enum StockTransferType {
+  WAREHOUSE_TO_STORE
+  STORE_TO_WAREHOUSE
 }

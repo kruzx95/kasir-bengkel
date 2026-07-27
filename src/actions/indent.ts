@@ -273,7 +273,7 @@ export async function receiveIndentOrder(payload: ReceiveIndentPayload) {
         await tx.sparepart.update({
           where: { id: receivedItem.sparepartId },
           data: {
-            stock: { increment: receivedItem.receivedQty },
+            warehouseStock: { increment: receivedItem.receivedQty },
             buyPrice: receivedItem.actualPrice,
           },
         })

@@ -335,6 +335,8 @@ export async function getTransactionDetails(id: string) {
         total: true,
         paymentMethod: true,
         notes: true,
+        transactionDate: true,
+        odometer: true,
         createdAt: true,
         customer: {
           select: { id: true, name: true, phone: true, plateNumber: true, vehicleType: true }
@@ -366,7 +368,36 @@ export async function getTransactionDetails(id: string) {
       return null
     }
 
-    return transaction
+    // Get odometer history if customer exists
+    let odometerHistory: Array<{ date: Date; odometer: number; invoiceNumber: string }> = []
+    if (transaction?.customer?.id) {
+      const history = await prisma.transaction.findMany({
+        where: {
+          customerId: transaction.customer.id,
+          odometer: { not: null },
+          status: { not: 'CANCELLED' },
+          id: { not: id }
+        },
+        select: {
+          transactionDate: true,
+          odometer: true,
+          invoiceNumber: true
+        },
+        orderBy: { transactionDate: 'desc' },
+        take: 5
+      })
+      
+      odometerHistory = history.map(h => ({
+        date: h.transactionDate,
+        odometer: h.odometer!,
+        invoiceNumber: h.invoiceNumber
+      }))
+    }
+
+    return transaction ? {
+      ...transaction,
+      odometerHistory
+    } : null
   } catch (error) {
     console.error('Get Transaction Details Error:', error)
     return null
