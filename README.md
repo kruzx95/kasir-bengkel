@@ -1,65 +1,66 @@
-# Irian Motor - Sistem Manajemen Bengkel
+# Irian Motor — Sistem Manajemen Bengkel
 
 Aplikasi berbasis web untuk manajemen operasional bengkel motor (multi-cabang). Mencakup fitur point-of-sale (kasir), rekap transaksi, manajemen stok sparepart, dan laporan operasional harian.
 
 Dibangun menggunakan:
-- **Next.js (App Router)** - Framework frontend & backend
-- **Prisma ORM** - Interaksi database
-- **MySQL / MariaDB** - Database utama
-- **Tailwind CSS** - Styling
-- **Zod** - Validasi data
+- **Next.js 16 (App Router)** — Framework frontend & backend
+- **Prisma ORM** — Interaksi database
+- **MySQL / MariaDB** — Database utama
+- **Tailwind CSS** — Styling
+- **Zod** — Validasi data
 
 ---
 
-## 🛠️ Instalasi & Setup di Komputer Baru
+## 🛠️ Menjalankan di Komputer Baru
 
-Ikuti langkah-langkah di bawah ini untuk menjalankan *project* ini di komputer atau server baru.
+### Persyaratan Sistem
 
-### 1. Persyaratan Sistem
-
-Pastikan Anda sudah menginstal perangkat lunak berikut:
-- [Node.js](https://nodejs.org/) (Versi 20 LTS atau yang lebih baru)
-- [MySQL](https://dev.mysql.com/downloads/) atau [MariaDB](https://mariadb.org/download/) (Versi 8.0+ untuk MySQL, atau versi stabil terbaru MariaDB)
+Pastikan sudah terinstal:
+- [Node.js](https://nodejs.org/) versi **20 LTS** atau lebih baru
+- [MySQL 8.0+](https://dev.mysql.com/downloads/) atau [MariaDB](https://mariadb.org/download/) versi stabil terbaru
 - [Git](https://git-scm.com/)
 
-### 2. Setup Database MySQL / MariaDB
+---
 
-Pastikan *service* MySQL sudah berjalan, lalu masuk ke MySQL CLI (melalui terminal atau CMD):
+### Langkah 1 — Setup Database
+
+Jalankan MySQL/MariaDB, lalu masuk ke CLI:
 
 ```bash
 # Linux / macOS
 sudo mysql -u root -p
 
-# Windows (CMD / PowerShell)
+# Windows
 mysql -u root -p
 ```
 
-Jalankan perintah SQL berikut untuk membuat *database* dan *user* baru:
+Buat database dan user:
 
 ```sql
 CREATE USER 'irianmotor'@'localhost' IDENTIFIED BY 'irianmotor123';
-CREATE DATABASE irian_motor;
+CREATE DATABASE irian_motor CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 GRANT ALL PRIVILEGES ON irian_motor.* TO 'irianmotor'@'localhost';
-GRANT ALL PRIVILEGES ON *.* TO 'irianmotor'@'localhost';
 FLUSH PRIVILEGES;
+EXIT;
 ```
 
-### 3. Clone Repository & Install Dependencies
+---
 
-Clone *project* ini dari Git (sesuaikan URL dengan repositori Anda), masuk ke foldernya, dan instal semua paket yang dibutuhkan:
+### Langkah 2 — Clone & Install Dependencies
 
 ```bash
-# Clone repository
 git clone https://github.com/username/irian-motor.git
 cd irian-motor
-
-# Install NPM dependencies
 npm install
 ```
 
-### 4. Setup Environment Variables
+> Ganti URL dengan URL repositori Git Anda.
 
-Gunakan file `.env.example` sebagai referensi. Duplikat file tersebut dan ubah namanya menjadi `.env`:
+---
+
+### Langkah 3 — Konfigurasi Environment
+
+Salin file contoh environment:
 
 ```bash
 # Linux / macOS
@@ -69,59 +70,143 @@ cp .env.example .env
 copy .env.example .env
 ```
 
-Buka file `.env` di *code editor* Anda dan pastikan nilai koneksi database sudah sesuai dengan yang dibuat pada langkah 2:
+Buka `.env` dan sesuaikan isinya:
+
 ```env
 DATABASE_URL="mysql://irianmotor:irianmotor123@127.0.0.1:3306/irian_motor?allowPublicKeyRetrieval=true&sslAccept=strict"
-SESSION_SECRET="ganti-dengan-random-string-minimal-32-karakter-disini-12345"
+SESSION_SECRET="isi-dengan-random-string-minimal-32-karakter"
 ```
-*(Catatan: Buat string acak yang aman untuk `SESSION_SECRET`)*
 
-### 5. Setup Prisma (Migrasi Database)
-
-Terapkan struktur tabel ke *database* dan *generate* Prisma Client:
+Untuk membuat `SESSION_SECRET` yang aman, jalankan salah satu perintah berikut:
 
 ```bash
-# Push schema ke database
-npx prisma db push
+# Linux / macOS
+openssl rand -base64 32
 
-# Generate Prisma Client
+# Node.js (semua platform)
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+```
+
+Salin hasilnya ke `.env`.
+
+---
+
+### Langkah 4 — Migrasi Database & Generate Prisma Client
+
+Terapkan skema tabel ke database:
+
+```bash
+npx prisma migrate deploy
 npx prisma generate
 ```
 
-> **Penting**: Setelah `prisma generate` dijalankan, jika *Next.js server* sedang menyala, Anda harus mematikan dan merestart server tersebut agar perubahan klien Prisma dikenali.
+---
 
-### 6. Menjalankan Mode Development
+### Langkah 5 — Buat User Admin Pertama
 
-Jalankan *server development* lokal:
+Database yang baru dibuat belum memiliki user. Buat user Admin pertama melalui SQL langsung:
+
+```bash
+# Masuk ke MySQL/MariaDB
+mysql -u irianmotor -pirianmotor123 irian_motor
+```
+
+Jalankan SQL berikut (ganti nilai sesuai kebutuhan):
+
+```sql
+-- 1. Buat cabang utama terlebih dahulu
+INSERT INTO branches (id, code, name, address, is_active, created_at, updated_at)
+VALUES (
+  'cabang-utama-001',
+  'PUSAT',
+  'Irian Motor Pusat',
+  'Alamat Cabang Pusat',
+  1,
+  NOW(),
+  NOW()
+);
+
+-- 2. Buat user Admin
+-- Password di bawah adalah hash bcrypt dari 'admin123' — ganti setelah login pertama!
+INSERT INTO users (id, branch_id, name, email, password_hash, role, is_active, created_at, updated_at)
+VALUES (
+  'user-admin-001',
+  'cabang-utama-001',
+  'Administrator',
+  'admin@irianmotor.com',
+  '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
+  'ADMIN',
+  1,
+  NOW(),
+  NOW()
+);
+```
+
+> **Penting:** Password default di atas adalah `password`. Segera ganti setelah login pertama melalui halaman pengaturan akun.
+
+Untuk membuat hash password baru secara manual:
+
+```bash
+node -e "const b = require('bcryptjs'); b.hash('PASSWORD_BARU', 10).then(console.log)"
+```
+
+---
+
+### Langkah 6 — Jalankan Aplikasi
+
+**Mode Development:**
 
 ```bash
 npm run dev
 ```
 
-Buka browser dan akses: **http://localhost:3000**
+Buka browser: **http://localhost:3000**
 
----
-
-## 📦 Menjalankan Mode Production
-
-Jika ingin menjalankan aplikasi untuk produksi (lebih cepat dan optimal):
+**Mode Production:**
 
 ```bash
-# Buat build produksi
 npm run build
-
-# Jalankan server
 npm run start
 ```
 
-## 🔑 Catatan Tambahan (Reset Password / User Pertama)
+---
 
-Jika ini adalah database kosong, Anda perlu memasukkan data *seed* atau membuat *user Admin* secara manual melalui *database client* (seperti DBeaver/phpMyAdmin).
+## 🚀 Deploy ke VPS
 
-Jika *user* sudah ada tetapi Anda lupa *password*, Anda bisa menggunakan *script* reset *password*:
-1. Buka file `scripts/reset-password.ts`.
-2. Ubah variabel `EMAIL` dan `PASSWORD_BARU` di dalam *script* tersebut sesuai kebutuhan.
-3. Jalankan:
+Lihat panduan lengkap di folder `deploy/`:
+- `deploy/deploy.sh` — Script deploy otomatis via Git
+- `deploy/setup-vps.sh` — Setup awal Ubuntu server
+- `deploy/nginx/irian-motor.conf` — Konfigurasi Nginx reverse proxy
+
+Untuk menjalankan aplikasi secara background di VPS, project ini menggunakan **PM2**:
+
 ```bash
-npx tsx scripts/reset-password.ts
+pm2 start ecosystem.config.js
+pm2 save
+pm2 startup  # agar otomatis berjalan setelah server restart
 ```
+
+---
+
+## 💾 Backup
+
+Script backup database + folder uploads tersedia di `scripts/backup.sh`.
+
+```bash
+bash scripts/backup.sh
+```
+
+Lihat komentar di dalam script untuk cara menjadwalkan otomatis via `cron`.
+
+---
+
+## ⚙️ Teknologi & Versi
+
+| Teknologi | Versi |
+|---|---|
+| Next.js | 16.2.4 |
+| React | 19.2.4 |
+| Prisma | 7.x |
+| MariaDB / MySQL | 8.0+ |
+| Node.js | 20 LTS |
+| Tailwind CSS | 4.x |
