@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: irian-motor-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: irian_motor
+      MYSQL_USER: irianmotor
+      MYSQL_PASSWORD: irianmotor_pass
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - irian-motor-network
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: irian-motor-app
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: mysql://irianmotor:irianmotor_pass@mysql:3306/irian_motor
+      SESSION_SECRET: dev-session-secret-change-in-production
+      NODE_ENV: development
+      PORT: 3000
+    depends_on:
+      - mysql
+    volumes:
+      - .:/app
+      - /app/node_modules
+    networks:
+      - irian-motor-network
+    command: npm run dev
+
+volumes:
+  mysql_data:
+
+networks:
+  irian-motor-network:
+    driver: bridge
