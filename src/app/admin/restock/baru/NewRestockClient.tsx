@@ -206,7 +206,7 @@ export default function NewRestockClient({ branches, spareparts }: NewRestockCli
           <Button variant="ghost" icon={ArrowLeft} className="w-10 h-10 p-0 rounded-xl" />
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Purchase Order Baru</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Barang Masuk Baru</h1>
           <p className="text-sm text-slate-500">Catat penerimaan barang masuk dari supplier</p>
         </div>
       </div>

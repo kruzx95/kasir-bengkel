@@ -6,7 +6,7 @@ Notulen 24 juli
 -buat stock gudang (DONE - 27 Juli 2026)
 -input nama barang manual ketika input po baru (done)
 -kenaikan harga di input po baru (beri tanda alret untuk barang yg naik harga)
--fix filter cabang tidak muncul setelah input po
+-fix filter cabang tidak muncul setelah input po 
 -input po masuk ny ke stock gudang (DONE - 27 Juli 2026)
 -buat laporan barang indent terpisah
 

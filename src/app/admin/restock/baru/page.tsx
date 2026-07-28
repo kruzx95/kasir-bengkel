@@ -6,7 +6,7 @@ import { redirect } from 'next/navigation'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Purchase Order Baru',
+  title: 'Barang Masuk Baru',
 }
 
 export default async function AdminNewRestockPage() {

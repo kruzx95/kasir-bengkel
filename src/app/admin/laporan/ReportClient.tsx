@@ -220,10 +220,7 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
 
   return (
     <div className="space-y-8 print:space-y-0">
-      <div className="print:hidden">
-        <h1 className="text-2xl font-bold text-slate-900">Laporan</h1>
-        <p className="text-sm text-slate-500">Analisa transaksi, servis, dan pembelian sparepart</p>
-      </div>
+      
 
       {/* Tab Navigation */}
       <div className="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit print:hidden">
