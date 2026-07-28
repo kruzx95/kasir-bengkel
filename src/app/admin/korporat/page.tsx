@@ -2,7 +2,7 @@ import Header from '@/components/layout/Header'
 import KorporatClient from './KorporatClient'
 import { getCorporateCustomers } from '@/actions/corporate'
 import { getBranches } from '@/actions/branch'
-import { getSession } from '@/lib/session'
+import { getSession, isAdmin } from '@/lib/session'
 import { redirect } from 'next/navigation'
 import type { Metadata } from 'next'
 
@@ -12,7 +12,8 @@ export const metadata: Metadata = {
 
 export default async function KorporatPage() {
   const session = await getSession()
-  if (!session || session.role !== 'ADMIN') redirect('/kasir')
+  if (!session) redirect('/login')
+  if (session.role !== 'ADMIN' && session.role !== 'KASIR') redirect('/')
 
   const [corporates, branches] = await Promise.all([
     getCorporateCustomers(),
@@ -26,7 +27,11 @@ export default async function KorporatPage() {
         subtitle="Kelola perusahaan/instansi dengan sistem tagihan borongan"
       />
       <div className="p-4 sm:p-6 animate-fade-in">
-        <KorporatClient initialData={corporates} branches={branches} />
+        <KorporatClient
+          initialData={corporates as never}
+          branches={branches as never}
+          isAdmin={isAdmin(session)}
+        />
       </div>
     </>
   )

@@ -8,18 +8,19 @@ datasource db {
 }
 
 model Branch {
-  id                 String              @id @default(cuid())
-  code               String              @unique
+  id                 String               @id @default(cuid())
+  code               String               @unique
   name               String
   address            String
   phone              String?
-  isActive           Boolean             @default(true)
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
-  facebookPage       String?             @map("facebook_page")
-  instagramHandle    String?             @map("instagram_handle")
-  whatsappNumber     String?             @map("whatsapp_number")
+  isActive           Boolean              @default(true)
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  facebookPage       String?              @map("facebook_page")
+  instagramHandle    String?              @map("instagram_handle")
+  whatsappNumber     String?              @map("whatsapp_number")
   corporateCustomers CorporateCustomer[]
+  corporatePayments  CorporatePayment[]
   customers          Customer[]
   indentOrders       IndentOrder[]
   mechanics          Mechanic[]
@@ -34,39 +35,43 @@ model Branch {
 }
 
 model User {
-  id             String           @id @default(cuid())
-  branchId       String?          @map("branch_id")
-  name           String
-  email          String           @unique
-  passwordHash   String           @map("password_hash")
-  role           Role             @default(KASIR)
-  isActive       Boolean          @default(true)
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-  indentOrders   IndentOrder[]
-  restocks       Restock[]
-  stockTransfers StockTransfer[]
-  transactions   Transaction[]
-  branch         Branch?          @relation(fields: [branchId], references: [id])
+  id                       String             @id @default(cuid())
+  branchId                 String?            @map("branch_id")
+  name                     String
+  email                    String             @unique
+  passwordHash             String             @map("password_hash")
+  role                     Role               @default(KASIR)
+  isActive                 Boolean            @default(true)
+  createdAt                DateTime           @default(now())
+  updatedAt                DateTime           @updatedAt
+  indentOrders             IndentOrder[]
+  restocks                 Restock[]
+  stockTransfers           StockTransfer[]
+  transactions             Transaction[]
+  corporatePaymentsCreated CorporatePayment[] @relation("CorporatePaymentCreatedBy")
+  corporatePaymentsVoided  CorporatePayment[] @relation("CorporatePaymentVoidedBy")
+  branch                   Branch?            @relation(fields: [branchId], references: [id])
 
   @@index([branchId], map: "users_branch_id_fkey")
   @@map("users")
 }
 
 model CorporateCustomer {
-  id            String       @id @default(cuid())
-  branchId      String       @map("branch_id")
-  name          String
-  contactPerson String?      @map("contact_person")
-  contactPhone  String?      @map("contact_phone")
-  address       String?
-  taxId         String?      @map("tax_id")
-  billingCycle  BillingCycle @default(MONTHLY) @map("billing_cycle")
-  isActive      Boolean      @default(true)
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
-  branch        Branch       @relation(fields: [branchId], references: [id])
-  customers     Customer[]
+  id                  String             @id @default(cuid())
+  branchId            String             @map("branch_id")
+  name                String
+  contactPerson       String?            @map("contact_person")
+  contactPhone        String?            @map("contact_phone")
+  address             String?
+  taxId               String?            @map("tax_id")
+  billingCycle        BillingCycle       @default(MONTHLY) @map("billing_cycle")
+  isActive            Boolean            @default(true)
+  hideServiceOnInvoice Boolean           @default(false) @map("hide_service_on_invoice")
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  branch              Branch             @relation(fields: [branchId], references: [id])
+  customers           Customer[]
+  payments            CorporatePayment[]
 
   @@index([branchId], map: "corporate_customers_branch_id_fkey")
   @@map("corporate_customers")
@@ -144,28 +149,30 @@ model Sparepart {
 }
 
 model Transaction {
-  id              String            @id @default(cuid())
-  branchId        String            @map("branch_id")
-  customerId      String?           @map("customer_id")
-  userId          String            @map("user_id")
-  mechanicId      String?           @map("mechanic_id")
-  invoiceNumber   String            @unique @map("invoice_number")
-  type            TransactionType
-  status          TransactionStatus @default(COMPLETED)
-  subtotal        Float             @default(0)
-  discount        Float             @default(0)
-  total           Float             @default(0)
-  paymentMethod   PaymentMethod     @default(CASH) @map("payment_method")
-  notes           String?
-  transactionDate DateTime          @map("transaction_date") @db.Date
-  odometer        Int?
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  items           TransactionItem[]
-  branch          Branch            @relation(fields: [branchId], references: [id])
-  customer        Customer?         @relation(fields: [customerId], references: [id])
-  mechanic        Mechanic?         @relation(fields: [mechanicId], references: [id])
-  user            User              @relation(fields: [userId], references: [id])
+  id                    String                       @id @default(cuid())
+  branchId              String                       @map("branch_id")
+  customerId            String?                      @map("customer_id")
+  userId                String                       @map("user_id")
+  mechanicId            String?                      @map("mechanic_id")
+  invoiceNumber         String                       @unique @map("invoice_number")
+  type                  TransactionType
+  status                TransactionStatus            @default(COMPLETED)
+  subtotal              Float                        @default(0)
+  discount              Float                        @default(0)
+  total                 Float                        @default(0)
+  paidAmount            Float                        @default(0) @map("paid_amount")
+  paymentMethod         PaymentMethod                @default(CASH) @map("payment_method")
+  notes                 String?
+  transactionDate       DateTime                     @map("transaction_date") @db.Date
+  odometer              Int?
+  createdAt             DateTime                     @default(now())
+  updatedAt             DateTime                     @updatedAt
+  items                 TransactionItem[]
+  branch                Branch                       @relation(fields: [branchId], references: [id])
+  customer              Customer?                    @relation(fields: [customerId], references: [id])
+  mechanic              Mechanic?                    @relation(fields: [mechanicId], references: [id])
+  user                  User                         @relation(fields: [userId], references: [id])
+  corporatePaymentLinks CorporatePaymentTransaction[]
 
   @@index([branchId, transactionDate])
   @@index([customerId], map: "transactions_customer_id_fkey")
@@ -376,4 +383,51 @@ model StockTransfer {
 enum StockTransferType {
   WAREHOUSE_TO_STORE
   STORE_TO_WAREHOUSE
+}
+
+// ============================================
+// CORPORATE PAYMENT (Phase 5)
+// Pembayaran piutang korporat (lunas / cicil)
+// ============================================
+
+model CorporatePayment {
+  id                  String                       @id @default(cuid())
+  corporateCustomerId String                       @map("corporate_customer_id")
+  branchId            String                       @map("branch_id")
+  amount              Float
+  paymentMethod       PaymentMethod                @map("payment_method")
+  notes               String?
+  paidAt              DateTime                     @default(now()) @map("paid_at")
+  createdById         String                       @map("created_by_id")
+  periodStart         DateTime                     @map("period_start") @db.Date
+  periodEnd           DateTime                     @map("period_end") @db.Date
+  voidedAt            DateTime?                    @map("voided_at")
+  voidedById          String?                      @map("voided_by_id")
+  voidReason          String?                      @map("void_reason")
+  createdAt           DateTime                     @default(now())
+
+  corporateCustomer   CorporateCustomer            @relation(fields: [corporateCustomerId], references: [id])
+  branch              Branch                       @relation(fields: [branchId], references: [id])
+  createdBy           User                         @relation("CorporatePaymentCreatedBy", fields: [createdById], references: [id])
+  voidedBy            User?                        @relation("CorporatePaymentVoidedBy", fields: [voidedById], references: [id])
+  transactionLinks    CorporatePaymentTransaction[]
+
+  @@index([corporateCustomerId], map: "corporate_payments_corporate_customer_id_fkey")
+  @@index([branchId], map: "corporate_payments_branch_id_fkey")
+  @@index([paidAt])
+  @@map("corporate_payments")
+}
+
+model CorporatePaymentTransaction {
+  id            String          @id @default(cuid())
+  paymentId     String          @map("payment_id")
+  transactionId String          @map("transaction_id")
+  amount        Float
+
+  payment       CorporatePayment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  transaction   Transaction      @relation(fields: [transactionId], references: [id])
+
+  @@unique([paymentId, transactionId])
+  @@index([transactionId], map: "corporate_payment_transactions_transaction_id_fkey")
+  @@map("corporate_payment_transactions")
 }

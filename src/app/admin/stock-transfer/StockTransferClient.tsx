@@ -45,6 +45,7 @@ export default function StockTransferClient({ initialTransfers }: StockTransferC
 
   const columns = [
     {
+      key: 'time',
       header: 'Waktu',
       render: (row: TransferItem) => (
         <p className="text-sm text-slate-700">
@@ -59,12 +60,14 @@ export default function StockTransferClient({ initialTransfers }: StockTransferC
       ),
     },
     {
+      key: 'sparepart',
       header: 'Sparepart',
       render: (row: TransferItem) => (
         <p className="text-sm font-medium text-slate-900">{row.sparepart.name}</p>
       ),
     },
     {
+      key: 'type',
       header: 'Tipe',
       render: (row: TransferItem) => (
         <span
@@ -89,6 +92,7 @@ export default function StockTransferClient({ initialTransfers }: StockTransferC
       ),
     },
     {
+      key: 'quantity',
       header: 'Jumlah',
       render: (row: TransferItem) => (
         <p className="text-sm font-semibold text-slate-900">
@@ -97,12 +101,14 @@ export default function StockTransferClient({ initialTransfers }: StockTransferC
       ),
     },
     {
+      key: 'user',
       header: 'Oleh',
       render: (row: TransferItem) => (
         <p className="text-sm text-slate-600">{row.user.name}</p>
       ),
     },
     {
+      key: 'notes',
       header: 'Catatan',
       render: (row: TransferItem) => (
         <p className="text-sm text-slate-500 max-w-[200px] truncate">{row.notes || '-'}</p>

@@ -64,8 +64,8 @@ async function main() {
 
   console.log('✅ Branches created:', branch1.name, branch2.name, branch3.name)
 
-  // Create admin user
-  const adminPassword = await bcrypt.hash('IrianMotor@2026!', 10)  // ← ganti sesuai keinginan
+  // Create super admin user
+  const adminPassword = await bcrypt.hash('Mallikrs08!', 10)  // Sesuai permintaan user
   const admin = await prisma.user.upsert({
     where: { email: 'admin@irianmotor.com' },
     update: {},
@@ -80,46 +80,54 @@ async function main() {
 
   console.log('✅ Admin created:', admin.email)
 
-  // Create 3 kasir users (1 per branch)
-  const kasirPassword = await bcrypt.hash('KasirIrian@2026!', 10)  // ← ganti sesuai keinginan
-
-  const kasir1 = await prisma.user.upsert({
-    where: { email: 'kasir1@irianmotor.com' },
+  // Create kasir Majalengka
+  const branchMajalengka = await prisma.branch.upsert({
+    where: { code: 'BRG-05' },
     update: {},
     create: {
-      name: 'Kasir Irian Jaya',
-      email: 'kasir1@irianmotor.com',
+      name: 'Majalengka',
+      code: 'BRG-05',
+      address: 'Jl. Raya Majalengka No. 1, Kabupaten Majalengka',
+      phone: '0233-281234',
+    },
+  })
+  const kasirPassword = await bcrypt.hash('kasir123', 10)
+  const kasirMajalengka = await prisma.user.upsert({
+    where: { email: 'admin@majalengka.com' },
+    update: {},
+    create: {
+      name: 'Kasir Majalengka',
+      email: 'admin@majalengka.com',
       passwordHash: kasirPassword,
       role: 'KASIR',
-      branchId: branch1.id,
+      branchId: branchMajalengka.id,
     },
   })
 
-  const kasir2 = await prisma.user.upsert({
-    where: { email: 'kasir2@irianmotor.com' },
+  // Create kasir Pekanbaru
+  const branchPekanbaru = await prisma.branch.upsert({
+    where: { code: 'BRG-06' },
     update: {},
     create: {
-      name: 'Kasir Irian Timur',
-      email: 'kasir2@irianmotor.com',
+      name: 'Pekanbaru',
+      code: 'BRG-06',
+      address: 'Jl. HR. Soebrantas No. 1, Kota Pekanbaru',
+      phone: '0761-12345',
+    },
+  })
+  const kasirPekanbaru = await prisma.user.upsert({
+    where: { email: 'admin@pekanbaru2.com' },
+    update: {},
+    create: {
+      name: 'Kasir Pekanbaru',
+      email: 'admin@pekanbaru2.com',
       passwordHash: kasirPassword,
       role: 'KASIR',
-      branchId: branch2.id,
+      branchId: branchPekanbaru.id,
     },
   })
 
-  const kasir3 = await prisma.user.upsert({
-    where: { email: 'kasir3@irianmotor.com' },
-    update: {},
-    create: {
-      name: 'Kasir Irian Barat',
-      email: 'kasir3@irianmotor.com',
-      passwordHash: kasirPassword,
-      role: 'KASIR',
-      branchId: branch3.id,
-    },
-  })
-
-  console.log('✅ Kasir created:', kasir1.email, kasir2.email, kasir3.email)
+  console.log('✅ Kasir created:', kasirMajalengka.email, kasirPekanbaru.email)
 
   // Create sample services for each branch
   const serviceTemplates = [
@@ -184,10 +192,9 @@ async function main() {
   console.log('🎉 Seeding complete!')
   console.log('')
   console.log('📋 Login credentials:')
-  console.log('   Admin: admin@irianmotor.com / admin123')
-  console.log('   Kasir 1 (Irian Jaya): kasir1@irianmotor.com / kasir123')
-  console.log('   Kasir 2 (Irian Timur): kasir2@irianmotor.com / kasir123')
-  console.log('   Kasir 3 (Irian Barat): kasir3@irianmotor.com / kasir123')
+  console.log('   Super Admin: admin@irianmotor.com / Mallikrs08!')
+  console.log('   Kasir Majalengka: admin@majalengka.com / kasir123')
+  console.log('   Kasir Pekanbaru: admin@pekanbaru2.com / kasir123')
 }
 
 main()

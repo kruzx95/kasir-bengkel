@@ -7,8 +7,8 @@ import Select from '@/components/ui/Select'
 import Table from '@/components/ui/Table'
 import Badge from '@/components/ui/Badge'
 import { formatCurrency } from '@/lib/utils'
-import { getReportData, getRestockReportData } from '@/actions/report'
-import { Download, Filter, Receipt, ShoppingCart, Printer } from 'lucide-react'
+import { getReportData, getRestockReportData, getIndentReportData } from '@/actions/report'
+import { Download, Filter, Receipt, ShoppingCart, Printer, ClipboardList, Package, User } from 'lucide-react'
 
 import * as XLSX from 'xlsx'
 
@@ -48,6 +48,29 @@ interface RestockRow {
   total: number
 }
 
+interface IndentOrderItem {
+  id: string
+  quantity: number
+  receivedQty: number
+  estimatedPrice: number
+  sparepart: { name: string; sku: string | null }
+}
+
+interface IndentOrderRow {
+  id: string
+  orderDate: string | Date
+  expectedDate: string | Date | null
+  supplierName: string
+  status: 'PENDING' | 'PARTIAL' | 'RECEIVED'
+  type: 'RESTOCK' | 'CUSTOMER'
+  notes: string | null
+  dpAmount: number
+  branch: { name: string }
+  user: { name: string }
+  customer: { name: string; phone: string | null } | null
+  items: IndentOrderItem[]
+}
+
 interface ReportClientProps {
   branches: { id: string; name: string }[]
   initialData: TransactionRow[]
@@ -57,7 +80,7 @@ interface ReportClientProps {
 
 export default function ReportClient({ branches, initialData, initialSummary, shopName }: ReportClientProps) {
   const [isPending, startTransition] = useTransition()
-  const [activeTab, setActiveTab] = useState<'transaksi' | 'pembelian'>('transaksi')
+  const [activeTab, setActiveTab] = useState<'transaksi' | 'pembelian' | 'indent'>('transaksi')
 
   const todayStr = new Date().toISOString().slice(0, 10)
   const firstDayStr = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10)
@@ -77,6 +100,23 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
   const [buySummary, setBuySummary] = useState({ total: 0, count: 0, topSparepart: null as string | null })
   const [buyLoaded, setBuyLoaded] = useState(false)
 
+  // Indent state
+  const [indentStartDate, setIndentStartDate] = useState(firstDayStr)
+  const [indentEndDate, setIndentEndDate] = useState(todayStr)
+  const [indentBranchId, setIndentBranchId] = useState('')
+  const [indentType, setIndentType] = useState<'ALL' | 'RESTOCK' | 'CUSTOMER'>('ALL')
+  const [indentStatus, setIndentStatus] = useState<'' | 'PENDING' | 'PARTIAL' | 'RECEIVED'>('')
+  const [indentData, setIndentData] = useState<IndentOrderRow[]>([])
+  const [indentSummary, setIndentSummary] = useState({
+    count: 0,
+    totalValue: 0,
+    pendingCount: 0,
+    partialCount: 0,
+    receivedCount: 0,
+    topSparepart: null as string | null,
+  })
+  const [indentLoaded, setIndentLoaded] = useState(false)
+
   const handleFilter = () => {
     startTransition(async () => {
       const res = await getReportData(startDate, endDate, branchId)
@@ -92,6 +132,52 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
       setBuySummary(res.summary)
       setBuyLoaded(true)
     })
+  }
+
+  const handleIndentFilter = () => {
+    startTransition(async () => {
+      const res = await getIndentReportData(
+        indentStartDate,
+        indentEndDate,
+        indentBranchId,
+        indentType,
+        indentStatus || undefined
+      )
+      setIndentData(res.indents as unknown as IndentOrderRow[])
+      setIndentSummary(res.summary)
+      setIndentLoaded(true)
+    })
+  }
+
+  const handleExportIndentExcel = () => {
+    const exportData = indentData.map((order) => {
+      const orderDate = new Date(order.orderDate).toLocaleDateString('id-ID')
+      const expectedDate = order.expectedDate ? new Date(order.expectedDate).toLocaleDateString('id-ID') : '-'
+      const itemsStr = order.items.map((i) => `${i.quantity}x ${i.sparepart.name} (Est. ${formatCurrency(i.estimatedPrice)})`).join('\n')
+      const totalValue = order.items.reduce((sum, i) => sum + i.quantity * i.estimatedPrice, 0)
+      return {
+        'Tanggal Order': orderDate,
+        'Estimasi Tiba': expectedDate,
+        'Supplier': order.supplierName,
+        'Cabang': order.branch.name,
+        'Tipe': order.type,
+        'Status': order.status,
+        'Pelanggan': order.customer?.name || (order.type === 'RESTOCK' ? 'Stok Sendiri' : '—'),
+        'Petugas': order.user.name,
+        'DP': order.dpAmount || 0,
+        'Rincian Item': itemsStr,
+        'Estimasi Total': totalValue,
+        'Catatan': order.notes || '',
+      }
+    })
+    const worksheet = XLSX.utils.json_to_sheet(exportData)
+    worksheet['!cols'] = [
+      { wch: 12 }, { wch: 12 }, { wch: 18 }, { wch: 15 }, { wch: 10 }, { wch: 12 },
+      { wch: 18 }, { wch: 15 }, { wch: 12 }, { wch: 45 }, { wch: 15 }, { wch: 20 },
+    ]
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Laporan Indent')
+    XLSX.writeFile(workbook, `Laporan_Indent_${indentStartDate}_to_${indentEndDate}.xlsx`)
   }
 
   const handleExportExcel = () => {
@@ -218,6 +304,102 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
     },
   ]
 
+  const statusBadge = (status: IndentOrderRow['status']) => {
+    if (status === 'PENDING') return <Badge variant="warning" size="sm">Menunggu</Badge>
+    if (status === 'PARTIAL') return <Badge variant="primary" size="sm">Sebagian</Badge>
+    return <Badge variant="success" size="sm">Diterima</Badge>
+  }
+
+  const indentColumns = [
+    {
+      key: 'date',
+      header: 'Tanggal Order',
+      render: (row: IndentOrderRow) => (
+        <div>
+          <p className="text-sm font-medium text-slate-900">
+            {new Date(row.orderDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+          </p>
+          {row.expectedDate && (
+            <p className="text-xs text-slate-400">
+              ETA: {new Date(row.expectedDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+            </p>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'supplier',
+      header: 'Supplier / Tipe',
+      render: (row: IndentOrderRow) => (
+        <div>
+          <p className="text-sm font-medium text-slate-900">{row.supplierName}</p>
+          <Badge variant={row.type === 'RESTOCK' ? 'primary' : 'warning'} size="sm">
+            {row.type === 'RESTOCK' ? 'Restock' : 'Customer Order'}
+          </Badge>
+        </div>
+      ),
+    },
+    {
+      key: 'receiver',
+      header: 'Pelanggan / Cabang',
+      render: (row: IndentOrderRow) => (
+        <div>
+          {row.customer ? (
+            <>
+              <p className="text-sm font-medium text-slate-900">{row.customer.name}</p>
+              {row.customer.phone && <p className="text-xs text-slate-400">{row.customer.phone}</p>}
+            </>
+          ) : (
+            <p className="text-sm text-slate-500 italic">Stok Sendiri</p>
+          )}
+          <p className="text-xs text-slate-400 mt-0.5">{row.branch.name}</p>
+        </div>
+      ),
+    },
+    {
+      key: 'items',
+      header: 'Rincian Barang',
+      render: (row: IndentOrderRow) => (
+        <div className="space-y-0.5 max-w-[260px]">
+          {row.items.map((item) => {
+            const remaining = item.quantity - item.receivedQty
+            return (
+              <p key={item.id} className="text-xs text-slate-600">
+                <span className="font-semibold text-slate-800">{item.quantity}x</span> {item.sparepart.name}
+                {item.receivedQty > 0 && (
+                  <span className="text-green-600"> ({item.receivedQty} diterima)</span>
+                )}
+                {remaining > 0 && item.receivedQty > 0 && (
+                  <span className="text-amber-600"> • sisa {remaining}</span>
+                )}
+              </p>
+            )
+          })}
+        </div>
+      ),
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      render: (row: IndentOrderRow) => statusBadge(row.status),
+    },
+    {
+      key: 'value',
+      header: 'Estimasi Nilai',
+      render: (row: IndentOrderRow) => {
+        const total = row.items.reduce((sum, i) => sum + i.quantity * i.estimatedPrice, 0)
+        return (
+          <div>
+            <p className="text-sm font-bold text-slate-900">{formatCurrency(total)}</p>
+            {row.dpAmount > 0 && (
+              <p className="text-xs text-amber-600">DP: {formatCurrency(row.dpAmount)}</p>
+            )}
+          </div>
+        )
+      },
+    },
+  ]
+
   return (
     <div className="space-y-8 print:space-y-0">
       
@@ -245,6 +427,17 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
         >
           <ShoppingCart className="w-4 h-4" />
           Laporan Pembelian Sparepart
+        </button>
+        <button
+          onClick={() => setActiveTab('indent')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            activeTab === 'indent'
+              ? 'bg-white text-slate-900 shadow-sm'
+              : 'text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          <ClipboardList className="w-4 h-4" />
+          Laporan Indent
         </button>
       </div>
 
@@ -483,6 +676,116 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
                     <p className="mt-1 font-bold uppercase text-slate-800">Manajer / Pemilik</p>
                   </div>
                 </div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ===== TAB: INDENT ===== */}
+      {activeTab === 'indent' && (
+        <div className="print:hidden space-y-8">
+          {/* Filter Card */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col gap-4">
+            <div className="flex flex-col md:flex-row items-end gap-4 flex-wrap">
+              <div className="w-full md:w-auto">
+                <Input label="Mulai Tanggal" type="date" value={indentStartDate} onChange={(e) => setIndentStartDate(e.target.value)} />
+              </div>
+              <div className="w-full md:w-auto">
+                <Input label="Sampai Tanggal" type="date" value={indentEndDate} onChange={(e) => setIndentEndDate(e.target.value)} />
+              </div>
+              <div className="w-full md:w-64">
+                <Select
+                  label="Pilih Cabang"
+                  options={[{ label: 'Semua Cabang', value: '' }, ...branches.map(b => ({ label: b.name, value: b.id }))]}
+                  value={indentBranchId}
+                  onChange={(e) => setIndentBranchId(e.target.value)}
+                />
+              </div>
+              <div className="w-full md:w-48">
+                <Select
+                  label="Tipe Indent"
+                  options={[
+                    { label: 'Semua Tipe', value: 'ALL' },
+                    { label: 'Restock (Stok Sendiri)', value: 'RESTOCK' },
+                    { label: 'Customer Order', value: 'CUSTOMER' },
+                  ]}
+                  value={indentType}
+                  onChange={(e) => setIndentType(e.target.value as 'ALL' | 'RESTOCK' | 'CUSTOMER')}
+                />
+              </div>
+              <div className="w-full md:w-48">
+                <Select
+                  label="Status"
+                  options={[
+                    { label: 'Semua Status', value: '' },
+                    { label: 'Menunggu', value: 'PENDING' },
+                    { label: 'Sebagian Diterima', value: 'PARTIAL' },
+                    { label: 'Sudah Diterima', value: 'RECEIVED' },
+                  ]}
+                  value={indentStatus}
+                  onChange={(e) => setIndentStatus(e.target.value as '' | 'PENDING' | 'PARTIAL' | 'RECEIVED')}
+                />
+              </div>
+            </div>
+            <div className="flex items-end gap-2">
+              <Button onClick={handleIndentFilter} loading={isPending} icon={Filter}>Filter</Button>
+              <Button onClick={handleExportIndentExcel} variant="outline" icon={Download} disabled={indentData.length === 0}>
+                Ekspor Excel
+              </Button>
+            </div>
+          </div>
+
+          {!indentLoaded ? (
+            <div className="bg-white rounded-2xl border border-slate-200/80 p-12 text-center text-slate-400">
+              <ClipboardList className="w-10 h-10 mx-auto mb-3 opacity-30" />
+              <p className="text-sm">Klik tombol Filter untuk menampilkan laporan indent.</p>
+            </div>
+          ) : (
+            <>
+              {/* Stat Cards */}
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Total Indent</p>
+                  <p className="text-xl font-black text-slate-900">{indentSummary.count}</p>
+                </div>
+                <div className="bg-white p-5 rounded-2xl border border-amber-200/80 shadow-sm border-l-4 border-l-amber-400">
+                  <p className="text-xs font-semibold text-amber-600 uppercase tracking-wider mb-1">Menunggu</p>
+                  <p className="text-xl font-bold text-amber-600">{indentSummary.pendingCount}</p>
+                </div>
+                <div className="bg-white p-5 rounded-2xl border border-blue-200/80 shadow-sm border-l-4 border-l-blue-400">
+                  <p className="text-xs font-semibold text-blue-600 uppercase tracking-wider mb-1">Sebagian</p>
+                  <p className="text-xl font-bold text-blue-600">{indentSummary.partialCount}</p>
+                </div>
+                <div className="bg-white p-5 rounded-2xl border border-green-200/80 shadow-sm border-l-4 border-l-green-400">
+                  <p className="text-xs font-semibold text-green-600 uppercase tracking-wider mb-1">Diterima</p>
+                  <p className="text-xl font-bold text-green-600">{indentSummary.receivedCount}</p>
+                </div>
+                <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm col-span-2 md:col-span-1">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Estimasi Total</p>
+                  <p className="text-base font-black text-slate-900">{formatCurrency(indentSummary.totalValue)}</p>
+                </div>
+              </div>
+
+              {/* Data Table */}
+              <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+                  <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                    <ClipboardList className="w-5 h-5 text-primary-500" />
+                    Data Order Indent
+                  </h3>
+                  {indentSummary.topSparepart && (
+                    <p className="text-xs text-slate-500">
+                      Sparepart paling banyak di-indent: <span className="font-semibold text-slate-800">{indentSummary.topSparepart}</span>
+                    </p>
+                  )}
+                </div>
+                <Table
+                  columns={indentColumns}
+                  data={indentData}
+                  keyExtractor={(row: IndentOrderRow) => row.id}
+                  emptyMessage="Tidak ada data indent pada rentang tanggal tersebut."
+                />
               </div>
             </>
           )}

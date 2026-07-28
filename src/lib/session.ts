@@ -3,7 +3,7 @@ import { SignJWT, jwtVerify } from 'jose'
 import { cookies } from 'next/headers'
 import { Role } from '@/generated/prisma/client'
 
-export interface SessionPayload {
+export type SessionPayload = {
   userId: string
   name: string
   email: string
@@ -84,4 +84,27 @@ export function getBranchFilter(session: SessionPayload, requestedBranchId?: str
     return requestedBranchId ? { branchId: requestedBranchId } : {}
   }
   return { branchId: session.branchId || 'UNASSIGNED' }
+}
+
+/**
+ * Check if user has admin role (super admin or branch admin)
+ */
+export function isAdmin(session: SessionPayload | null): boolean {
+  return session?.role === 'ADMIN'
+}
+
+/**
+ * Check if user has kasir role
+ */
+export function isKasir(session: SessionPayload | null): boolean {
+  return session?.role === 'KASIR'
+}
+
+/**
+ * Check if user is allowed to access corporate features.
+ * Phase 5: Both ADMIN and KASIR can access.
+ * Hapus korporat & void payment tetap admin-only (cek terpisah di action).
+ */
+export function canAccessCorporate(session: SessionPayload | null): boolean {
+  return session?.role === 'ADMIN' || session?.role === 'KASIR'
 }

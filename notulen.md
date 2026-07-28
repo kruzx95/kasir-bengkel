@@ -1,13 +1,13 @@
 Notulen 24 juli
--ketika input transaksi, odometer otomatis tampil (buat logika sync terbaru) (DONE)
--odometer tidak tampil di nota (DONE)
--revisi nama cabang di nota (done) 
--kasir harus punya fitur preview nita seperti admin (done)
--buat stock gudang (DONE - 27 Juli 2026)
--input nama barang manual ketika input po baru (done)
+-ketika input transaksi, odometer otomatis tampil (buat logika sync terbaru) (DONE)✅
+-odometer tidak tampil di nota (DONE)✅
+-revisi nama cabang di nota (done) ✅
+-kasir harus punya fitur preview nita seperti admin (done)✅
+-buat stock gudang (DONE - 27 Juli 2026)✅
+-input nama barang manual ketika input po baru (done)✅
 -kenaikan harga di input po baru (beri tanda alret untuk barang yg naik harga)
--fix filter cabang tidak muncul setelah input po 
--input po masuk ny ke stock gudang (DONE - 27 Juli 2026)
+-fix filter cabang tidak muncul setelah input po ✅
+-input po masuk ny ke stock gudang (DONE - 27 Juli 2026) ✅
 -buat laporan barang indent terpisah
 
 ## Update 27 Juli 2026 - Warehouse Stock Management ✅
@@ -270,3 +270,53 @@ Kemungkinan 3: Data Legacy
 =alur menu korporat=
 Alur Laporan Korporat
 Mobil masuk --> Masukkan Data Mobil --> Melakukan Pengecekan & Service --> Mencatat Sparepart Terpakai dan Jasa --> Memberikan Nota Tagihan --> Data Tagihan Masuk ke Piutang Korporat
+
+login
+superadmin
+admin@irianmotor.com password Mallikrs08!
+
+kasir Majalengka
+admin@majalengka.com password kasir123
+kasir pekanbaru
+admin@pekanbaru2.com password kasir123
+=notulen login fix 28 juli 2026=
+**Diagnosa:**
+- User `admin@irianmotor.com` (ADMIN) dan 3 kasir lama sudah ada di DB dengan hash valid
+- TAPI password hash lama adalah `IrianMotor@2026!` (admin) & `KasirIrian@2026!` (kasir)
+- Console.log seed menampilkan `admin123`/`kasir123` → **SALAH dokumentasi**
+- User 2 kasir baru (`admin@majalengka.com`, `admin@pekanbaru2.com`) **belum ada di DB**
+
+**Solusi:**
+- Run script `scripts/setup-users.ts` untuk:
+  - Update password `admin@irianmotor.com` → `Mallikrs08!`
+  - Create branch Majalengka (BRG-MJL) + kasir `admin@majalengka.com / kasir123`
+  - Create branch Pekanbaru (BRG-PKB) + kasir `admin@pekanbaru2.com / kasir123`
+  - Nonaktifkan 3 kasir lama (kasir1/2/3 @irianmotor.com)
+- Fix `prisma/seed.ts` agar konsisten dengan kredensial di atas (untuk next reset)
+
+**Login Aktif (3 user):**
+- Super Admin:  admin@irianmotor.com / Mallikrs08!
+- Kasir Majalengka: admin@majalengka.com / kasir123
+- Kasir Pekanbaru: admin@pekanbaru2.com / kasir123
+
+=notulen fix branch id 28 juli 2026=
+**Permintaan user:** 
+- Kasir Majalengka → branch code BRG-05
+- Kasir Pekanbaru → branch code BRG-06 (bukan BRG-05 seperti script awal)
+- "ke 2 user fitur nya sudah lengkap" → masing-masing punya branch sendiri
+
+**Tindakan:**
+- Run `scripts/fix-branches.ts` (idempotent, skip kalau sudah benar):
+  - Majalengka: BRG-05 sudah benar (skip)
+  - Pekanbaru: BRG-PKB → BRG-06 (rename)
+- Update `prisma/seed.ts` agar konsisten (BRG-05 & BRG-06)
+- Type check pass
+
+**Branch Aktif (5):**
+| Code | Name | Kasir |
+|---|---|---|
+| BRG-01 | Indihiang | (tidak ada, legacy) |
+| BRG-02 | Irian Timur | (tidak ada, legacy) |
+| BRG-03 | Irian Barat | (tidak ada, legacy) |
+| BRG-05 | Majalengka | admin@majalengka.com |
+| BRG-06 | Pekanbaru | admin@pekanbaru2.com |

@@ -1,12 +1,12 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
-import { getSession, getBranchFilter } from '@/lib/session'
+import { getSession, getBranchFilter, canAccessCorporate, isAdmin, type SessionPayload } from '@/lib/session'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
 // ============================================
-// CORPORATE CUSTOMER CRUD
+// CORPORATE CUSTOMER CRUD (Phase 5)
 // ============================================
 
 const CorporateSchema = z.object({
@@ -17,6 +17,7 @@ const CorporateSchema = z.object({
   taxId: z.string().optional(),
   billingCycle: z.enum(['WEEKLY', 'BIWEEKLY', 'MONTHLY']).default('MONTHLY'),
   branchId: z.string().min(1, 'Cabang wajib dipilih'),
+  hideServiceOnInvoice: z.boolean().default(false),
 })
 
 export type CorporateState = {
@@ -27,7 +28,7 @@ export type CorporateState = {
 
 export async function getCorporateCustomers(branchId?: string) {
   const session = await getSession()
-  if (!session || session.role !== 'ADMIN') return []
+  if (!session || !canAccessCorporate(session)) return []
 
   const corporates = await prisma.corporateCustomer.findMany({
     where: {
@@ -47,18 +48,36 @@ export async function getCorporateCustomers(branchId?: string) {
   const result = await Promise.all(
     corporates.map(async (corp) => {
       const customerIds = corp.customers.map((c) => c.id)
-      if (customerIds.length === 0) return { ...corp, currentMonthTotal: 0 }
+      if (customerIds.length === 0) {
+        return { ...corp, currentMonthTotal: 0, totalUnpaidAmount: 0, totalPaidThisMonth: 0 }
+      }
 
-      const { _sum } = await prisma.transaction.aggregate({
+      // Total PENDING (belum dibayar sama sekali) bulan ini
+      const pendingAgg = await prisma.transaction.aggregate({
         where: {
           customerId: { in: customerIds },
           status: 'PENDING_CORPORATE',
           transactionDate: { gte: firstDay },
         },
-        _sum: { total: true },
+        _sum: { total: true, paidAmount: true },
       })
+      const currentMonthTotal = pendingAgg._sum.total || 0
+      const paidAmount = pendingAgg._sum.paidAmount || 0
+      // Sisa piutang = total - paid
+      const totalUnpaidAmount = Math.max(0, currentMonthTotal - paidAmount)
 
-      return { ...corp, currentMonthTotal: _sum.total || 0 }
+      // Total yang sudah dibayar bulan ini (semua status termasuk COMPLETED)
+      const paidAgg = await prisma.corporatePayment.aggregate({
+        where: {
+          corporateCustomerId: corp.id,
+          voidedAt: null,
+          paidAt: { gte: firstDay },
+        },
+        _sum: { amount: true },
+      })
+      const totalPaidThisMonth = paidAgg._sum.amount || 0
+
+      return { ...corp, currentMonthTotal, totalUnpaidAmount, totalPaidThisMonth }
     })
   )
 
@@ -67,7 +86,7 @@ export async function getCorporateCustomers(branchId?: string) {
 
 export async function getCorporateCustomerById(id: string) {
   const session = await getSession()
-  if (!session || session.role !== 'ADMIN') return null
+  if (!session || !canAccessCorporate(session)) return null
 
   return prisma.corporateCustomer.findUnique({
     where: { id },
@@ -85,7 +104,13 @@ export async function createCorporateCustomer(
   formData: FormData
 ): Promise<CorporateState> {
   const session = await getSession()
-  if (!session || session.role !== 'ADMIN') return { message: 'Unauthorized' }
+  if (!session || !canAccessCorporate(session)) return { message: 'Unauthorized' }
+  const safeSession: SessionPayload = session
+
+  const hideService = formData.get('hideServiceOnInvoice') === 'on' || formData.get('hideServiceOnInvoice') === 'true'
+
+  const isSuperAdmin = safeSession.role === 'ADMIN' && !safeSession.branchId
+  const targetBranchId = isSuperAdmin ? formData.get('branchId') as string : safeSession.branchId!
 
   const validated = CorporateSchema.safeParse({
     name: formData.get('name'),
@@ -94,19 +119,17 @@ export async function createCorporateCustomer(
     address: formData.get('address') || undefined,
     taxId: formData.get('taxId') || undefined,
     billingCycle: formData.get('billingCycle') || 'MONTHLY',
-    branchId: formData.get('branchId'),
+    branchId: targetBranchId,
+    hideServiceOnInvoice: hideService,
   })
-
-  const isSuperAdmin = session.role === 'ADMIN' && !session.branchId
-  const targetBranchId = isSuperAdmin ? formData.get('branchId') as string : session.branchId!
 
   if (!validated.success || !targetBranchId) {
     return { errors: validated.error?.flatten().fieldErrors || { branchId: ['Cabang wajib dipilih'] } }
   }
 
   try {
-    await prisma.corporateCustomer.create({ 
-      data: { ...validated.data, branchId: targetBranchId } 
+    await prisma.corporateCustomer.create({
+      data: { ...validated.data, branchId: targetBranchId }
     })
     revalidatePath('/admin/korporat')
     return { success: true, message: 'Pelanggan korporat berhasil ditambahkan' }
@@ -121,7 +144,13 @@ export async function updateCorporateCustomer(
   formData: FormData
 ): Promise<CorporateState> {
   const session = await getSession()
-  if (!session || session.role !== 'ADMIN') return { message: 'Unauthorized' }
+  if (!session || !canAccessCorporate(session)) return { message: 'Unauthorized' }
+  const safeSession: SessionPayload = session
+
+  const hideService = formData.get('hideServiceOnInvoice') === 'on' || formData.get('hideServiceOnInvoice') === 'true'
+
+  const isSuperAdmin = safeSession.role === 'ADMIN' && !safeSession.branchId
+  const targetBranchId = isSuperAdmin ? formData.get('branchId') as string : safeSession.branchId!
 
   const validated = CorporateSchema.safeParse({
     name: formData.get('name'),
@@ -130,22 +159,21 @@ export async function updateCorporateCustomer(
     address: formData.get('address') || undefined,
     taxId: formData.get('taxId') || undefined,
     billingCycle: formData.get('billingCycle') || 'MONTHLY',
-    branchId: formData.get('branchId'),
+    branchId: targetBranchId,
+    hideServiceOnInvoice: hideService,
   })
-
-  const isSuperAdmin = session.role === 'ADMIN' && !session.branchId
-  const targetBranchId = isSuperAdmin ? formData.get('branchId') as string : session.branchId!
 
   if (!validated.success || !targetBranchId) {
     return { errors: validated.error?.flatten().fieldErrors || { branchId: ['Cabang wajib dipilih'] } }
   }
 
   try {
-    await prisma.corporateCustomer.update({ 
-      where: { id }, 
-      data: { ...validated.data, branchId: targetBranchId } 
+    await prisma.corporateCustomer.update({
+      where: { id },
+      data: { ...validated.data, branchId: targetBranchId }
     })
     revalidatePath('/admin/korporat')
+    revalidatePath(`/admin/korporat/${id}/tagihan`)
     return { success: true, message: 'Data berhasil diperbarui' }
   } catch {
     return { message: 'Gagal memperbarui data' }
@@ -154,21 +182,21 @@ export async function updateCorporateCustomer(
 
 export async function deleteCorporateCustomer(id: string) {
   const session = await getSession()
-  if (!session || session.role !== 'ADMIN') return { message: 'Unauthorized' }
+  if (!session || !isAdmin(session)) return { success: false, message: 'Hanya admin yang boleh menghapus korporat' }
 
   try {
     await prisma.corporateCustomer.update({ where: { id }, data: { isActive: false } })
     revalidatePath('/admin/korporat')
     return { success: true }
   } catch {
-    return { message: 'Gagal menghapus' }
+    return { success: false, message: 'Gagal menghapus' }
   }
 }
 
 // Assign / unassign customer to corporate
 export async function assignCustomerToCorporate(customerId: string, corporateCustomerId: string | null) {
   const session = await getSession()
-  if (!session || session.role !== 'ADMIN') return { success: false, message: 'Unauthorized' }
+  if (!session || !canAccessCorporate(session)) return { success: false, message: 'Unauthorized' }
 
   try {
     await prisma.customer.update({
@@ -183,12 +211,12 @@ export async function assignCustomerToCorporate(customerId: string, corporateCus
 }
 
 // ============================================
-// CORPORATE BILLING
+// CORPORATE BILLING (Phase 5 - Read)
 // ============================================
 
 export async function getCorporateBilling(corporateCustomerId: string, startDateStr?: string, endDateStr?: string) {
   const session = await getSession()
-  if (!session || session.role !== 'ADMIN') return null
+  if (!session || !canAccessCorporate(session)) return null
 
   const today = new Date()
   const defaultStart = new Date(today.getFullYear(), today.getMonth(), 1)
@@ -200,7 +228,7 @@ export async function getCorporateBilling(corporateCustomerId: string, startDate
 
   const corporate = await prisma.corporateCustomer.findUnique({
     where: { id: corporateCustomerId },
-    include: { branch: { select: { name: true } } },
+    include: { branch: { select: { name: true, id: true } } },
   })
   if (!corporate) return null
 
@@ -220,51 +248,356 @@ export async function getCorporateBilling(corporateCustomerId: string, startDate
     },
     include: {
       customer: { select: { name: true, plateNumber: true } },
-      items: { select: { itemName: true, itemType: true, quantity: true, unitPrice: true, subtotal: true } },
+      items: { select: { itemType: true, itemName: true, quantity: true, unitPrice: true, subtotal: true } },
       branch: { select: { name: true } },
     },
     orderBy: { transactionDate: 'asc' },
   })
 
   const grandTotal = transactions.reduce((acc, t) => acc + t.total, 0)
+  const totalPaid = transactions.reduce((acc, t) => acc + (t.paidAmount || 0), 0)
+  const totalRemaining = Math.max(0, grandTotal - totalPaid)
 
-  return { corporate, transactions, grandTotal, startDate, endDate }
+  return {
+    corporate,
+    transactions,
+    grandTotal,
+    totalPaid,
+    totalRemaining,
+    startDate,
+    endDate,
+  }
 }
 
-export async function settleCorporateBilling(corporateCustomerId: string, startDateStr: string, endDateStr: string) {
+// ============================================
+// CORPORATE PAYMENT (Phase 5 - Write)
+// ============================================
+
+const PaymentAllocationSchema = z.object({
+  transactionId: z.string().min(1),
+  amount: z.number().min(0),
+})
+
+const CreatePaymentSchema = z.object({
+  corporateCustomerId: z.string().min(1),
+  amount: z.number().min(1, 'Nominal pembayaran minimal 1'),
+  paymentMethod: z.enum(['CASH', 'TRANSFER', 'QRIS']),
+  notes: z.string().optional(),
+  periodStart: z.string().min(1, 'Periode mulai wajib diisi'),
+  periodEnd: z.string().min(1, 'Periode akhir wajib diisi'),
+  allocations: z.array(PaymentAllocationSchema).min(1, 'Pilih minimal satu transaksi untuk dialokasikan'),
+})
+
+export type CreatePaymentInput = z.infer<typeof CreatePaymentSchema>
+
+export type PaymentResult = {
+  success: boolean
+  message?: string
+  paymentId?: string
+}
+
+/**
+ * Create a corporate payment (cicilan / lunas) and allocate to transactions.
+ */
+export async function createCorporatePayment(input: CreatePaymentInput): Promise<PaymentResult> {
   const session = await getSession()
-  if (!session || session.role !== 'ADMIN') return { success: false, message: 'Unauthorized' }
+  if (!session || !canAccessCorporate(session)) return { success: false, message: 'Unauthorized' }
+  const safeSession: SessionPayload = session
+
+  const validated = CreatePaymentSchema.safeParse(input)
+  if (!validated.success) {
+    return { success: false, message: validated.error.issues[0]?.message || 'Validasi gagal' }
+  }
+  const data = validated.data
+
+  // Validate allocation sum equals amount
+  const totalAllocated = data.allocations.reduce((acc, a) => acc + a.amount, 0)
+  if (Math.abs(totalAllocated - data.amount) > 0.01) {
+    return { success: false, message: `Alokasi (${totalAllocated}) tidak sama dengan nominal bayar (${data.amount})` }
+  }
+
+  const periodStart = new Date(data.periodStart)
+  periodStart.setHours(0, 0, 0, 0)
+  const periodEnd = new Date(data.periodEnd)
+  periodEnd.setHours(23, 59, 59, 999)
+
+  // Determine target branch
+  const corporate = await prisma.corporateCustomer.findUnique({
+    where: { id: data.corporateCustomerId },
+    select: { branchId: true, isActive: true },
+  })
+  if (!corporate || !corporate.isActive) {
+    return { success: false, message: 'Korporat tidak ditemukan atau tidak aktif' }
+  }
+  // Branch access check
+  if (safeSession.role === 'KASIR' && corporate.branchId !== safeSession.branchId) {
+    return { success: false, message: 'Korporat bukan dari cabang Anda' }
+  }
+  if (safeSession.role === 'ADMIN' && safeSession.branchId && corporate.branchId !== safeSession.branchId) {
+    return { success: false, message: 'Korporat bukan dari cabang Anda' }
+  }
 
   try {
-    const startDate = new Date(startDateStr)
-    startDate.setHours(0, 0, 0, 0)
-    const endDate = new Date(endDateStr)
-    endDate.setHours(23, 59, 59, 999)
-
-    const customerIds = (
-      await prisma.customer.findMany({
-        where: { corporateCustomerId },
-        select: { id: true },
-      })
-    ).map((c) => c.id)
-
     const result = await prisma.$transaction(async (tx) => {
-      const updated = await tx.transaction.updateMany({
+      // Validate all transactions belong to this corporate & PENDING_CORPORATE
+      const customerIds = (
+        await tx.customer.findMany({
+          where: { corporateCustomerId: data.corporateCustomerId },
+          select: { id: true },
+        })
+      ).map((c) => c.id)
+
+      const txIds = data.allocations.map((a) => a.transactionId)
+      const transactions = await tx.transaction.findMany({
         where: {
+          id: { in: txIds },
           customerId: { in: customerIds },
           status: 'PENDING_CORPORATE',
-          transactionDate: { gte: startDate, lte: endDate },
         },
-        data: { status: 'COMPLETED' },
+        select: { id: true, total: true, paidAmount: true, invoiceNumber: true },
       })
-      return updated
+
+      if (transactions.length !== txIds.length) {
+        const found = new Set(transactions.map((t) => t.id))
+        const missing = txIds.filter((id) => !found.has(id))
+        throw new Error(`Transaksi tidak valid / bukan PENDING_CORPORATE: ${missing.join(', ')}`)
+      }
+
+      // Validate per-transaction allocation
+      for (const alloc of data.allocations) {
+        const t = transactions.find((tr) => tr.id === alloc.transactionId)!
+        const remaining = t.total - (t.paidAmount || 0)
+        if (alloc.amount > remaining + 0.01) {
+          throw new Error(
+            `Alokasi untuk ${t.invoiceNumber} (${alloc.amount}) melebihi sisa piutang (${remaining})`
+          )
+        }
+      }
+
+      // Create payment
+      const payment = await tx.corporatePayment.create({
+        data: {
+          corporateCustomerId: data.corporateCustomerId,
+          branchId: corporate.branchId,
+          amount: data.amount,
+          paymentMethod: data.paymentMethod,
+          notes: data.notes,
+          paidAt: new Date(),
+          createdById: safeSession.userId,
+          periodStart,
+          periodEnd,
+          transactionLinks: {
+            create: data.allocations.map((a) => ({
+              transactionId: a.transactionId,
+              amount: a.amount,
+            })),
+          },
+        },
+      })
+
+      // Update each transaction
+      for (const alloc of data.allocations) {
+        const t = transactions.find((tr) => tr.id === alloc.transactionId)!
+        const newPaid = (t.paidAmount || 0) + alloc.amount
+        const newStatus = newPaid >= t.total - 0.01 ? 'COMPLETED' : 'PENDING_CORPORATE'
+        await tx.transaction.update({
+          where: { id: t.id },
+          data: { paidAmount: newPaid, status: newStatus },
+        })
+      }
+
+      return payment
+    })
+
+    revalidatePath('/admin/korporat')
+    revalidatePath(`/admin/korporat/${data.corporateCustomerId}/tagihan`)
+    revalidatePath('/admin/laporan')
+
+    return {
+      success: true,
+      message: `Pembayaran ${data.amount.toLocaleString('id-ID')} berhasil dicatat`,
+      paymentId: result.id,
+    }
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Gagal mencatat pembayaran'
+    return { success: false, message }
+  }
+}
+
+/**
+ * Get payment history (riwayat pembayaran) for a corporate
+ */
+export async function getCorporatePaymentHistory(
+  corporateCustomerId: string,
+  options?: { includeVoided?: boolean; limit?: number }
+) {
+  const session = await getSession()
+  if (!session || !canAccessCorporate(session)) return []
+
+  const payments = await prisma.corporatePayment.findMany({
+    where: {
+      corporateCustomerId,
+      ...(options?.includeVoided ? {} : { voidedAt: null }),
+    },
+    include: {
+      createdBy: { select: { id: true, name: true } },
+      voidedBy: { select: { id: true, name: true } },
+      transactionLinks: {
+        include: {
+          transaction: {
+            select: { id: true, invoiceNumber: true, transactionDate: true, total: true },
+          },
+        },
+      },
+    },
+    orderBy: { paidAt: 'desc' },
+    take: options?.limit ?? 100,
+  })
+
+  return payments
+}
+
+/**
+ * Get single payment detail (untuk halaman print bukti bayar)
+ */
+export async function getCorporatePaymentById(paymentId: string) {
+  const session = await getSession()
+  if (!session || !canAccessCorporate(session)) return null
+
+  const payment = await prisma.corporatePayment.findUnique({
+    where: { id: paymentId },
+    include: {
+      corporateCustomer: {
+        include: {
+          branch: { select: { id: true, name: true, address: true, phone: true } },
+        },
+      },
+      branch: { select: { id: true, name: true, address: true, phone: true } },
+      createdBy: { select: { id: true, name: true } },
+      voidedBy: { select: { id: true, name: true } },
+      transactionLinks: {
+        include: {
+          transaction: {
+            include: {
+              customer: { select: { name: true, plateNumber: true } },
+              items: { select: { itemType: true, itemName: true, quantity: true, unitPrice: true, subtotal: true } },
+            },
+          },
+        },
+      },
+    },
+  })
+
+  return payment
+}
+
+/**
+ * Void (batalkan) pembayaran korporat. Admin only.
+ */
+export async function voidCorporatePayment(
+  paymentId: string,
+  reason: string
+): Promise<PaymentResult> {
+  const session = await getSession()
+  if (!session) return { success: false, message: 'Unauthorized' }
+  if (!isAdmin(session)) return { success: false, message: 'Hanya admin yang boleh membatalkan pembayaran' }
+  const safeSession: SessionPayload = session
+
+  if (!reason || reason.trim().length < 3) {
+    return { success: false, message: 'Alasan pembatalan wajib diisi (min 3 karakter)' }
+  }
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const payment = await tx.corporatePayment.findUnique({
+        where: { id: paymentId },
+        include: { transactionLinks: true },
+      })
+      if (!payment) throw new Error('Pembayaran tidak ditemukan')
+      if (payment.voidedAt) throw new Error('Pembayaran sudah pernah dibatalkan')
+
+      // Restore transaction paidAmount
+      for (const link of payment.transactionLinks) {
+        const t = await tx.transaction.findUnique({
+          where: { id: link.transactionId },
+          select: { paidAmount: true, total: true },
+        })
+        if (!t) continue
+        const newPaid = Math.max(0, (t.paidAmount || 0) - link.amount)
+        await tx.transaction.update({
+          where: { id: link.transactionId },
+          data: { paidAmount: newPaid, status: 'PENDING_CORPORATE' },
+        })
+      }
+
+      // Mark payment as voided
+      await tx.corporatePayment.update({
+        where: { id: paymentId },
+        data: {
+          voidedAt: new Date(),
+          voidedById: safeSession.userId,
+          voidReason: reason,
+        },
+      })
     })
 
     revalidatePath('/admin/korporat')
     revalidatePath('/admin/laporan')
-    return { success: true, message: `${result.count} transaksi berhasil dilunasi` }
+    return { success: true, message: 'Pembayaran berhasil dibatalkan' }
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Gagal melunasi tagihan'
+    const message = error instanceof Error ? error.message : 'Gagal membatalkan pembayaran'
     return { success: false, message }
   }
+}
+
+/**
+ * Settle full billing for a period (legacy wrapper, panggil createCorporatePayment).
+ */
+export async function settleCorporateBilling(
+  corporateCustomerId: string,
+  startDateStr: string,
+  endDateStr: string
+) {
+  const session = await getSession()
+  if (!session || !canAccessCorporate(session)) return { success: false, message: 'Unauthorized' }
+
+  const startDate = new Date(startDateStr)
+  startDate.setHours(0, 0, 0, 0)
+  const endDate = new Date(endDateStr)
+  endDate.setHours(23, 59, 59, 999)
+
+  const customerIds = (
+    await prisma.customer.findMany({
+      where: { corporateCustomerId },
+      select: { id: true },
+    })
+  ).map((c) => c.id)
+
+  const transactions = await prisma.transaction.findMany({
+    where: {
+      customerId: { in: customerIds },
+      status: 'PENDING_CORPORATE',
+      transactionDate: { gte: startDate, lte: endDate },
+    },
+    select: { id: true, total: true, paidAmount: true },
+  })
+
+  if (transactions.length === 0) {
+    return { success: false, message: 'Tidak ada tagihan yang perlu dilunasi' }
+  }
+
+  const allocations = transactions.map((t) => ({
+    transactionId: t.id,
+    amount: t.total - (t.paidAmount || 0),
+  }))
+  const amount = allocations.reduce((acc, a) => acc + a.amount, 0)
+
+  return createCorporatePayment({
+    corporateCustomerId,
+    amount,
+    paymentMethod: 'CASH',
+    periodStart: startDateStr,
+    periodEnd: endDateStr,
+    allocations,
+  })
 }

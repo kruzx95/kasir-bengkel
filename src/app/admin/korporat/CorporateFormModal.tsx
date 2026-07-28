@@ -24,6 +24,7 @@ interface CorporateData {
   billingCycle: string
   branch: { name: string }
   branchId?: string | null
+  hideServiceOnInvoice?: boolean
 }
 
 interface CorporateFormModalProps {
@@ -123,6 +124,25 @@ export default function CorporateFormModal({ open, onClose, branches, editData }
               defaultValue={editData?.branchId ?? ''}
             />
           </div>
+        </div>
+
+        <div className="pt-2 border-t border-slate-100">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Pengaturan Invoice</p>
+          <label className="flex items-start gap-3 p-3 bg-slate-50 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-100 transition">
+            <input
+              type="checkbox"
+              name="hideServiceOnInvoice"
+              defaultChecked={editData?.hideServiceOnInvoice ?? false}
+              className="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+            />
+            <div className="flex-1">
+              <div className="text-sm font-medium text-slate-900">Sembunyikan Jasa di Invoice</div>
+              <div className="text-xs text-slate-500 mt-0.5">
+                Item jasa (servis) tidak akan muncul di invoice/cetak piutang korporat.
+                Sparepart tetap tampil dengan harga normal.
+              </div>
+            </div>
+          </label>
         </div>
 
         <ModalFooter>

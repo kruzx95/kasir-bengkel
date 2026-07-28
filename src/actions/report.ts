@@ -148,8 +148,90 @@ export async function getRestockReportData(startDateStr?: string, endDateStr?: s
         topSparepart,
       },
     }
-  } catch (error) {
-    console.error('Restock report error:', error)
-    return { restocks: [], summary: { total: 0, count: 0, topSparepart: null } }
+  } catch {
+    return { restocks: [], summary: { total: 0, count: 0, topSparepart: null as string | null } }
+  }
+}
+
+export async function getIndentReportData(
+  startDateStr?: string,
+  endDateStr?: string,
+  branchId?: string,
+  type: 'RESTOCK' | 'CUSTOMER' | 'ALL' = 'ALL',
+  status?: 'PENDING' | 'PARTIAL' | 'RECEIVED'
+) {
+  const session = await getSession()
+  if (!session || session.role !== 'ADMIN') {
+    return { indents: [], summary: { count: 0, totalValue: 0, pendingCount: 0, partialCount: 0, receivedCount: 0, topSparepart: null as string | null } }
+  }
+
+  const today = new Date()
+  const defaultStart = new Date(today.getFullYear(), today.getMonth(), 1)
+
+  const startDate = startDateStr ? new Date(startDateStr) : defaultStart
+  startDate.setHours(0, 0, 0, 0)
+
+  const endDate = endDateStr ? new Date(endDateStr) : new Date(today)
+  endDate.setHours(23, 59, 59, 999)
+
+  try {
+    const indents = await prisma.indentOrder.findMany({
+      where: {
+        ...getBranchFilter(session, branchId),
+        orderDate: { gte: startDate, lte: endDate },
+        ...(type !== 'ALL' ? { type } : {}),
+        ...(status ? { status } : {}),
+      },
+      include: {
+        branch: { select: { name: true } },
+        user: { select: { name: true } },
+        customer: { select: { name: true, phone: true } },
+        items: {
+          include: {
+            sparepart: { select: { name: true, sku: true } },
+          },
+        },
+      },
+      orderBy: { orderDate: 'desc' },
+    })
+
+    let totalValue = 0
+    let pendingCount = 0
+    let partialCount = 0
+    let receivedCount = 0
+    const sparepartTotals: Record<string, { name: string; total: number }> = {}
+
+    indents.forEach((order) => {
+      if (order.status === 'PENDING') pendingCount += 1
+      if (order.status === 'PARTIAL') partialCount += 1
+      if (order.status === 'RECEIVED') receivedCount += 1
+
+      order.items.forEach((item) => {
+        const value = item.quantity * item.estimatedPrice
+        totalValue += value
+
+        const key = item.sparepartId
+        if (!sparepartTotals[key]) {
+          sparepartTotals[key] = { name: item.sparepart.name, total: 0 }
+        }
+        sparepartTotals[key].total += item.quantity
+      })
+    })
+
+    const topSparepart = Object.values(sparepartTotals).sort((a, b) => b.total - a.total)[0]?.name ?? null
+
+    return {
+      indents,
+      summary: {
+        count: indents.length,
+        totalValue,
+        pendingCount,
+        partialCount,
+        receivedCount,
+        topSparepart,
+      },
+    }
+  } catch {
+    return { indents: [], summary: { count: 0, totalValue: 0, pendingCount: 0, partialCount: 0, receivedCount: 0, topSparepart: null as string | null } }
   }
 }
