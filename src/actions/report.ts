@@ -93,7 +93,7 @@ export async function getReportData(startDateStr?: string, endDateStr?: string, 
 
 export async function getRestockReportData(startDateStr?: string, endDateStr?: string, branchId?: string) {
   const session = await getSession()
-  if (!session || session.role !== 'ADMIN') {
+  if (!session) {
     return { restocks: [], summary: { total: 0, count: 0, topSparepart: null as string | null } }
   }
 
@@ -161,7 +161,7 @@ export async function getIndentReportData(
   status?: 'PENDING' | 'PARTIAL' | 'RECEIVED'
 ) {
   const session = await getSession()
-  if (!session || session.role !== 'ADMIN') {
+  if (!session) {
     return { indents: [], summary: { count: 0, totalValue: 0, pendingCount: 0, partialCount: 0, receivedCount: 0, topSparepart: null as string | null } }
   }
 

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import Button from '@/components/ui/Button'
@@ -43,6 +44,8 @@ interface RestockDetailProps {
 
 export default function RestockDetailClient({ restock }: RestockDetailProps) {
   const [lightboxOpen, setLightboxOpen] = useState(false)
+  const pathname = usePathname()
+  const base = pathname.startsWith('/kasir') ? '/kasir' : '/admin'
 
   // Convert stored path /uploads/receipts/filename to the authenticated API endpoint
   const imageUrl = restock.receiptImagePath
@@ -53,7 +56,7 @@ export default function RestockDetailClient({ restock }: RestockDetailProps) {
     <div className="space-y-6 max-w-4xl">
       {/* Back button */}
       <div className="flex items-center gap-4">
-        <Link href="/admin/restock">
+        <Link href={`${base}/restock`}>
           <Button variant="ghost" icon={ArrowLeft} className="w-10 h-10 p-0" />
         </Link>
         <div>

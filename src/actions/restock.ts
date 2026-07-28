@@ -31,7 +31,7 @@ export type RestockPayload = z.infer<typeof restockSchema>
 export async function createRestock(payload: RestockPayload) {
   try {
     const session = await getSession()
-    if (!session || session.role !== 'ADMIN') throw new Error('Unauthorized')
+    if (!session) throw new Error('Unauthorized')
 
     const validated = restockSchema.safeParse(payload)
     if (!validated.success) {
@@ -97,6 +97,7 @@ export async function createRestock(payload: RestockPayload) {
     })
 
     revalidatePath('/admin/restock')
+    revalidatePath('/kasir/restock')
     revalidatePath('/admin/master/spareparts')
     revalidatePath('/admin/stock-gudang')
     revalidatePath('/admin/stock-toko')
@@ -110,7 +111,7 @@ export async function createRestock(payload: RestockPayload) {
 export async function getRestocks(branchId?: string) {
   try {
     const session = await getSession()
-    if (!session || session.role !== 'ADMIN') return []
+    if (!session) return []
 
     return await prisma.restock.findMany({
       where: getBranchFilter(session, branchId),
@@ -130,7 +131,7 @@ export async function getRestocks(branchId?: string) {
 export async function getRestockDetails(id: string) {
   try {
     const session = await getSession()
-    if (!session || session.role !== 'ADMIN') return null
+    if (!session) return null
 
     return await prisma.restock.findUnique({
       where: { id },

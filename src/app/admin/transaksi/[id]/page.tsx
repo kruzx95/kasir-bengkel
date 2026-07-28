@@ -42,11 +42,13 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
 
   if (!tx) notFound()
 
+  const backHref = session?.role === 'KASIR' ? '/kasir/transaksi' : '/admin/transaksi'
+
   return (
     <div className="p-4 sm:p-6 max-w-4xl mx-auto animate-fade-in">
       {/* Top Actions - Hide when printing */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 sm:mb-8 print:hidden">
-        <Link href="/admin/transaksi">
+        <Link href={backHref}>
           <Button variant="ghost" icon={ArrowLeft}>Kembali</Button>
         </Link>
         <div className="flex items-center gap-2">

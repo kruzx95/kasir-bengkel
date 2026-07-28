@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
@@ -17,6 +17,8 @@ interface NewRestockClientProps {
 
 export default function NewRestockClient({ branches, spareparts }: NewRestockClientProps) {
   const router = useRouter()
+  const pathname = usePathname()
+  const base = pathname.startsWith('/kasir') ? '/kasir' : '/admin'
   const [isPending, startTransition] = useTransition()
 
   const [branchId, setBranchId] = useState(branches[0]?.id || '')
@@ -189,7 +191,7 @@ export default function NewRestockClient({ branches, spareparts }: NewRestockCli
 
       const res = await createRestock(payload)
       if (res.success) {
-        router.push('/admin/restock')
+        router.push(`${base}/restock`)
       } else {
         setError(res.message || 'Gagal menyimpan data')
       }
@@ -202,7 +204,7 @@ export default function NewRestockClient({ branches, spareparts }: NewRestockCli
     <div className="space-y-5">
       {/* Page Header */}
       <div className="flex items-center gap-4">
-        <Link href="/admin/restock">
+        <Link href={`${base}/restock`}>
           <Button variant="ghost" icon={ArrowLeft} className="w-10 h-10 p-0 rounded-xl" />
         </Link>
         <div>

@@ -43,7 +43,16 @@ const kasirMenuItems = [
   { href: '/kasir', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/kasir/transaksi', label: 'Transaksi', icon: Receipt },
   { href: '/kasir/pelanggan', label: 'Pelanggan', icon: Users },
-  { href: '/kasir/sparepart', label: 'Stok Sparepart', icon: Package },
+  { href: '/kasir/laporan', label: 'Laporan', icon: BarChart3 },
+  { href: '/kasir/reminder', label: 'Reminder', icon: BellRing },
+  { href: '/kasir/jasa-servis', label: 'Jasa Servis', icon: Wrench },
+  { href: '/kasir/sparepart', label: 'Sparepart', icon: Package },
+  { href: '/kasir/restock', label: 'Barang Masuk', icon: PackagePlus },
+  { href: '/kasir/stock-toko', label: 'Stock Toko', icon: Store },
+  { href: '/kasir/stock-gudang', label: 'Stock Gudang', icon: Warehouse },
+  { href: '/kasir/indent', label: 'Barang Indent', icon: ClipboardList },
+  { href: '/kasir/korporat', label: 'Korporat', icon: Briefcase },
+  { href: '/kasir/mekanik', label: 'Mekanik', icon: Users },
 ]
 
 const adminMenuItems = [

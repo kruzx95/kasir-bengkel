@@ -1,5 +1,5 @@
 import Header from '@/components/layout/Header'
-import IndentClient from './IndentClient'
+import IndentClient from '@/app/admin/indent/IndentClient'
 import { getIndentOrders } from '@/actions/indent'
 import { getSession } from '@/lib/session'
 import { redirect } from 'next/navigation'
@@ -9,11 +9,9 @@ export const metadata: Metadata = {
   title: 'Barang Indent',
 }
 
-export default async function AdminIndentPage() {
+export default async function KasirIndentPage() {
   const session = await getSession()
-  if (!session || session.role !== 'ADMIN') {
-    redirect('/login')
-  }
+  if (!session || session.role !== 'KASIR') redirect('/login')
 
   const indentOrders = await getIndentOrders()
 

@@ -6,7 +6,7 @@ import { revalidatePath } from 'next/cache'
 
 export async function getCustomersDueForService(monthsLimit: number, branchId?: string) {
   const session = await getSession()
-  if (!session || session.role !== 'ADMIN') return []
+  if (!session) return []
 
   const thresholdDate = new Date()
   thresholdDate.setMonth(thresholdDate.getMonth() - monthsLimit)
@@ -61,7 +61,7 @@ export async function getCustomersDueForService(monthsLimit: number, branchId?: 
 
 export async function markReminderSent(customerId: string) {
   const session = await getSession()
-  if (!session || session.role !== 'ADMIN') return { success: false, message: 'Unauthorized' }
+  if (!session) return { success: false, message: 'Unauthorized' }
 
   try {
     await prisma.customer.update({
@@ -70,6 +70,7 @@ export async function markReminderSent(customerId: string) {
     })
     
     revalidatePath('/admin/reminder')
+    revalidatePath('/kasir/reminder')
     return { success: true }
   } catch (error) {
     console.error('Mark Reminder Sent Error:', error)

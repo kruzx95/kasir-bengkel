@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { usePathname } from 'next/navigation'
 import Table from '@/components/ui/Table'
 import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
@@ -11,6 +12,8 @@ import Link from 'next/link'
 export default function RestocksClient({ initialPOs, initialHistory }: { initialPOs: any[], initialHistory: any[] }) {
   const [activeTab, setActiveTab] = useState<'PO' | 'HISTORY'>('PO')
   const [searchQuery, setSearchQuery] = useState('')
+  const pathname = usePathname()
+  const base = pathname.startsWith('/kasir') ? '/kasir' : '/admin'
   const today = new Date()
 
   // ---- PO TAB LOGIC ----
@@ -115,7 +118,7 @@ export default function RestocksClient({ initialPOs, initialHistory }: { initial
             </button>
           </Link>
           {row.status !== 'RECEIVED' ? (
-            <Link href={`/admin/restock/${row.id}/terima`}>
+            <Link href={`${base}/restock/${row.id}/terima`}>
               <Button size="sm" variant="outline">
                 Terima Barang
               </Button>
@@ -207,7 +210,7 @@ export default function RestocksClient({ initialPOs, initialHistory }: { initial
               <Printer className="w-4 h-4" />
             </button>
           </Link>
-          <Link href={`/admin/restock/${row.id}`}>
+          <Link href={`${base}/restock/${row.id}`}>
             <button title="Lihat Detail" className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors">
               <ChevronRight className="w-4 h-4" />
             </button>
@@ -249,7 +252,7 @@ export default function RestocksClient({ initialPOs, initialHistory }: { initial
               className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none transition-all"
             />
           </div>
-          <Link href="/admin/restock/baru">
+          <Link href={`${base}/restock/baru`}>
             <Button icon={Plus}>Buat PO Restock</Button>
           </Link>
         </div>

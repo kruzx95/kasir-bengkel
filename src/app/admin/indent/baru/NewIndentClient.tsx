@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
@@ -18,6 +18,8 @@ interface NewIndentClientProps {
 
 export default function NewIndentClient({ branches, spareparts, customers }: NewIndentClientProps) {
   const router = useRouter()
+  const pathname = usePathname()
+  const base = pathname.startsWith('/kasir') ? '/kasir' : '/admin'
   const [isPending, startTransition] = useTransition()
 
   const [branchId, setBranchId] = useState(branches[0]?.id || '')
@@ -145,7 +147,7 @@ export default function NewIndentClient({ branches, spareparts, customers }: New
 
       const res = await createIndentOrder(payload)
       if (res.success) {
-        router.push('/admin/indent')
+        router.push(`${base}/indent`)
       } else {
         setError(res.message || 'Gagal menyimpan pesanan')
       }
@@ -158,7 +160,7 @@ export default function NewIndentClient({ branches, spareparts, customers }: New
     <div className="space-y-5">
       {/* Page Header */}
       <div className="flex items-center gap-4">
-        <Link href="/admin/indent">
+        <Link href={`${base}/indent`}>
           <Button variant="ghost" icon={ArrowLeft} className="w-10 h-10 p-0 rounded-xl" />
         </Link>
         <div>

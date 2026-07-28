@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
+import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Package, ArrowUpCircle, ArrowDownCircle, History } from 'lucide-react'
 import Button from '@/components/ui/Button'
@@ -31,6 +32,8 @@ interface StockTransferClientProps {
 
 export default function StockTransferClient({ initialTransfers }: StockTransferClientProps) {
   const [transfers] = useState(initialTransfers)
+  const pathname = usePathname()
+  const base = pathname.startsWith('/kasir') ? '/kasir' : '/admin'
 
   // Group by type
   const warehouseToStoreCount = useMemo(
@@ -121,7 +124,7 @@ export default function StockTransferClient({ initialTransfers }: StockTransferC
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Link href="/admin">
+          <Link href={`${base}`}>
             <Button variant="ghost" icon={ArrowLeft} className="w-10 h-10 p-0" />
           </Link>
           <div>
@@ -129,8 +132,8 @@ export default function StockTransferClient({ initialTransfers }: StockTransferC
             <p className="text-sm text-slate-500">Riwayat transfer stock antar gudang dan toko</p>
           </div>
         </div>
-        <Link href="/admin/stock-transfer/baru">
-          <Button icon={Package}>Transfer Baru</Button>
+        <Link href={`${base}/stock-toko`}>
+          <Button icon={Package}>Transfer Stok</Button>
         </Link>
       </div>
 

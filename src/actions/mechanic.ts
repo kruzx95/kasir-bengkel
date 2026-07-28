@@ -25,7 +25,7 @@ export async function getMechanics(branchId?: string) {
 export async function createMechanic(data: { name: string; phone?: string; branchId: string }) {
   try {
     const session = await getSession()
-    if (!session || session.role !== 'ADMIN') throw new Error('Unauthorized')
+    if (!session) throw new Error('Unauthorized')
 
     const isSuperAdmin = session.role === 'ADMIN' && !session.branchId
     const targetBranchId = !isSuperAdmin ? session.branchId : data.branchId
@@ -40,6 +40,7 @@ export async function createMechanic(data: { name: string; phone?: string; branc
     })
 
     revalidatePath('/admin/master/mechanics')
+    revalidatePath('/kasir/mekanik')
     return { success: true }
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Gagal menambah mekanik'
@@ -50,7 +51,7 @@ export async function createMechanic(data: { name: string; phone?: string; branc
 export async function updateMechanic(id: string, data: { name: string; phone?: string; isActive: boolean }) {
   try {
     const session = await getSession()
-    if (!session || session.role !== 'ADMIN') throw new Error('Unauthorized')
+    if (!session) throw new Error('Unauthorized')
 
     await prisma.mechanic.update({
       where: { id },
@@ -62,6 +63,7 @@ export async function updateMechanic(id: string, data: { name: string; phone?: s
     })
 
     revalidatePath('/admin/master/mechanics')
+    revalidatePath('/kasir/mekanik')
     return { success: true }
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Gagal mengubah mekanik'
@@ -72,7 +74,7 @@ export async function updateMechanic(id: string, data: { name: string; phone?: s
 export async function deleteMechanic(id: string) {
   try {
     const session = await getSession()
-    if (!session || session.role !== 'ADMIN') throw new Error('Unauthorized')
+    if (!session) throw new Error('Unauthorized')
 
     // Optional: Check if mechanic has transactions. If yes, soft delete (isActive = false) instead of hard delete.
     const hasTransactions = await prisma.transaction.count({ where: { mechanicId: id } })

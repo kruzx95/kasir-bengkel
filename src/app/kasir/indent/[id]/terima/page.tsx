@@ -1,5 +1,5 @@
 import Header from '@/components/layout/Header'
-import ReceiveIndentClient from './ReceiveIndentClient'
+import ReceiveIndentClient from '@/app/admin/indent/[id]/terima/ReceiveIndentClient'
 import { getIndentOrderById } from '@/actions/indent'
 import { getSession } from '@/lib/session'
 import { redirect, notFound } from 'next/navigation'
@@ -9,9 +9,9 @@ export const metadata: Metadata = {
   title: 'Terima Barang Indent',
 }
 
-export default async function ReceiveIndentPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function KasirReceiveIndentPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
-  if (!session || session.role !== 'ADMIN') redirect('/login')
+  if (!session || session.role !== 'KASIR') redirect('/login')
 
   const { id } = await params
   const indentOrder = await getIndentOrderById(id)

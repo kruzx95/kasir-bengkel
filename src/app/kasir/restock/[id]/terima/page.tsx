@@ -1,5 +1,5 @@
 import Header from '@/components/layout/Header'
-import ReceiveRestockClient from './ReceiveRestockClient'
+import ReceiveRestockClient from '@/app/admin/restock/[id]/terima/ReceiveRestockClient'
 import { getIndentOrderById } from '@/actions/indent'
 import { getSession } from '@/lib/session'
 import { redirect, notFound } from 'next/navigation'
@@ -9,9 +9,9 @@ export const metadata: Metadata = {
   title: 'Terima Barang Restock',
 }
 
-export default async function ReceiveRestockPage({ params }: { params: { id: string } }) {
+export default async function KasirReceiveRestockPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
-  if (!session || session.role !== 'ADMIN') redirect('/login')
+  if (!session || session.role !== 'KASIR') redirect('/login')
 
   const { id } = await params
   const order = await getIndentOrderById(id)

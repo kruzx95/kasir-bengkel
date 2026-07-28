@@ -1,5 +1,5 @@
 import Header from '@/components/layout/Header'
-import RestocksClient from './RestocksClient'
+import RestocksClient from '@/app/admin/restock/RestocksClient'
 import { getRestocks } from '@/actions/restock'
 import { getIndentOrders } from '@/actions/indent'
 import { getSession } from '@/lib/session'
@@ -7,18 +7,16 @@ import { redirect } from 'next/navigation'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Barang Masuk (Restock)',
+  title: 'Barang Masuk',
 }
 
-export default async function AdminRestockPage() {
+export default async function KasirRestockPage() {
   const session = await getSession()
-  if (!session || session.role !== 'ADMIN') {
-    redirect('/login')
-  }
+  if (!session || session.role !== 'KASIR') redirect('/login')
 
   const [restockPOs, history] = await Promise.all([
     getIndentOrders(undefined, undefined, 'RESTOCK'),
-    getRestocks()
+    getRestocks(),
   ])
 
   return (

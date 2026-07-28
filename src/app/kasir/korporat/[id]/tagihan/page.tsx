@@ -1,5 +1,5 @@
 import Header from '@/components/layout/Header'
-import TagihanClient from './TagihanClient'
+import TagihanClient from '@/app/admin/korporat/[id]/tagihan/TagihanClient'
 import { getCorporateCustomerById } from '@/actions/corporate'
 import { getSession } from '@/lib/session'
 import { redirect, notFound } from 'next/navigation'
@@ -10,15 +10,14 @@ export const metadata: Metadata = {
   title: 'Tagihan Korporat',
 }
 
-export default async function TagihanPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function KasirTagihanPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
-  if (!session || session.role !== 'ADMIN') redirect('/login')
+  if (!session || session.role !== 'KASIR') redirect('/login')
 
   const { id } = await params
   const corporate = await getCorporateCustomerById(id)
   if (!corporate) notFound()
 
-  // Get all customers for assignment management
   const allCustomers = await getCustomers(corporate.branch.id)
 
   return (

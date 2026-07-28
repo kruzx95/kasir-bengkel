@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import { receiveIndentOrder, type ReceiveIndentPayload } from '@/actions/indent'
@@ -29,6 +29,8 @@ interface IndentOrder {
 
 export default function ReceiveIndentClient({ indentOrder }: { indentOrder: IndentOrder }) {
   const router = useRouter()
+  const pathname = usePathname()
+  const base = pathname.startsWith('/kasir') ? '/kasir' : '/admin'
   const [isPending, startTransition] = useTransition()
 
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
@@ -99,7 +101,7 @@ export default function ReceiveIndentClient({ indentOrder }: { indentOrder: Inde
       }
       const res = await receiveIndentOrder(payload)
       if (res.success) {
-        router.push('/admin/indent')
+        router.push(`${base}/indent`)
       } else {
         setError(res.message || 'Gagal menyimpan penerimaan')
       }
@@ -109,7 +111,7 @@ export default function ReceiveIndentClient({ indentOrder }: { indentOrder: Inde
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Link href="/admin/indent">
+        <Link href={`${base}/indent`}>
           <Button variant="ghost" icon={ArrowLeft} className="w-10 h-10 p-0" />
         </Link>
         <div>

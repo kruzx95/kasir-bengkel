@@ -33,8 +33,8 @@ export type StockTransferState = {
 export async function createStockTransfer(payload: StockTransferPayload): Promise<StockTransferState> {
   try {
     const session = await getSession()
-    if (!session || session.role !== 'ADMIN') {
-      return { success: false, message: 'Unauthorized. Hanya admin yang bisa transfer stock.' }
+    if (!session) {
+      return { success: false, message: 'Unauthorized.' }
     }
 
     const isSuperAdmin = session.role === 'ADMIN' && !session.branchId
@@ -120,6 +120,8 @@ export async function createStockTransfer(payload: StockTransferPayload): Promis
     revalidatePath('/admin/stock-transfer')
     revalidatePath('/admin/master/spareparts')
     revalidatePath('/kasir/sparepart')
+    revalidatePath('/kasir/stock-toko')
+    revalidatePath('/kasir/stock-gudang')
 
     const action = data.type === 'WAREHOUSE_TO_STORE' ? 'dari gudang ke toko' : 'dari toko ke gudang'
     return { success: true, message: `Berhasil transfer ${data.quantity} unit ${action}` }
@@ -133,7 +135,7 @@ export async function createStockTransfer(payload: StockTransferPayload): Promis
 export async function bulkTransferToStore(payload: BulkTransferPayload): Promise<StockTransferState> {
   try {
     const session = await getSession()
-    if (!session || session.role !== 'ADMIN') {
+    if (!session) {
       return { success: false, message: 'Unauthorized' }
     }
 

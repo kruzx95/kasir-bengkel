@@ -123,7 +123,7 @@ export async function createSparepart(
   formData: FormData
 ): Promise<SparepartState> {
   const session = await getSession()
-  if (!session || session.role !== 'ADMIN') {
+  if (!session) {
     return { message: 'Unauthorized' }
   }
 
@@ -168,6 +168,7 @@ export async function createSparepart(
     })
 
     revalidatePath('/admin/master/spareparts')
+    revalidatePath('/kasir/sparepart')
     return { success: true, message: `Sparepart berhasil ditambahkan ke ${branches.length} cabang` }
   } catch {
     return { message: 'Gagal menambahkan sparepart' }
@@ -180,7 +181,7 @@ export async function updateSparepart(
   formData: FormData
 ): Promise<SparepartState> {
   const session = await getSession()
-  if (!session || session.role !== 'ADMIN') {
+  if (!session) {
     return { message: 'Unauthorized' }
   }
 
@@ -219,6 +220,7 @@ export async function updateSparepart(
       },
     })
     revalidatePath('/admin/master/spareparts')
+    revalidatePath('/kasir/sparepart')
     return { success: true, message: 'Sparepart berhasil diperbarui' }
   } catch {
     return { message: 'Gagal memperbarui sparepart' }
@@ -227,7 +229,7 @@ export async function updateSparepart(
 
 export async function deleteSparepart(id: string) {
   const session = await getSession()
-  if (!session || session.role !== 'ADMIN') {
+  if (!session) {
     return { message: 'Unauthorized' }
   }
 
@@ -238,6 +240,7 @@ export async function deleteSparepart(id: string) {
       data: { isActive: false },
     })
     revalidatePath('/admin/master/spareparts')
+    revalidatePath('/kasir/sparepart')
     return { success: true, message: 'Sparepart berhasil dinonaktifkan' }
   } catch {
     return { message: 'Gagal menonaktifkan sparepart' }

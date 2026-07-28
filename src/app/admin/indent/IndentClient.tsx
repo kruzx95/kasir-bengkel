@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { usePathname } from 'next/navigation'
 import Table from '@/components/ui/Table'
 import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
@@ -38,6 +39,8 @@ const statusLabel: Record<string, string> = {
 
 export default function IndentClient({ initialData }: IndentClientProps) {
   const [statusFilter, setStatusFilter] = useState('')
+  const pathname = usePathname()
+  const base = pathname.startsWith('/kasir') ? '/kasir' : '/admin'
   const today = new Date()
 
   const filtered = initialData.filter((r) =>
@@ -130,7 +133,7 @@ export default function IndentClient({ initialData }: IndentClientProps) {
             </button>
           </Link>
           {row.status !== 'RECEIVED' ? (
-            <Link href={`/admin/indent/${row.id}/terima`}>
+            <Link href={`${base}/indent/${row.id}/terima`}>
               <Button size="sm" variant="outline">
                 Terima Barang
               </Button>
@@ -158,7 +161,7 @@ export default function IndentClient({ initialData }: IndentClientProps) {
             onChange={(e) => setStatusFilter(e.target.value)}
           />
         </div>
-        <Link href="/admin/indent/baru">
+        <Link href={`${base}/indent/baru`}>
           <Button icon={Plus}>Buat Pesanan Indent</Button>
         </Link>
       </div>

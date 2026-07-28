@@ -33,7 +33,7 @@ export type IndentPayload = z.infer<typeof indentSchema>
 export async function createIndentOrder(payload: IndentPayload) {
   try {
     const session = await getSession()
-    if (!session || session.role !== 'ADMIN') {
+    if (!session) {
       return { success: false, message: 'Unauthorized' }
     }
 
@@ -98,6 +98,10 @@ export async function createIndentOrder(payload: IndentPayload) {
     })
 
     revalidatePath('/admin/indent')
+    revalidatePath('/kasir/indent')
+    revalidatePath('/admin/restock')
+    revalidatePath('/kasir/restock')
+    revalidatePath('/admin/master/spareparts')
     return { success: true, message: 'Pesanan indent berhasil disimpan' }
   } catch (error: unknown) {
     console.error('Create Indent Error:', error)
@@ -156,7 +160,7 @@ export async function getIndentOrders(
 ) {
   try {
     const session = await getSession()
-    if (!session || session.role !== 'ADMIN') return []
+    if (!session) return []
 
     return await prisma.indentOrder.findMany({
       where: {
@@ -184,7 +188,7 @@ export async function getIndentOrders(
 export async function getIndentOrderById(id: string) {
   try {
     const session = await getSession()
-    if (!session || session.role !== 'ADMIN') return null
+    if (!session) return null
 
     return await prisma.indentOrder.findUnique({
       where: { id },
@@ -225,7 +229,7 @@ export type ReceiveIndentPayload = z.infer<typeof receiveSchema>
 export async function receiveIndentOrder(payload: ReceiveIndentPayload) {
   try {
     const session = await getSession()
-    if (!session || session.role !== 'ADMIN') {
+    if (!session) {
       return { success: false, message: 'Unauthorized' }
     }
 
@@ -317,7 +321,9 @@ export async function receiveIndentOrder(payload: ReceiveIndentPayload) {
     })
 
     revalidatePath('/admin/indent')
+    revalidatePath('/kasir/indent')
     revalidatePath('/admin/restock')
+    revalidatePath('/kasir/restock')
     revalidatePath('/admin/master/spareparts')
     return { success: true, message: 'Penerimaan barang berhasil dicatat' }
   } catch (error) {

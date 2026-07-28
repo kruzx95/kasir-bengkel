@@ -2,22 +2,20 @@ import { getRestockDetails } from '@/actions/restock'
 import { getSession } from '@/lib/session'
 import { redirect, notFound } from 'next/navigation'
 import Header from '@/components/layout/Header'
-import RestockDetailClient from './RestockDetailClient'
+import RestockDetailClient from '@/app/admin/restock/[id]/RestockDetailClient'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
   title: 'Detail Barang Masuk',
 }
 
-export default async function RestockDetailPage({
+export default async function KasirRestockDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>
 }) {
   const session = await getSession()
-  if (!session || session.role !== 'ADMIN') {
-    redirect('/login')
-  }
+  if (!session || session.role !== 'KASIR') redirect('/login')
 
   const { id } = await params
   const restock = await getRestockDetails(id)

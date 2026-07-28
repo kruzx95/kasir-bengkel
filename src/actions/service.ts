@@ -45,7 +45,7 @@ export async function createService(
   formData: FormData
 ): Promise<ServiceState> {
   const session = await getSession()
-  if (!session || session.role !== 'ADMIN') {
+  if (!session) {
     return { message: 'Unauthorized' }
   }
 
@@ -78,6 +78,7 @@ export async function createService(
     })
 
     revalidatePath('/admin/master/services')
+    revalidatePath('/kasir/jasa-servis')
     return { success: true, message: `Jasa servis berhasil ditambahkan ke ${branches.length} cabang` }
   } catch {
     return { message: 'Gagal menambahkan jasa servis' }
@@ -90,7 +91,7 @@ export async function updateService(
   formData: FormData
 ): Promise<ServiceState> {
   const session = await getSession()
-  if (!session || session.role !== 'ADMIN') {
+  if (!session) {
     return { message: 'Unauthorized' }
   }
 
@@ -117,6 +118,7 @@ export async function updateService(
       },
     })
     revalidatePath('/admin/master/services')
+    revalidatePath('/kasir/jasa-servis')
     return { success: true, message: 'Jasa servis berhasil diperbarui' }
   } catch {
     return { message: 'Gagal memperbarui jasa servis' }
@@ -125,7 +127,7 @@ export async function updateService(
 
 export async function deleteService(id: string) {
   const session = await getSession()
-  if (!session || session.role !== 'ADMIN') {
+  if (!session) {
     return { message: 'Unauthorized' }
   }
 
@@ -136,6 +138,7 @@ export async function deleteService(id: string) {
       data: { isActive: false },
     })
     revalidatePath('/admin/master/services')
+    revalidatePath('/kasir/jasa-servis')
     return { success: true, message: 'Jasa servis berhasil dinonaktifkan' }
   } catch {
     return { message: 'Gagal menonaktifkan jasa servis' }

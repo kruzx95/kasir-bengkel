@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 export default async function AdminNewRestockPage() {
   const session = await getSession()
   if (!session || session.role !== 'ADMIN') {
-    redirect('/kasir')
+    redirect('/login')
   }
 
   const [branches, spareparts] = await Promise.all([
