@@ -67,7 +67,7 @@ interface ItemData {
 }
 
 interface NewTransactionClientProps {
-  customers: { id: string; name: string; plateNumber: string | null; corporateCustomerId: string | null }[]
+  customers: { id: string; name: string; plateNumber: string | null; corporateCustomerId: string | null; odometer: number | null }[]
   services: { id: string; name: string; price: number }[]
   spareparts: { id: string; name: string; sellPrice: number; stock: number; sku: string | null }[]
   mechanics?: { id: string; name: string }[]
@@ -475,8 +475,20 @@ export default function NewTransactionClient({
               ]}
               value={customerId}
               onChange={(e) => {
-                setCustomerId(e.target.value)
+                const selectedId = e.target.value
+                setCustomerId(selectedId)
                 setIsCorporate(false)
+                // Auto-fill odometer from selected customer's registered odometer
+                if (selectedId) {
+                  const customer = customers.find(c => c.id === selectedId)
+                  if (customer?.odometer != null) {
+                    setOdometer(customer.odometer)
+                  } else {
+                    setOdometer('')
+                  }
+                } else {
+                  setOdometer('')
+                }
               }}
             />
 

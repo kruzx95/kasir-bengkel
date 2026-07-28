@@ -2,9 +2,9 @@
 
 import { createContext, useContext, useState, useCallback, useEffect } from 'react'
 import Sidebar from '@/components/layout/Sidebar'
-import Header from '@/components/layout/Header'
 import { getNotifications } from '@/actions/notification'
 import type { NotificationItem } from '@/actions/notification'
+import { NotificationProvider } from './NotificationContext'
 
 interface SidebarContextType {
   openSidebar: () => void
@@ -27,9 +27,9 @@ interface DashboardShellProps {
 export default function DashboardShell({ role, userName, branchName, shopName, children }: DashboardShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-  const [notificationData, setNotificationData] = useState<{ items: NotificationItem[]; count: number }>({ 
-    items: [], 
-    count: 0 
+  const [notificationData, setNotificationData] = useState<{ items: NotificationItem[]; count: number }>({
+    items: [],
+    count: 0
   })
   const openSidebar = useCallback(() => setSidebarOpen(true), [])
 
@@ -47,30 +47,28 @@ export default function DashboardShell({ role, userName, branchName, shopName, c
   }, [])
 
   return (
-    <SidebarContext.Provider value={{ openSidebar }}>
-      <div className="flex min-h-screen bg-background">
-        <Sidebar
-          role={role}
-          userName={userName}
-          branchName={branchName}
-          shopName={shopName}
-          mobileOpen={sidebarOpen}
-          onMobileClose={() => setSidebarOpen(false)}
-          collapsed={sidebarCollapsed}
-          onCollapseChange={setSidebarCollapsed}
-        />
-        <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-[72px]' : 'lg:ml-64'}`}>
-          <Header
-            title={shopName}
-            subtitle={branchName ?? 'Semua Cabang'}
-            openSidebar={openSidebar}
-            notificationData={notificationData}
+    <NotificationProvider value={notificationData}>
+      <SidebarContext.Provider value={{ openSidebar }}>
+        <div className="flex min-h-screen bg-background">
+          <Sidebar
+            role={role}
+            userName={userName}
+            branchName={branchName}
+            shopName={shopName}
+            mobileOpen={sidebarOpen}
+            onMobileClose={() => setSidebarOpen(false)}
+            collapsed={sidebarCollapsed}
+            onCollapseChange={setSidebarCollapsed}
           />
-          <main className="flex-1 w-full min-w-0 overflow-auto">
-            {children}
-          </main>
+          <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-[72px]' : 'lg:ml-64'}`}>
+            <main className="flex-1 w-full min-w-0 overflow-auto">
+              <div className="px-3 sm:px-4 pt-2 sm:pt-3 pb-6 sm:pb-8 max-w-7xl mx-auto">
+                {children}
+              </div>
+            </main>
+          </div>
         </div>
-      </div>
-    </SidebarContext.Provider>
+      </SidebarContext.Provider>
+    </NotificationProvider>
   )
 }

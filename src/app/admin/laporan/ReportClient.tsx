@@ -219,7 +219,11 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
   ]
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 print:space-y-0">
+      <div className="print:hidden">
+        <h1 className="text-2xl font-bold text-slate-900">Laporan</h1>
+        <p className="text-sm text-slate-500">Analisa transaksi, servis, dan pembelian sparepart</p>
+      </div>
 
       {/* Tab Navigation */}
       <div className="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit print:hidden">
@@ -249,7 +253,8 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
 
       {/* ===== TAB: TRANSAKSI ===== */}
       {activeTab === 'transaksi' && (
-        <div className="print:hidden">
+        <div className="print:hidden space-y-8">
+          {/* Filter Card */}
           <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col md:flex-row items-end gap-4">
             <div className="w-full md:w-auto">
               <Input label="Mulai Tanggal" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
@@ -271,6 +276,7 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
             </Button>
           </div>
 
+          {/* Stat Cards */}
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Total Pendapatan</p>
@@ -294,6 +300,7 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
             </div>
           </div>
 
+          {/* Data Table */}
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
             <div className="p-5 border-b border-slate-100 flex items-center justify-between">
               <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
@@ -313,8 +320,9 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
 
       {/* ===== TAB: PEMBELIAN SPAREPART ===== */}
       {activeTab === 'pembelian' && (
-        <>
-          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col md:flex-row items-end gap-4 print:hidden">
+        <div className="print:hidden space-y-8">
+          {/* Filter Card */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col md:flex-row items-end gap-4">
             <div className="w-full md:w-auto">
               <Input label="Mulai Tanggal" type="date" value={buyStartDate} onChange={(e) => setBuyStartDate(e.target.value)} />
             </div>
@@ -336,13 +344,14 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
           </div>
 
           {!buyLoaded ? (
-            <div className="bg-white rounded-2xl border border-slate-200/80 p-12 text-center text-slate-400 print:hidden">
+            <div className="bg-white rounded-2xl border border-slate-200/80 p-12 text-center text-slate-400">
               <ShoppingCart className="w-10 h-10 mx-auto mb-3 opacity-30" />
               <p className="text-sm">Klik tombol Filter untuk menampilkan laporan pembelian sparepart.</p>
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 print:hidden">
+              {/* Stat Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Total Pengeluaran</p>
                   <p className="text-2xl font-black text-slate-900">{formatCurrency(buySummary.total)}</p>
@@ -357,7 +366,8 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
                 </div>
               </div>
 
-              <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden print:hidden">
+              {/* Data Table */}
+              <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
                 <div className="p-5 border-b border-slate-100 flex items-center justify-between">
                   <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                     <ShoppingCart className="w-5 h-5 text-amber-500" />
@@ -479,7 +489,7 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
               </div>
             </>
           )}
-        </>
+        </div>
       )}
     </div>
   )

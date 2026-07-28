@@ -56,7 +56,11 @@ export async function createRestock(payload: RestockPayload) {
               sku: item.sku || null,
               buyPrice: item.buyPrice,
               sellPrice: item.sellPrice || item.buyPrice,
-              stock: 0, // will be incremented below
+              stock: 0,
+              // Barang baru dari input manual langsung tercatat di Master Data Stock Gudang
+              // dengan qty awal = jumlah yang diinput di PO. Stok ini akan dimindahkan ke
+              // toko via menu Stock Transfer (sesuai alur double-stock gudang/toko).
+              warehouseStock: item.quantity,
             }
           })
           actualSparepartId = newSp.id
@@ -94,7 +98,9 @@ export async function createRestock(payload: RestockPayload) {
 
     revalidatePath('/admin/restock')
     revalidatePath('/admin/master/spareparts')
-    return { success: true, message: 'Barang masuk berhasil dicatat' }
+    revalidatePath('/admin/stock-gudang')
+    revalidatePath('/admin/stock-toko')
+    return { success: true, message: 'Barang masuk berhasil dicatat. Barang baru akan tampil di Master Data Stock Gudang dengan qty sesuai input PO.' }
   } catch (error) {
     console.error('Create Restock Error:', error)
     return { success: false, message: 'Gagal menyimpan barang masuk' }

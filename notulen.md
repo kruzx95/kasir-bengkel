@@ -1,10 +1,10 @@
 Notulen 24 juli
--ketika input transaksi, odometer otomatis tampil (buat logika sync terbaru)
--odometer tidak tampil di nota
+-ketika input transaksi, odometer otomatis tampil (buat logika sync terbaru) (DONE)
+-odometer tidak tampil di nota (DONE)
 -revisi nama cabang di nota (done) 
 -kasir harus punya fitur preview nita seperti admin (done)
 -buat stock gudang (DONE - 27 Juli 2026)
--input nama barang manual ketika input po baru
+-input nama barang manual ketika input po baru (done)
 -kenaikan harga di input po baru (beri tanda alret untuk barang yg naik harga)
 -fix filter cabang tidak muncul setelah input po
 -input po masuk ny ke stock gudang (DONE - 27 Juli 2026)

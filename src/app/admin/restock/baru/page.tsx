@@ -1,4 +1,3 @@
-import Header from '@/components/layout/Header'
 import NewRestockClient from './NewRestockClient'
 import { getBranches } from '@/actions/branch'
 import { getSpareparts } from '@/actions/sparepart'
@@ -7,7 +6,7 @@ import { redirect } from 'next/navigation'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Catat Barang Masuk',
+  title: 'Purchase Order Baru',
 }
 
 export default async function AdminNewRestockPage() {
@@ -22,14 +21,6 @@ export default async function AdminNewRestockPage() {
   ])
 
   return (
-    <>
-      <Header
-        title="Catat Barang Masuk"
-        subtitle="Input PO baru untuk menambah stok sparepart di cabang"
-      />
-      <div className="p-4 sm:p-6 animate-fade-in max-w-5xl mx-auto">
-        <NewRestockClient branches={branches} spareparts={spareparts} />
-      </div>
-    </>
+    <NewRestockClient branches={branches} spareparts={spareparts} />
   )
 }

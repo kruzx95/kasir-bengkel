@@ -130,6 +130,7 @@ export async function createTransaction(payload: TransactionPayload): Promise<Tr
           total,
           paymentMethod: data.paymentMethod,
           notes: data.notes,
+          odometer: data.odometer ?? null,
           transactionDate: new Date(),
           items: {
             create: data.items.map((item) => ({

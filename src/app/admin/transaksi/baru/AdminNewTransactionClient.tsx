@@ -82,7 +82,8 @@ export default function AdminNewTransactionClient({ branches, preloadedData }: A
             id: c.id, 
             name: c.name, 
             plateNumber: c.plateNumber, 
-            corporateCustomerId: c.corporateCustomerId ?? null 
+            corporateCustomerId: c.corporateCustomerId ?? null,
+            odometer: c.odometer ?? null
           }))}
           services={data.services.filter(s => s.isActive).map(s => ({ 
             id: s.id, 
