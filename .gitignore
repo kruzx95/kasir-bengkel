@@ -59,12 +59,14 @@ next-env.d.ts
 # dokumentasi internal / catatan pengembangan
 AGENTS.md
 FITUR.md
-implementation_plan.md
+implementation_plan*.md
 kiro-pertama.md
 kiro-kedua.md
 progress_report.md
 CREDENTIALS.md
 TEKNOLOGI.md
+BLUEPRINT_KORPORAT.md
+korporat_fix_list.md
 
 # log files
 *.log
@@ -74,6 +76,7 @@ TEKNOLOGI.md
 Thumbs.db
 .DS_Store
 
-# md filess
+# docs directory
 /docs/
+docs/
 
