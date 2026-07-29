@@ -33,9 +33,10 @@ interface AdminCustomersClientProps {
   branches: { id: string; name: string }[]
   initialBranch: string
   totalCount: number
+  corporateList?: Array<{ id: string; name: string }>
 }
 
-export default function AdminCustomersClient({ initialCustomers, branches, initialBranch, totalCount }: AdminCustomersClientProps) {
+export default function AdminCustomersClient({ initialCustomers, branches, initialBranch, totalCount, corporateList }: AdminCustomersClientProps) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -213,6 +214,13 @@ export default function AdminCustomersClient({ initialCustomers, branches, initi
         onClose={handleClose}
         branches={branches}
         editData={editData}
+        isAdmin
+        corporateList={
+          corporateList?.map(c => ({
+            value: c.id,
+            label: c.name,
+          }))
+        }
       />
     </>
   )

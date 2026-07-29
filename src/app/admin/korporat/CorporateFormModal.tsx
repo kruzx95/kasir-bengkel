@@ -1,6 +1,6 @@
 'use client'
 
-import { useActionState, useEffect } from 'react'
+import { useActionState, useEffect, useMemo } from 'react'
 import Modal, { ModalFooter } from '@/components/ui/Modal'
 import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
@@ -30,12 +30,27 @@ interface CorporateData {
 interface CorporateFormModalProps {
   open: boolean
   onClose: () => void
-  branches: Branch[]
+  branches?: Array<{ id: string; code: string; name: string; isActive?: boolean }>
   editData?: CorporateData | null
+  /**
+   * ID cabang user (kasir). Jika diisi, dropdown cabang disembunyikan dan
+   * otomatis terikat ke cabang tsb (kasir hanya boleh buat korporat di cabangnya).
+   */
+  currentBranchId?: string | null
 }
 
-export default function CorporateFormModal({ open, onClose, branches, editData }: CorporateFormModalProps) {
+export default function CorporateFormModal({
+  open,
+  onClose,
+  branches,
+  editData,
+  currentBranchId,
+}: CorporateFormModalProps) {
   const isEditing = !!editData
+
+  // Mode kasir: cabang otomatis terikat ke cabang user, tidak ditampilkan di UI
+  const isKasirMode = !!currentBranchId
+  const lockedBranchId = currentBranchId ?? ''
 
   const createAction = async (state: CorporateState, formData: FormData) =>
     createCorporateCustomer(state, formData)
@@ -52,13 +67,25 @@ export default function CorporateFormModal({ open, onClose, branches, editData }
     if (state?.success) onClose()
   }, [state?.success, onClose])
 
+  // Derive a form key that changes when editData changes (forces form remount/reset)
+  const formKey = useMemo(() => editData?.id ?? 'create', [editData?.id])
+
   const billingOptions = [
     { value: 'WEEKLY', label: 'Mingguan' },
     { value: 'BIWEEKLY', label: 'Dua Mingguan' },
     { value: 'MONTHLY', label: 'Bulanan' },
   ]
 
-  const branchOptions = branches.map(b => ({ value: b.id, label: `${b.name} (${b.code})` }))
+  const branchOptions = useMemo(
+    () => (branches ?? []).map(b => ({ value: b.id, label: `${b.name} (${b.code})` })),
+    [branches]
+  )
+
+  // Default branchId for create mode: prefer first active branch
+  const defaultBranchId =
+    isEditing && editData?.branchId
+      ? editData.branchId
+      : branches?.[0]?.id ?? ''
 
   return (
     <Modal
@@ -117,12 +144,17 @@ export default function CorporateFormModal({ open, onClose, branches, editData }
               options={billingOptions}
               defaultValue={editData?.billingCycle || 'MONTHLY'}
             />
-            <Select
-              name="branchId" label="Cabang" required
-              options={branchOptions}
-              placeholder="Pilih cabang..."
-              defaultValue={editData?.branchId ?? ''}
-            />
+            {isKasirMode ? (
+              <input type="hidden" name="branchId" value={lockedBranchId} />
+            ) : (
+              <Select
+                key={`branch-${formKey}`}
+                name="branchId" label="Cabang" required
+                options={branchOptions}
+                placeholder="Pilih cabang..."
+                defaultValue={defaultBranchId}
+              />
+            )}
           </div>
         </div>
 
@@ -147,7 +179,12 @@ export default function CorporateFormModal({ open, onClose, branches, editData }
 
         <ModalFooter>
           <Button type="button" variant="outline" onClick={onClose}>Batal</Button>
-          <Button type="submit" loading={pending} icon={isEditing ? Save : Plus}>
+          <Button
+            type="submit"
+            loading={pending}
+            disabled={!isKasirMode && branchOptions.length === 0}
+            icon={isEditing ? Save : Plus}
+          >
             {isEditing ? 'Simpan Perubahan' : 'Tambah Korporat'}
           </Button>
         </ModalFooter>

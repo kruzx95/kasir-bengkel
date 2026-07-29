@@ -3,11 +3,12 @@
 import { useState, useTransition, useMemo } from 'react'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
-import Badge from '@/components/ui/Badge'
 import Table from '@/components/ui/Table'
-import { getCorporateBilling, settleCorporateBilling, assignCustomerToCorporate } from '@/actions/corporate'
+import { getCorporateBilling, settleCorporateBilling, assignCustomerToCorporate, createCorporatePayment, type CreatePaymentInput } from '@/actions/corporate'
 import { formatCurrency } from '@/lib/utils'
-import { Filter, CheckCircle, Users, Printer, UserPlus, UserMinus } from 'lucide-react'
+import { Filter, CheckCircle, Users, Printer, UserPlus, UserMinus, Wallet, History } from 'lucide-react'
+import PaymentModal from './PaymentModal'
+import { getCorporatePaymentHistory, voidCorporatePayment } from '@/actions/corporate'
 
 interface CorporateData {
   id: string
@@ -15,6 +16,7 @@ interface CorporateData {
   billingCycle: string
   branch: { id: string; name: string }
   customers: { id: string; name: string; plateNumber: string | null }[]
+  hideServiceOnInvoice?: boolean
 }
 
 interface BillingCustomer {
@@ -37,12 +39,58 @@ interface BillingRow {
   customer?: BillingCustomer | null
   items: BillingItem[]
   total: number
+  paidAmount: number
+  remaining: number
   branch: { name: string }
 }
 
 interface CorporateBillingData {
   grandTotal: number
+  totalPaid: number
+  totalRemaining: number
   transactions: BillingRow[]
+  corporate: { id: string; name: string; billingCycle: string; branch: { id: string; name: string }; hideServiceOnInvoice?: boolean }
+  startDate: Date
+  endDate: Date
+}
+
+// Transform raw response from getCorporateBilling to our local type
+function transformBillingData(data: {
+  corporate: {
+    id: string
+    name: string
+    billingCycle: string
+    branch: { id: string; name: string }
+    hideServiceOnInvoice?: boolean
+  }
+  transactions: Array<{
+    id: string
+    invoiceNumber: string
+    transactionDate: string | Date
+    customer: { name: string; plateNumber: string | null } | null
+    items: BillingItem[]
+    total: number
+    paidAmount: number
+    branch: { name: string }
+  }>
+  grandTotal: number
+  totalPaid: number
+  totalRemaining: number
+  startDate: Date
+  endDate: Date
+}): CorporateBillingData {
+  return {
+    corporate: data.corporate,
+    transactions: data.transactions.map(t => ({
+      ...t,
+      remaining: Math.max(0, t.total - (t.paidAmount || 0)),
+    })),
+    grandTotal: data.grandTotal,
+    totalPaid: data.totalPaid,
+    totalRemaining: data.totalRemaining,
+    startDate: data.startDate,
+    endDate: data.endDate,
+  }
 }
 
 interface TagihanClientProps {
@@ -52,7 +100,9 @@ interface TagihanClientProps {
 
 export default function TagihanClient({ corporate, allCustomers }: TagihanClientProps) {
   const [isPending, startTransition] = useTransition()
-  const [activeTab, setActiveTab] = useState<'tagihan' | 'kendaraan'>('tagihan')
+  const [activeTab, setActiveTab] = useState<'tagihan' | 'kendaraan' | 'riwayat'>('tagihan')
+  const [paymentHistory, setPaymentHistory] = useState<Awaited<ReturnType<typeof getCorporatePaymentHistory>> | null>(null)
+  const [historyLoaded, setHistoryLoaded] = useState(false)
 
   const todayStr = new Date().toISOString().slice(0, 10)
   const firstDayStr = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10)
@@ -64,23 +114,50 @@ export default function TagihanClient({ corporate, allCustomers }: TagihanClient
   const [settleMsg, setSettleMsg] = useState<string | null>(null)
   const [assigningId, setAssigningId] = useState<string | null>(null)
 
+  // Payment modal state
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false)
+
   const handleFilter = () => {
     startTransition(async () => {
       const res = await getCorporateBilling(corporate.id, startDate, endDate)
-      setBillingData(res)
-      setLoaded(true)
+      if (res) {
+        setBillingData(transformBillingData(res))
+        setLoaded(true)
+      }
     })
+  }
+
+  // Load payment history
+  const loadPaymentHistory = () => {
+    startTransition(async () => {
+      const res = await getCorporatePaymentHistory(corporate.id)
+      setPaymentHistory(res)
+      setHistoryLoaded(true)
+    })
+  }
+
+  // Void payment
+  const handleVoidPayment = async (paymentId: string) => {
+    const reason = prompt('Alasan pembatalan (wajib min. 3 karakter):')
+    if (!reason || reason.trim().length < 3) return
+    if (!confirm(`Batalkan pembayaran ini? Transaksi terkait akan dikembalikan.`)) return
+
+    const res = await voidCorporatePayment(paymentId, reason)
+    if (res.success) {
+      loadPaymentHistory()
+    } else {
+      alert(res.message)
+    }
   }
 
   const handleSettle = () => {
     if (!confirm(`Tandai semua tagihan sebagai LUNAS? Tindakan ini tidak bisa dibatalkan.`)) return
     startTransition(async () => {
       const res = await settleCorporateBilling(corporate.id, startDate, endDate)
-      setSettleMsg(res.message || null)
+      setSettleMsg(res.message ?? null)
       if (res.success) {
-        // Refresh billing data
         const updated = await getCorporateBilling(corporate.id, startDate, endDate)
-        setBillingData(updated)
+        if (updated) setBillingData(transformBillingData(updated))
       }
     })
   }
@@ -89,8 +166,39 @@ export default function TagihanClient({ corporate, allCustomers }: TagihanClient
     setAssigningId(customerId)
     await assignCustomerToCorporate(customerId, assign ? corporate.id : null)
     setAssigningId(null)
-    // Reload page to reflect changes
     window.location.reload()
+  }
+
+  // Full settlement
+  const handlePayFull = () => {
+    if (!billingData) return
+    const allocations = billingData.transactions.map(t => ({
+      transactionId: t.id,
+      amount: t.remaining,
+    }))
+    const amount = allocations.reduce((acc: number, a) => acc + a.amount, 0)
+
+    startTransition(async () => {
+      const input: CreatePaymentInput = {
+        corporateCustomerId: corporate.id,
+        amount,
+        paymentMethod: 'CASH',
+        periodStart: startDate,
+        periodEnd: endDate,
+        allocations,
+      }
+      const res = await createCorporatePayment(input)
+      if (res.success) {
+        const updated = await getCorporateBilling(corporate.id, startDate, endDate)
+        if (updated) {
+          setBillingData(transformBillingData(updated))
+          setLoaded(true)
+        }
+        setSettleMsg(res.message)
+      } else {
+        alert(res.message || 'Gagal mencatat pembayaran')
+      }
+    })
   }
 
   const txColumns = [
@@ -122,9 +230,9 @@ export default function TagihanClient({ corporate, allCustomers }: TagihanClient
       key: 'items',
       header: 'Layanan',
       render: (row: BillingRow) => (
-        <div className="space-y-0.5">
+        <div className="space-y-0.5 max-w-[200px]">
           {row.items.slice(0, 2).map((item: BillingItem, i: number) => (
-            <p key={i} className="text-xs text-slate-600">
+            <p key={i} className="text-xs text-slate-600 truncate">
               {item.quantity}x {item.itemName}
             </p>
           ))}
@@ -139,6 +247,24 @@ export default function TagihanClient({ corporate, allCustomers }: TagihanClient
       header: 'Total',
       render: (row: BillingRow) => (
         <span className="text-sm font-bold text-slate-900">{formatCurrency(row.total)}</span>
+      ),
+    },
+    {
+      key: 'paid',
+      header: 'Sudah Dibayar',
+      render: (row: BillingRow) => (
+        <span className={`text-sm font-medium ${row.paidAmount > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
+          {formatCurrency(row.paidAmount)}
+        </span>
+      ),
+    },
+    {
+      key: 'remaining',
+      header: 'Sisa Piutang',
+      render: (row: BillingRow) => (
+        <span className={`text-sm font-bold ${row.remaining > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+          {formatCurrency(row.remaining)}
+        </span>
       ),
     },
   ]
@@ -160,6 +286,22 @@ export default function TagihanClient({ corporate, allCustomers }: TagihanClient
     return Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0]))
   }, [billingData])
 
+  // Prepare payment modal transactions
+  const paymentTransactions = useMemo(() => {
+    if (!billingData?.transactions) return []
+    return billingData.transactions.map(t => ({
+      id: t.id,
+      invoiceNumber: t.invoiceNumber,
+      transactionDate: t.transactionDate,
+      customerName: t.customer?.name || '—',
+      plateNumber: t.customer?.plateNumber || null,
+      total: t.total,
+      paidAmount: t.paidAmount,
+      remaining: t.remaining,
+      items: t.items,
+    }))
+  }, [billingData])
+
   return (
     <div className="space-y-6">
       {/* Tab */}
@@ -179,6 +321,17 @@ export default function TagihanClient({ corporate, allCustomers }: TagihanClient
           }`}
         >
           <Users className="w-4 h-4" /> Kelola Kendaraan
+        </button>
+        <button
+          onClick={() => {
+            setActiveTab('riwayat')
+            if (!historyLoaded) loadPaymentHistory()
+          }}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            activeTab === 'riwayat' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          <History className="w-4 h-4" /> Riwayat Pembayaran
         </button>
       </div>
 
@@ -204,12 +357,20 @@ export default function TagihanClient({ corporate, allCustomers }: TagihanClient
               <>
                 <Button onClick={() => window.print()} variant="outline" icon={Printer}>Cetak</Button>
                 <Button
-                  onClick={handleSettle}
+                  onClick={handlePayFull}
                   loading={isPending}
                   className="bg-emerald-600 hover:bg-emerald-700"
                   icon={CheckCircle}
                 >
-                  Tandai Lunas
+                  Bayar Lunas Penuh
+                </Button>
+                <Button
+                  onClick={() => setPaymentModalOpen(true)}
+                  loading={isPending}
+                  className="bg-blue-600 hover:bg-blue-700"
+                  icon={Wallet}
+                >
+                  Bayar Sebagian
                 </Button>
               </>
             )}
@@ -229,12 +390,12 @@ export default function TagihanClient({ corporate, allCustomers }: TagihanClient
                   <p className="text-2xl font-black text-slate-900">{formatCurrency(billingData?.grandTotal || 0)}</p>
                 </div>
                 <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Jumlah Transaksi</p>
-                  <p className="text-xl font-bold text-violet-600">{billingData?.transactions?.length || 0} Transaksi</p>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Sudah Dibayar</p>
+                  <p className="text-2xl font-black text-emerald-600">{formatCurrency(billingData?.totalPaid || 0)}</p>
                 </div>
                 <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Status</p>
-                  <Badge variant="warning" size="md">Belum Lunas</Badge>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Sisa Piutang</p>
+                  <p className="text-2xl font-black text-red-600">{formatCurrency(billingData?.totalRemaining || 0)}</p>
                 </div>
               </div>
 
@@ -252,7 +413,10 @@ export default function TagihanClient({ corporate, allCustomers }: TagihanClient
                   emptyMessage="Tidak ada tagihan yang belum lunas pada periode ini."
                 />
                 {((billingData?.transactions.length ?? 0) > 0) && (
-                  <div className="p-5 border-t border-slate-200 bg-slate-50 flex justify-end">
+                  <div className="p-5 border-t border-slate-200 bg-slate-50 flex justify-between items-center">
+                    <div className="text-sm text-slate-500">
+                      {billingData.transactions.length} transaksi
+                    </div>
                     <div className="text-right">
                       <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Grand Total</p>
                       <p className="text-2xl font-black text-slate-900">{formatCurrency(billingData?.grandTotal || 0)}</p>
@@ -422,6 +586,116 @@ export default function TagihanClient({ corporate, allCustomers }: TagihanClient
           </div>
         </div>
       )}
+
+      {/* ===== TAB RIWAYAT PEMBAYARAN ===== */}
+      {activeTab === 'riwayat' && (
+        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+          <div className="p-5 border-b border-slate-100">
+            <h3 className="font-bold text-slate-900 flex items-center gap-2">
+              <History className="w-5 h-5 text-slate-500" />
+              Riwayat Pembayaran
+            </h3>
+          </div>
+          {!historyLoaded ? (
+            <div className="p-12 text-center text-slate-400">Memuat riwayat pembayaran...</div>
+          ) : !paymentHistory || paymentHistory.length === 0 ? (
+            <div className="p-12 text-center text-slate-400">
+              <History className="w-10 h-10 mx-auto mb-3 opacity-30" />
+              <p className="text-sm">Belum ada riwayat pembayaran untuk perusahaan ini.</p>
+            </div>
+          ) : (
+            <Table
+              columns={[
+                {
+                  key: 'paidAt',
+                  header: 'Tanggal Bayar',
+                  render: (row: any) => (
+                    <p className="text-sm font-medium text-slate-900">
+                      {new Date(row.paidAt).toLocaleDateString('id-ID', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                      })}
+                    </p>
+                  ),
+                },
+                {
+                  key: 'amount',
+                  header: 'Jumlah',
+                  render: (row: any) => (
+                    <span className="text-sm font-bold text-emerald-600">{formatCurrency(row.amount)}</span>
+                  ),
+                },
+                {
+                  key: 'method',
+                  header: 'Metode',
+                  render: (row: any) => (
+                    <span className="text-sm text-slate-700">{row.paymentMethod}</span>
+                  ),
+                },
+                {
+                  key: 'period',
+                  header: 'Periode',
+                  render: (row: any) => (
+                    <p className="text-xs text-slate-500">
+                      {new Date(row.periodStart).toLocaleDateString('id-ID', { month: 'short', year: 'numeric' })} —{' '}
+                      {new Date(row.periodEnd).toLocaleDateString('id-ID', { month: 'short', year: 'numeric' })}
+                    </p>
+                  ),
+                },
+                {
+                  key: 'createdBy',
+                  header: 'Admin',
+                  render: (row: any) => (
+                    <p className="text-xs text-slate-600">{row.createdBy.name}</p>
+                  ),
+                },
+                {
+                  key: 'actions',
+                  header: 'Aksi',
+                  render: (row: any) => (
+                    <div className="flex gap-2">
+                      <a
+                        href={`/admin/korporat/${corporate.id}/pembayaran/${row.id}`}
+                        className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                      >
+                        Lihat Bukti
+                      </a>
+                      {!row.voidedAt && (
+                        <button
+                          onClick={() => handleVoidPayment(row.id)}
+                          className="text-xs text-red-500 hover:text-red-700 font-medium"
+                        >
+                          Batalkan
+                        </button>
+                      )}
+                    </div>
+                  ),
+                },
+              ]}
+              data={paymentHistory}
+              keyExtractor={(row: any) => row.id}
+              emptyMessage="Tidak ada riwayat pembayaran."
+            />
+          )}
+        </div>
+      )}
+
+      {/* Payment Modal */}
+      <PaymentModal
+        open={paymentModalOpen}
+        onClose={() => setPaymentModalOpen(false)}
+        corporateCustomerId={corporate.id}
+        corporateName={corporate.name}
+        transactions={paymentTransactions}
+        onPaymentSuccess={() => {
+          // Refresh billing data after payment
+          getCorporateBilling(corporate.id, startDate, endDate).then(res => {
+            if (res) setBillingData(transformBillingData(res))
+            setLoaded(true)
+          })
+        }}
+      />
     </div>
   )
 }

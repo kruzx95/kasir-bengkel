@@ -5,6 +5,7 @@ import AdminCustomersClient from './AdminCustomersClient'
 import Pagination from '@/components/ui/Pagination'
 import { prisma } from '@/lib/prisma'
 import type { Metadata } from 'next'
+import { getCorporateCustomers } from '@/actions/corporate'
 
 export const dynamic = 'force-dynamic'
 
@@ -26,9 +27,10 @@ export default async function AdminPelangganPage(
 
   const isSuperAdmin = !session.branchId
 
-  const [result, branches] = await Promise.all([
+  const [result, branches, corporates] = await Promise.all([
     getPaginatedCustomers(page, limit, branchId, search),
-    isSuperAdmin ? prisma.branch.findMany({ where: { isActive: true }, select: { id: true, name: true }, orderBy: { name: 'asc' } }) : Promise.resolve([])
+    isSuperAdmin ? prisma.branch.findMany({ where: { isActive: true }, select: { id: true, name: true }, orderBy: { name: 'asc' } }) : Promise.resolve([]),
+    getCorporateCustomers()
   ])
 
   return (
@@ -44,6 +46,8 @@ export default async function AdminPelangganPage(
           branches={branches}
           totalCount={result.totalCount}
           initialBranch={branchId || ''}
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          corporateList={(corporates as any) || []}
         />
         <Pagination 
           currentPage={result.currentPage}

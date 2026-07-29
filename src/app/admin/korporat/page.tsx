@@ -20,6 +20,9 @@ export default async function KorporatPage() {
     getBranches(),
   ])
 
+  // Debug
+  console.log('🔵 KorporatPage branches (server)', branches, 'count:', branches?.length)
+
   return (
     <>
       <Header
@@ -28,8 +31,8 @@ export default async function KorporatPage() {
       />
       <div className="p-4 sm:p-6 animate-fade-in">
         <KorporatClient
-          initialData={corporates as never}
-          branches={branches as never}
+          initialData={corporates}
+          branches={branches}
           isAdmin={isAdmin(session)}
         />
       </div>

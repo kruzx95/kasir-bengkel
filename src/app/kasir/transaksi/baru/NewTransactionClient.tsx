@@ -131,6 +131,10 @@ export default function NewTransactionClient({
   // Detect if selected customer is corporate
   const selectedCustomer = customers.find(c => c.id === customerId)
   const isSelectedCorporate = !!selectedCustomer?.corporateCustomerId
+
+  // Auto-set isCorporate when customer is corporate (use useMemo derived value instead of setState)
+  // Note: We skip the effect to avoid cascading renders — isCorporate is derived from isSelectedCorporate
+
   const catalog = useMemo(() => {
     const s: ItemData[] = services.map(s => ({ id: s.id, name: s.name, price: s.price, type: 'SERVICE' }))
     const sp: ItemData[] = spareparts.map(sp => ({ 
@@ -211,7 +215,7 @@ export default function NewTransactionClient({
 
     setItems([...items, {
       itemType: 'SERVICE',
-      itemId: 'MANUAL_JASA_' + Date.now(), // Generate a unique ID so it doesn't merge incorrectly, or keep it the same to merge
+      itemId: 'MANUAL_JASA_' + Date.now(),
       itemName: 'Jasa',
       quantity: 1,
       unitPrice: manualJasaPrice
@@ -356,7 +360,7 @@ export default function NewTransactionClient({
                     </div>
                   ) : (
                     <div className="p-4 text-center text-sm text-slate-500">
-                      Tidak ditemukan hasil untuk &quot;{searchQuery}&quot;
+                      Tidak ditemukan hasil untuk {"\"" + searchQuery + "\""}
                     </div>
                   )}
                 </div>
@@ -505,20 +509,21 @@ export default function NewTransactionClient({
               />
             )}
 
-            {/* Corporate billing toggle */}
+            {/* Corporate billing info - auto-detect for corporate customers */}
             {isSelectedCorporate && (
-              <label className="flex items-center gap-3 p-3 bg-violet-50 border border-violet-200 rounded-xl cursor-pointer hover:bg-violet-100 transition-colors">
-                <input
-                  type="checkbox"
-                  checked={isCorporate}
-                  onChange={(e) => setIsCorporate(e.target.checked)}
-                  className="w-4 h-4 accent-violet-600"
-                />
-                <div>
-                  <p className="text-sm font-medium text-violet-900">Tagihan Korporat</p>
-                  <p className="text-xs text-violet-600">Pembayaran akan digabung dengan tagihan perusahaan</p>
+              <div className="p-3 bg-violet-50 border border-violet-200 rounded-xl">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center shrink-0">
+                    <Package className="w-4 h-4 text-violet-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-violet-900">Tagihan Korporat</p>
+                    <p className="text-xs text-violet-600 mt-0.5">
+                      Status: PENDING_CORPORATE (otomatis)
+                    </p>
+                  </div>
                 </div>
-              </label>
+              </div>
             )}
 
             <Select
@@ -547,7 +552,7 @@ export default function NewTransactionClient({
 
           <div className="bg-slate-900 rounded-2xl border border-slate-800 p-6 text-white shadow-xl">
             <h2 className="text-lg font-semibold mb-6 flex items-center gap-2">
-               Ringkasan Pembayaran
+              Ringkasan Pembayaran
             </h2>
             
             <div className="space-y-3 text-sm">

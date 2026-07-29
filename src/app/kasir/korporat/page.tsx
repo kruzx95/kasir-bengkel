@@ -26,6 +26,7 @@ export default async function KasirKorporatPage() {
           initialData={corporates as never}
           branches={[]}
           isAdmin={false}
+          currentBranchId={session.branchId}
         />
       </div>
     </>

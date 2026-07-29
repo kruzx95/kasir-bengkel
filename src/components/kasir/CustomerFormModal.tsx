@@ -1,6 +1,6 @@
 'use client'
 
-import { useActionState, useEffect } from 'react'
+import { useActionState, useEffect, useMemo } from 'react'
 import Modal, { ModalFooter } from '@/components/ui/Modal'
 import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
@@ -21,6 +21,13 @@ interface CustomerData {
   fuelType: string | null
   odometer: number | null
   branchId: string
+  corporateCustomerId?: string | null
+}
+
+interface CorporateCustomer {
+  id: string
+  name: string
+  branch: { name: string }
 }
 
 interface CustomerFormModalProps {
@@ -29,6 +36,8 @@ interface CustomerFormModalProps {
   branchId?: string
   editData?: CustomerData | null
   branches?: { id: string; name: string }[]
+  isAdmin?: boolean
+  corporateList?: Array<{ value: string; label: string }>
 }
 
 export default function CustomerFormModal({
@@ -37,6 +46,8 @@ export default function CustomerFormModal({
   branchId,
   editData,
   branches,
+  isAdmin = false,
+  corporateList,
 }: CustomerFormModalProps) {
   const isEditing = !!editData
 
@@ -63,6 +74,15 @@ export default function CustomerFormModal({
     { value: 'GASOLINE', label: 'Bensin (Gasoline)' },
     { value: 'DIESEL', label: 'Solar (Diesel)' },
   ]
+
+  // Form key to reset when editData changes
+  const formKey = useMemo(() => editData?.id ?? 'create', [editData?.id])
+
+  // Corporate options (from parent or default)
+  const corporateOptions = useMemo(
+    () => [{ value: '', label: '— Individu —' }, ...(corporateList || [])],
+    [corporateList]
+  )
 
   return (
     <Modal
@@ -97,6 +117,16 @@ export default function CustomerFormModal({
             />
           </div>
         ) : null}
+
+        {/* Corporate Customer Dropdown (Admin only or if explicitly enabled) */}
+        {(isAdmin) && (
+          <CorporateCustomerSelect
+            key={`corp-${formKey}`}
+            name="corporateCustomerId"
+            corporateList={corporateOptions}
+            selectedId={editData?.corporateCustomerId || null}
+          />
+        )}
 
         {/* Data Pemilik */}
         <div className="pb-1">
@@ -208,5 +238,35 @@ export default function CustomerFormModal({
         </ModalFooter>
       </form>
     </Modal>
+  )
+}
+
+// ============================================================
+// Corporate Customer Select (internal component)
+// ============================================================
+
+function CorporateCustomerSelect({
+  name,
+  corporateList,
+  selectedId,
+}: {
+  name: string
+  corporateList: Array<{ value: string; label: string }>
+  selectedId: string | null
+}) {
+  return (
+    <div className="mb-4">
+      <Select
+        id={name}
+        name={name}
+        label="Pelanggan Korporat (Opsional)"
+        options={[
+          { value: '', label: '— Individu —' },
+          ...corporateList,
+        ]}
+        defaultValue={selectedId || ''}
+        placeholder="Pilih korporat..."
+      />
+    </div>
   )
 }

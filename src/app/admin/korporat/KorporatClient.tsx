@@ -30,8 +30,13 @@ interface CorporateRow {
 
 interface KorporatClientProps {
   initialData: CorporateRow[]
-  branches: { id: string; code: string; name: string }[]
+  branches: Array<{ id: string; code: string; name: string; isActive?: boolean }>
   isAdmin: boolean
+  /**
+   * Untuk kasir: cabang user yang sedang login. Dipakai agar kasir otomatis
+   * terikat ke cabangnya sendiri (tidak boleh pilih cabang lain).
+   */
+  currentBranchId?: string | null
 }
 
 const cycleLabel: Record<string, string> = {
@@ -40,7 +45,7 @@ const cycleLabel: Record<string, string> = {
   MONTHLY: 'Bulanan',
 }
 
-export default function KorporatClient({ initialData, branches, isAdmin }: KorporatClientProps) {
+export default function KorporatClient({ initialData, branches, isAdmin, currentBranchId }: KorporatClientProps) {
   const [modalOpen, setModalOpen] = useState(false)
   const [editData, setEditData] = useState<CorporateRow | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
@@ -264,6 +269,7 @@ export default function KorporatClient({ initialData, branches, isAdmin }: Korpo
         onClose={handleClose}
         branches={branches}
         editData={editData}
+        currentBranchId={currentBranchId}
       />
     </>
   )
