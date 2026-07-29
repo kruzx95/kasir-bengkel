@@ -452,14 +452,16 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
             <div className="w-full md:w-auto">
               <Input label="Sampai Tanggal" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
             </div>
-            <div className="w-full md:w-64">
-              <Select
-                label="Pilih Cabang"
-                options={[{ label: 'Semua Cabang', value: '' }, ...branches.map(b => ({ label: b.name, value: b.id }))]}
-                value={branchId}
-                onChange={(e) => setBranchId(e.target.value)}
-              />
-            </div>
+            {branches.length > 0 && (
+              <div className="w-full md:w-64">
+                <Select
+                  label="Pilih Cabang"
+                  options={[{ label: 'Semua Cabang', value: '' }, ...branches.map(b => ({ label: b.name, value: b.id }))]}
+                  value={branchId}
+                  onChange={(e) => setBranchId(e.target.value)}
+                />
+              </div>
+            )}
             <Button onClick={handleFilter} loading={isPending} icon={Filter}>Filter</Button>
             <Button onClick={handleExportExcel} variant="outline" icon={Download} disabled={data.length === 0}>
               Ekspor Excel
@@ -519,14 +521,16 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
             <div className="w-full md:w-auto">
               <Input label="Sampai Tanggal" type="date" value={buyEndDate} onChange={(e) => setBuyEndDate(e.target.value)} />
             </div>
-            <div className="w-full md:w-64">
-              <Select
-                label="Pilih Cabang"
-                options={[{ label: 'Semua Cabang', value: '' }, ...branches.map(b => ({ label: b.name, value: b.id }))]}
-                value={buyBranchId}
-                onChange={(e) => setBuyBranchId(e.target.value)}
-              />
-            </div>
+            {branches.length > 0 && (
+              <div className="w-full md:w-64">
+                <Select
+                  label="Pilih Cabang"
+                  options={[{ label: 'Semua Cabang', value: '' }, ...branches.map(b => ({ label: b.name, value: b.id }))]}
+                  value={buyBranchId}
+                  onChange={(e) => setBuyBranchId(e.target.value)}
+                />
+              </div>
+            )}
             <Button onClick={handleBuyFilter} loading={isPending} icon={Filter}>Filter</Button>
             <Button onClick={handlePrintBuy} variant="outline" icon={Printer} disabled={buyData.length === 0}>
               Cetak
@@ -694,14 +698,16 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
               <div className="w-full md:w-auto">
                 <Input label="Sampai Tanggal" type="date" value={indentEndDate} onChange={(e) => setIndentEndDate(e.target.value)} />
               </div>
-              <div className="w-full md:w-64">
-                <Select
-                  label="Pilih Cabang"
-                  options={[{ label: 'Semua Cabang', value: '' }, ...branches.map(b => ({ label: b.name, value: b.id }))]}
-                  value={indentBranchId}
-                  onChange={(e) => setIndentBranchId(e.target.value)}
-                />
-              </div>
+              {branches.length > 0 && (
+                <div className="w-full md:w-64">
+                  <Select
+                    label="Pilih Cabang"
+                    options={[{ label: 'Semua Cabang', value: '' }, ...branches.map(b => ({ label: b.name, value: b.id }))]}
+                    value={indentBranchId}
+                    onChange={(e) => setIndentBranchId(e.target.value)}
+                  />
+                </div>
+              )}
               <div className="w-full md:w-48">
                 <Select
                   label="Tipe Indent"

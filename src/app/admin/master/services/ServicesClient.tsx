@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Table from '@/components/ui/Table'
 import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
@@ -32,6 +33,7 @@ interface ServicesClientProps {
 }
 
 export default function ServicesClient({ services, branches }: ServicesClientProps) {
+  const router = useRouter()
   const [modalOpen, setModalOpen] = useState(false)
   const [importModalOpen, setImportModalOpen] = useState(false)
   const [editData, setEditData] = useState<ServiceRow | null>(null)
@@ -202,6 +204,7 @@ export default function ServicesClient({ services, branches }: ServicesClientPro
         open={importModalOpen}
         onClose={() => setImportModalOpen(false)}
         branches={branches}
+        onSuccess={() => router.refresh()}
       />
     </>
   )

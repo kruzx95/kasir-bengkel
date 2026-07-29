@@ -16,9 +16,10 @@ interface ImportServiceModalProps {
   open: boolean
   onClose: () => void
   branches: Branch[]
+  onSuccess?: () => void
 }
 
-export default function ImportServiceModal({ open, onClose, branches }: ImportServiceModalProps) {
+export default function ImportServiceModal({ open, onClose, branches, onSuccess }: ImportServiceModalProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [file, setFile] = useState<File | null>(null)
   const [branchMode, setBranchMode] = useState('all')
@@ -72,7 +73,11 @@ export default function ImportServiceModal({ open, onClose, branches }: ImportSe
         setResult({ success: false, message: data.error || 'Gagal mengimpor', details: data.details })
       } else {
         setResult({ success: true, message: data.message })
-        setTimeout(() => window.location.reload(), 1500)
+        if (onSuccess) {
+          onSuccess()
+        } else {
+          setTimeout(() => window.location.reload(), 1500)
+        }
       }
     } catch {
       setResult({ success: false, message: 'Terjadi kesalahan jaringan' })

@@ -1,14 +1,16 @@
 'use client'
 
 import { useState, useTransition, useMemo } from 'react'
+import { useRouter } from 'next/navigation'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Table from '@/components/ui/Table'
 import { getCorporateBilling, assignCustomerToCorporate, createCorporatePayment, type CreatePaymentInput } from '@/actions/corporate'
 import { formatCurrency } from '@/lib/utils'
-import { Filter, CheckCircle, Users, Printer, UserPlus, UserMinus, Wallet, History, Car } from 'lucide-react'
+import { Filter, CheckCircle, Users, Printer, UserPlus, UserMinus, Wallet, History, Car, Wrench } from 'lucide-react'
 import PaymentModal from './PaymentModal'
 import VehicleFormModal from './VehicleFormModal'
+import ServiceVehicleModal from './ServiceVehicleModal'
 import { getCorporatePaymentHistory, voidCorporatePayment } from '@/actions/corporate'
 
 interface CorporateData {
@@ -16,8 +18,30 @@ interface CorporateData {
   name: string
   billingCycle: string
   branch: { id: string; name: string }
-  customers: { id: string; name: string; plateNumber: string | null }[]
+  customers: { id: string; name: string; plateNumber: string | null; vehicleBrand?: string | null; vehicleType?: string | null; odometer?: number | null }[]
   hideServiceOnInvoice?: boolean
+}
+
+interface ServiceOption {
+  id: string
+  name: string
+  price: number
+  category?: string | null
+}
+
+interface SparepartOption {
+  id: string
+  name: string
+  sellPrice: number
+  stock: number
+  unit: string
+  sku?: string | null
+  sparepartBrand?: string | null
+}
+
+interface MechanicOption {
+  id: string
+  name: string
 }
 
 interface BillingCustomer {
@@ -98,9 +122,13 @@ interface TagihanClientProps {
   corporate: CorporateData
   allCustomers: { id: string; name: string; plateNumber: string | null; corporateCustomerId?: string | null }[]
   isAdmin?: boolean
+  services?: ServiceOption[]
+  spareparts?: SparepartOption[]
+  mechanics?: MechanicOption[]
 }
 
-export default function TagihanClient({ corporate, allCustomers, isAdmin = false }: TagihanClientProps) {
+export default function TagihanClient({ corporate, allCustomers, isAdmin = false, services = [], spareparts = [], mechanics = [] }: TagihanClientProps) {
+  const router = useRouter()
   const basePath = isAdmin ? '/admin/korporat' : '/kasir/korporat'
   const [isPending, startTransition] = useTransition()
   const [activeTab, setActiveTab] = useState<'tagihan' | 'kendaraan' | 'riwayat'>('tagihan')
@@ -122,6 +150,9 @@ export default function TagihanClient({ corporate, allCustomers, isAdmin = false
 
   // Add vehicle modal state
   const [addVehicleModalOpen, setAddVehicleModalOpen] = useState(false)
+
+  // Service vehicle modal state
+  const [serviceVehicle, setServiceVehicle] = useState<CorporateData['customers'][0] | null>(null)
 
   const handleFilter = () => {
     startTransition(async () => {
@@ -160,7 +191,9 @@ export default function TagihanClient({ corporate, allCustomers, isAdmin = false
     setAssigningId(customerId)
     await assignCustomerToCorporate(customerId, assign ? corporate.id : null)
     setAssigningId(null)
-    window.location.reload()
+    startTransition(() => {
+      router.refresh()
+    })
   }
 
   // Full settlement
@@ -551,12 +584,23 @@ export default function TagihanClient({ corporate, allCustomers, isAdmin = false
                     <p className="text-sm font-medium text-slate-900">{c.name}</p>
                     {c.plateNumber && <p className="text-xs text-slate-400 font-mono">{c.plateNumber}</p>}
                   </div>
-                  <Button
-                    size="sm" variant="ghost" icon={UserMinus}
-                    className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                    loading={assigningId === c.id}
-                    onClick={() => handleAssign(c.id, false)}
-                  />
+                  <div className="flex items-center gap-1">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      icon={Wrench}
+                      className="text-violet-600 border-violet-200 hover:bg-violet-50"
+                      onClick={() => setServiceVehicle(c)}
+                    >
+                      Service
+                    </Button>
+                    <Button
+                      size="sm" variant="ghost" icon={UserMinus}
+                      className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                      loading={assigningId === c.id}
+                      onClick={() => handleAssign(c.id, false)}
+                    />
+                  </div>
                 </div>
               ))}
             </div>
@@ -709,8 +753,32 @@ export default function TagihanClient({ corporate, allCustomers, isAdmin = false
         corporateCustomerId={corporate.id}
         branchId={corporate.branch.id}
         corporateName={corporate.name}
-        onSuccess={() => window.location.reload()}
+        onSuccess={() => {
+          startTransition(() => {
+            router.refresh()
+          })
+        }}
       />
+
+      {/* Service Vehicle Modal */}
+      {serviceVehicle && (
+        <ServiceVehicleModal
+          open={!!serviceVehicle}
+          onClose={() => setServiceVehicle(null)}
+          vehicle={serviceVehicle}
+          corporateCustomerId={corporate.id}
+          branchId={corporate.branch.id}
+          corporateName={corporate.name}
+          services={services}
+          spareparts={spareparts}
+          mechanics={mechanics}
+          onSuccess={() => {
+            startTransition(() => {
+              router.refresh()
+            })
+          }}
+        />
+      )}
     </div>
   )
 }

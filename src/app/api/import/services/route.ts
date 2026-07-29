@@ -1,14 +1,52 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
+import { revalidatePath } from 'next/cache'
 import * as XLSX from 'xlsx'
 
 type ExcelRow = Record<string, unknown>
 
+function parsePrice(value: unknown): number {
+  if (typeof value === 'number') {
+    return isNaN(value) ? 0 : value
+  }
+  if (!value) return 0
+
+  let str = String(value).trim()
+  // Remove currency prefix/suffix like "Rp", "RP", "rp", spaces
+  str = str.replace(/rp/gi, '').trim()
+
+  if (str.includes('.') && str.includes(',')) {
+    if (str.indexOf('.') < str.indexOf(',')) {
+      // Indonesian format 25.000,00 -> 25000.00
+      str = str.replace(/\./g, '').replace(',', '.')
+    } else {
+      // US format 25,000.00 -> 25000.00
+      str = str.replace(/,/g, '')
+    }
+  } else if (str.includes('.')) {
+    const parts = str.split('.')
+    if (parts.length > 2 || (parts.length === 2 && parts[1].length === 3)) {
+      str = str.replace(/\./g, '')
+    }
+  } else if (str.includes(',')) {
+    const parts = str.split(',')
+    if (parts.length > 2 || (parts.length === 2 && parts[1].length === 3)) {
+      str = str.replace(/,/g, '')
+    } else {
+      str = str.replace(',', '.')
+    }
+  }
+
+  const cleaned = str.replace(/[^0-9.]/g, '')
+  const num = parseFloat(cleaned)
+  return isNaN(num) ? 0 : num
+}
+
 export async function POST(request: NextRequest) {
   try {
     const session = await getSession()
-    if (!session || session.role !== 'ADMIN') {
+    if (!session || (session.role !== 'ADMIN' && session.role !== 'KASIR')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -35,7 +73,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'File Excel kosong atau tidak ada data' }, { status: 400 })
     }
 
-    // Normalize header keys
+    // Normalize header keys (lowercase, trim, replace spaces with underscores)
     const normalized = rows.map((row) => {
       const obj: Record<string, unknown> = {}
       for (const key of Object.keys(row)) {
@@ -52,16 +90,42 @@ export async function POST(request: NextRequest) {
       const row = normalized[i]
       const rowNum = i + 2
 
-      const name = String(row['nama'] || row['name'] || '').trim()
+      const name = String(
+        row['nama'] ||
+          row['name'] ||
+          row['nama_jasa'] ||
+          row['nama_servis'] ||
+          row['jasa'] ||
+          row['servis'] ||
+          row['service'] ||
+          row['service_name'] ||
+          ''
+      ).trim()
+
+      const priceRaw =
+        row['harga'] ??
+        row['price'] ??
+        row['harga_jasa'] ??
+        row['harga_servis'] ??
+        row['tarif'] ??
+        row['biaya'] ??
+        row['rate']
+
+      const category =
+        String(row['kategori'] || row['category'] || row['kelompok'] || row['jenis'] || '').trim() || null
+
+      // Skip completely empty rows
+      if (!name && (!priceRaw || priceRaw === '') && !category) {
+        continue
+      }
+
       if (!name) {
         errors.push(`Baris ${rowNum}: kolom "nama" wajib diisi`)
         continue
       }
 
-      const price = parseFloat(
-        String(row['harga'] || row['price'] || '0').replace(/[^0-9.]/g, '')
-      )
-      if (isNaN(price) || price <= 0) {
+      const price = parsePrice(priceRaw)
+      if (price <= 0) {
         errors.push(`Baris ${rowNum}: "harga" wajib diisi dan lebih dari 0`)
         continue
       }
@@ -69,8 +133,12 @@ export async function POST(request: NextRequest) {
       parsed.push({
         name,
         price,
-        category: String(row['kategori'] || row['category'] || '').trim() || null,
+        category,
       })
+    }
+
+    if (parsed.length === 0 && errors.length === 0) {
+      return NextResponse.json({ error: 'Tidak ada data valid yang dapat diimpor' }, { status: 400 })
     }
 
     if (errors.length > 0) {
@@ -79,7 +147,10 @@ export async function POST(request: NextRequest) {
 
     // Determine target branches
     let branches: { id: string }[]
-    if (branchMode === 'all') {
+    if (session.role === 'KASIR' || (session.role === 'ADMIN' && session.branchId)) {
+      if (!session.branchId) return NextResponse.json({ error: 'Cabang user tidak ditemukan' }, { status: 400 })
+      branches = [{ id: session.branchId }]
+    } else if (branchMode === 'all') {
       branches = await prisma.branch.findMany({ where: { isActive: true }, select: { id: true } })
     } else {
       const branch = await prisma.branch.findUnique({ where: { id: branchMode }, select: { id: true } })
@@ -112,6 +183,9 @@ export async function POST(request: NextRequest) {
         }
       }
     }
+
+    revalidatePath('/admin/master/services')
+    revalidatePath('/kasir/jasa-servis')
 
     return NextResponse.json({
       success: true,

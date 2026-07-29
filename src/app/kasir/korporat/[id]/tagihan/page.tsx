@@ -4,6 +4,9 @@ import { getCorporateCustomerById } from '@/actions/corporate'
 import { getSession } from '@/lib/session'
 import { redirect, notFound } from 'next/navigation'
 import { getCustomers } from '@/actions/customer'
+import { getServices } from '@/actions/service'
+import { getSpareparts } from '@/actions/sparepart'
+import { getMechanics } from '@/actions/mechanic'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -18,7 +21,14 @@ export default async function KasirTagihanPage({ params }: { params: Promise<{ i
   const corporate = await getCorporateCustomerById(id)
   if (!corporate) notFound()
 
-  const allCustomers = await getCustomers(corporate.branch.id)
+  const branchId = corporate.branch.id
+
+  const [allCustomers, services, spareparts, mechanics] = await Promise.all([
+    getCustomers(branchId),
+    getServices(branchId),
+    getSpareparts(branchId),
+    getMechanics(branchId),
+  ])
 
   return (
     <>
@@ -27,7 +37,22 @@ export default async function KasirTagihanPage({ params }: { params: Promise<{ i
         subtitle={`Cabang ${corporate.branch.name} · Siklus ${corporate.billingCycle}`}
       />
       <div className="p-4 sm:p-6 animate-fade-in">
-        <TagihanClient corporate={corporate} allCustomers={allCustomers} isAdmin={false} />
+        <TagihanClient
+          corporate={corporate}
+          allCustomers={allCustomers}
+          isAdmin={false}
+          services={services.map(s => ({ id: s.id, name: s.name, price: s.price, category: s.category }))}
+          spareparts={spareparts.map(s => ({
+            id: s.id,
+            name: s.name,
+            sellPrice: s.sellPrice,
+            stock: s.stock,
+            unit: s.unit,
+            sku: s.sku,
+            sparepartBrand: s.sparepartBrand,
+          }))}
+          mechanics={mechanics.map(m => ({ id: m.id, name: m.name }))}
+        />
       </div>
     </>
   )

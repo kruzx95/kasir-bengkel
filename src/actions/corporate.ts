@@ -93,7 +93,7 @@ export async function getCorporateCustomerById(id: string) {
     include: {
       branch: { select: { id: true, name: true } },
       customers: {
-        select: { id: true, name: true, plateNumber: true, vehicleBrand: true, vehicleType: true },
+        select: { id: true, name: true, plateNumber: true, vehicleBrand: true, vehicleType: true, odometer: true },
       },
     },
   })
@@ -204,6 +204,11 @@ export async function assignCustomerToCorporate(customerId: string, corporateCus
       data: { corporateCustomerId },
     })
     revalidatePath('/admin/korporat')
+    revalidatePath('/kasir/korporat')
+    if (corporateCustomerId) {
+      revalidatePath(`/admin/korporat/${corporateCustomerId}/tagihan`)
+      revalidatePath(`/kasir/korporat/${corporateCustomerId}/tagihan`)
+    }
     return { success: true }
   } catch {
     return { success: false, message: 'Gagal mengubah asosiasi pelanggan' }
@@ -648,4 +653,183 @@ export async function settleCorporateBilling(
     periodEnd: endDateStr,
     allocations,
   })
+}
+
+// ============================================
+// CORPORATE SERVICE TRANSACTION (Per Vehicle)
+// ============================================
+
+export type ServiceItem = {
+  itemType: 'SERVICE' | 'SPAREPART'
+  itemId?: string | null
+  itemName: string
+  quantity: number
+  unitPrice: number
+}
+
+export type CorporateServiceInput = {
+  customerId: string
+  corporateCustomerId: string
+  branchId: string
+  mechanicId?: string | null
+  items: ServiceItem[]
+  discount?: number
+  notes?: string | null
+  odometer?: number | null
+}
+
+export type CorporateServiceResult = {
+  success: boolean
+  message?: string
+  invoiceNumber?: string
+  transactionId?: string
+}
+
+/**
+ * Buat transaksi service untuk kendaraan korporat.
+ * Status otomatis PENDING_CORPORATE, stok sparepart berkurang.
+ */
+export async function createCorporateServiceTransaction(
+  input: CorporateServiceInput
+): Promise<CorporateServiceResult> {
+  const session = await getSession()
+  if (!session || !canAccessCorporate(session)) {
+    return { success: false, message: 'Unauthorized' }
+  }
+  const safeSession: SessionPayload = session
+
+  if (!input.items || input.items.length === 0) {
+    return { success: false, message: 'Pilih minimal satu jasa atau sparepart' }
+  }
+
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      // Validate customer belongs to this corporate
+      const customer = await tx.customer.findUnique({
+        where: { id: input.customerId },
+        select: { id: true, corporateCustomerId: true, name: true },
+      })
+      if (!customer || customer.corporateCustomerId !== input.corporateCustomerId) {
+        throw new Error('Kendaraan tidak ditemukan atau bukan bagian dari korporat ini')
+      }
+
+      // Validate sparepart stock
+      for (const item of input.items) {
+        if (item.itemType === 'SPAREPART' && item.itemId && !item.itemId.startsWith('MANUAL_')) {
+          const sp = await tx.sparepart.findUnique({
+            where: { id: item.itemId },
+            select: { stock: true, name: true },
+          })
+          if (!sp || sp.stock < item.quantity) {
+            throw new Error(
+              `Stok ${sp?.name || 'sparepart'} tidak mencukupi (stok: ${sp?.stock ?? 0}, dibutuhkan: ${item.quantity})`
+            )
+          }
+        }
+      }
+
+      // Generate invoice number
+      const branch = await tx.branch.findUnique({
+        where: { id: input.branchId },
+        select: { code: true },
+      })
+      const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '')
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      const countToday = await tx.transaction.count({
+        where: { branchId: input.branchId, transactionDate: { gte: today } },
+      })
+      const sequence = (countToday + 1).toString().padStart(4, '0')
+      const invoiceNumber = `INV-${branch?.code}-${dateStr}-${sequence}`
+
+      // Calculate totals
+      let subtotal = 0
+      let hasService = false
+      let hasSparepart = false
+      for (const item of input.items) {
+        subtotal += item.quantity * item.unitPrice
+        if (item.itemType === 'SERVICE') hasService = true
+        if (item.itemType === 'SPAREPART') hasSparepart = true
+      }
+      const discount = input.discount ?? 0
+      const total = Math.max(0, subtotal - discount)
+
+      let type: 'SERVICE' | 'SPAREPART' | 'MIXED' = 'MIXED'
+      if (hasService && !hasSparepart) type = 'SERVICE'
+      if (!hasService && hasSparepart) type = 'SPAREPART'
+
+      // Create transaction
+      const transaction = await tx.transaction.create({
+        data: {
+          branchId: input.branchId,
+          userId: safeSession.userId,
+          customerId: input.customerId,
+          mechanicId: input.mechanicId || null,
+          invoiceNumber,
+          type,
+          status: 'PENDING_CORPORATE',
+          subtotal,
+          discount,
+          total,
+          paymentMethod: 'CASH',
+          notes: input.notes || null,
+          odometer: input.odometer ?? null,
+          transactionDate: new Date(),
+          items: {
+            create: input.items.map((item) => ({
+              itemType: item.itemType,
+              serviceId:
+                item.itemType === 'SERVICE' && item.itemId && !item.itemId.startsWith('MANUAL_')
+                  ? item.itemId
+                  : null,
+              sparepartId:
+                item.itemType === 'SPAREPART' && item.itemId && !item.itemId.startsWith('MANUAL_')
+                  ? item.itemId
+                  : null,
+              itemName: item.itemName,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              subtotal: item.quantity * item.unitPrice,
+            })),
+          },
+        },
+      })
+
+      // Deduct sparepart stock
+      for (const item of input.items) {
+        if (item.itemType === 'SPAREPART' && item.itemId && !item.itemId.startsWith('MANUAL_')) {
+          await tx.sparepart.update({
+            where: { id: item.itemId },
+            data: { stock: { decrement: item.quantity } },
+          })
+        }
+      }
+
+      // Update customer odometer
+      if (input.odometer !== undefined && input.odometer !== null) {
+        await tx.customer.update({
+          where: { id: input.customerId },
+          data: { odometer: input.odometer },
+        })
+      }
+
+      return transaction
+    })
+
+    revalidatePath(`/admin/korporat/${input.corporateCustomerId}/tagihan`)
+    revalidatePath(`/kasir/korporat/${input.corporateCustomerId}/tagihan`)
+    revalidatePath('/admin/korporat')
+    revalidatePath('/admin/transaksi')
+    revalidatePath('/kasir/transaksi')
+
+    return {
+      success: true,
+      message: `Nota service berhasil dibuat: ${result.invoiceNumber}`,
+      invoiceNumber: result.invoiceNumber,
+      transactionId: result.id,
+    }
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Gagal membuat transaksi service'
+    return { success: false, message }
+  }
 }

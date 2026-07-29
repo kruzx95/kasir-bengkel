@@ -78,8 +78,27 @@ export default function NewRestockClient({ branches, spareparts }: NewRestockCli
 
   // Filter spareparts by selected branch for the search dropdown
   const branchSpareparts = useMemo(() => {
+    if (!branchId) return spareparts
     return spareparts.filter(sp => sp.branchId === branchId)
   }, [spareparts, branchId])
+
+  const [selectedSparepartId, setSelectedSparepartId] = useState<string | null>(null)
+
+  const manualNameSuggestions = useMemo(() => {
+    if (!quickManualName || quickManualName.trim().length < 2) return []
+    const lowerQ = quickManualName.toLowerCase()
+    return branchSpareparts.filter(sp =>
+      sp.name.toLowerCase().includes(lowerQ) ||
+      (sp.sku && sp.sku.toLowerCase().includes(lowerQ))
+    ).slice(0, 5)
+  }, [quickManualName, branchSpareparts])
+
+  const handleSelectSuggestion = (sp: typeof branchSpareparts[0]) => {
+    setQuickManualName(sp.name)
+    setQuickManualSku(sp.sku || '')
+    setQuickManualBuyPrice(String(sp.buyPrice || 0))
+    setSelectedSparepartId(sp.id)
+  }
 
   const searchResults = useMemo(() => {
     if (!searchQuery) return []
@@ -129,8 +148,8 @@ export default function NewRestockClient({ branches, spareparts }: NewRestockCli
 
     setItems([...items, {
       id: crypto.randomUUID(),
-      sparepartId: null,
-      isNew: true,
+      sparepartId: selectedSparepartId,
+      isNew: !selectedSparepartId,
       name,
       sku: quickManualSku.trim() || null,
       buyPrice,
@@ -144,6 +163,7 @@ export default function NewRestockClient({ branches, spareparts }: NewRestockCli
     setQuickManualQty('1')
     setQuickManualBuyPrice('')
     setQuickManualSellPrice('')
+    setSelectedSparepartId(null)
     setError(null)
   }
 
@@ -248,16 +268,18 @@ export default function NewRestockClient({ branches, spareparts }: NewRestockCli
 
         {showPoInfo && (
           <div className="p-5 border-t border-slate-100 bg-slate-50/30 space-y-4 animate-in slide-in-from-top-2 duration-200">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Select
-                label="Cabang Penerima"
-                options={branches.map(b => ({ label: b.name, value: b.id }))}
-                value={branchId}
-                onChange={(e) => {
-                  setBranchId(e.target.value)
-                  setItems([]) // Reset items if branch changes because spareparts are branch specific
-                }}
-              />
+            <div className={`grid grid-cols-1 ${branches.length > 0 ? 'md:grid-cols-3' : 'md:grid-cols-2'} gap-4`}>
+              {branches.length > 0 && (
+                <Select
+                  label="Cabang Penerima"
+                  options={branches.map(b => ({ label: b.name, value: b.id }))}
+                  value={branchId}
+                  onChange={(e) => {
+                    setBranchId(e.target.value)
+                    setItems([]) // Reset items if branch changes because spareparts are branch specific
+                  }}
+                />
+              )}
               <Input
                 label="Nama Supplier"
                 placeholder="Contoh: PT. Astra Honda Motor"
@@ -350,7 +372,7 @@ export default function NewRestockClient({ branches, spareparts }: NewRestockCli
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-          <div className="md:col-span-4">
+          <div className="md:col-span-4 relative">
             <label className="block text-xs font-medium text-slate-700 mb-1">
               Nama Barang <span className="text-red-500">*</span>
             </label>
@@ -359,9 +381,39 @@ export default function NewRestockClient({ branches, spareparts }: NewRestockCli
               type="text"
               placeholder="Contoh: Kampas Rem Depan Vario LED"
               value={quickManualName}
-              onChange={(e) => setQuickManualName(e.target.value)}
+              onChange={(e) => {
+                setQuickManualName(e.target.value)
+                setSelectedSparepartId(null)
+              }}
               className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all"
             />
+            {manualNameSuggestions.length > 0 && !selectedSparepartId && (
+              <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden max-h-48 overflow-y-auto">
+                <div className="p-1.5 bg-slate-50 border-b border-slate-100 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+                  Master Sparepart Ditemukan
+                </div>
+                <div className="divide-y divide-slate-50">
+                  {manualNameSuggestions.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => handleSelectSuggestion(item)}
+                      className="w-full text-left px-3 py-2 hover:bg-emerald-50 flex items-center justify-between group transition-colors"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium text-slate-900 group-hover:text-emerald-700 truncate">
+                          {item.name}
+                        </p>
+                        {item.sku && <p className="text-[10px] text-slate-400">SKU: {item.sku}</p>}
+                      </div>
+                      <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded shrink-0">
+                        Pilih
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
           <div className="md:col-span-2">
             <label className="block text-xs font-medium text-slate-700 mb-1">SKU</label>
