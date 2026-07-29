@@ -27,7 +27,7 @@ export default async function KasirTagihanPage({ params }: { params: Promise<{ i
         subtitle={`Cabang ${corporate.branch.name} · Siklus ${corporate.billingCycle}`}
       />
       <div className="p-4 sm:p-6 animate-fade-in">
-        <TagihanClient corporate={corporate} allCustomers={allCustomers} />
+        <TagihanClient corporate={corporate} allCustomers={allCustomers} isAdmin={false} />
       </div>
     </>
   )

@@ -4,7 +4,7 @@ import { useState, useTransition, useMemo } from 'react'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Table from '@/components/ui/Table'
-import { getCorporateBilling, settleCorporateBilling, assignCustomerToCorporate, createCorporatePayment, type CreatePaymentInput } from '@/actions/corporate'
+import { getCorporateBilling, assignCustomerToCorporate, createCorporatePayment, type CreatePaymentInput } from '@/actions/corporate'
 import { formatCurrency } from '@/lib/utils'
 import { Filter, CheckCircle, Users, Printer, UserPlus, UserMinus, Wallet, History } from 'lucide-react'
 import PaymentModal from './PaymentModal'
@@ -96,9 +96,11 @@ function transformBillingData(data: {
 interface TagihanClientProps {
   corporate: CorporateData
   allCustomers: { id: string; name: string; plateNumber: string | null; corporateCustomerId?: string | null }[]
+  isAdmin?: boolean
 }
 
-export default function TagihanClient({ corporate, allCustomers }: TagihanClientProps) {
+export default function TagihanClient({ corporate, allCustomers, isAdmin = false }: TagihanClientProps) {
+  const basePath = isAdmin ? '/admin/korporat' : '/kasir/korporat'
   const [isPending, startTransition] = useTransition()
   const [activeTab, setActiveTab] = useState<'tagihan' | 'kendaraan' | 'riwayat'>('tagihan')
   const [paymentHistory, setPaymentHistory] = useState<Awaited<ReturnType<typeof getCorporatePaymentHistory>> | null>(null)
@@ -148,18 +150,6 @@ export default function TagihanClient({ corporate, allCustomers }: TagihanClient
     } else {
       alert(res.message)
     }
-  }
-
-  const handleSettle = () => {
-    if (!confirm(`Tandai semua tagihan sebagai LUNAS? Tindakan ini tidak bisa dibatalkan.`)) return
-    startTransition(async () => {
-      const res = await settleCorporateBilling(corporate.id, startDate, endDate)
-      setSettleMsg(res.message ?? null)
-      if (res.success) {
-        const updated = await getCorporateBilling(corporate.id, startDate, endDate)
-        if (updated) setBillingData(transformBillingData(updated))
-      }
-    })
   }
 
   const handleAssign = async (customerId: string, assign: boolean) => {
@@ -471,7 +461,9 @@ export default function TagihanClient({ corporate, allCustomers }: TagihanClient
                               <td className="py-3 px-1 align-top" colSpan={4}>
                                 <table className="w-full">
                                   <tbody>
-                                    {tx.items.map((item, i) => (
+                                    {tx.items
+                                      .filter(item => (billingData?.corporate?.hideServiceOnInvoice ?? corporate.hideServiceOnInvoice) ? item.itemType !== 'SERVICE' : true)
+                                      .map((item, i) => (
                                       <tr key={i}>
                                         <td className="w-1/2 py-1">{item.itemName}</td>
                                         <td className="w-1/6 py-1 text-center">{item.quantity}</td>
@@ -656,12 +648,12 @@ export default function TagihanClient({ corporate, allCustomers }: TagihanClient
                   render: (row: any) => (
                     <div className="flex gap-2">
                       <a
-                        href={`/admin/korporat/${corporate.id}/pembayaran/${row.id}`}
+                        href={`${basePath}/${corporate.id}/pembayaran/${row.id}`}
                         className="text-xs text-blue-600 hover:text-blue-800 font-medium"
                       >
                         Lihat Bukti
                       </a>
-                      {!row.voidedAt && (
+                      {!row.voidedAt && isAdmin && (
                         <button
                           onClick={() => handleVoidPayment(row.id)}
                           className="text-xs text-red-500 hover:text-red-700 font-medium"

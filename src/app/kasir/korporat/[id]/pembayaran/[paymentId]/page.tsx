@@ -1,7 +1,7 @@
 import { getCorporatePaymentById } from '@/actions/corporate'
 import { getSession, canAccessCorporate } from '@/lib/session'
 import { redirect, notFound } from 'next/navigation'
-import PaymentReceipt from './PaymentReceipt'
+import PaymentReceipt from '@/app/admin/korporat/[id]/pembayaran/[paymentId]/PaymentReceipt'
 import type { Metadata } from 'next'
 
 interface Props {
@@ -12,7 +12,7 @@ export const metadata: Metadata = {
   title: 'Bukti Pembayaran Korporat',
 }
 
-export default async function PaymentReceiptPage({ params }: Props) {
+export default async function KasirPaymentReceiptPage({ params }: Props) {
   const session = await getSession()
   if (!session || !canAccessCorporate(session)) redirect('/login')
 
