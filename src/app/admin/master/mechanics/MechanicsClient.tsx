@@ -20,9 +20,10 @@ interface Mechanic {
 interface MechanicsClientProps {
   initialData: Mechanic[]
   branches: { id: string; name: string }[]
+  currentBranchId?: string | null
 }
 
-export default function MechanicsClient({ initialData, branches }: MechanicsClientProps) {
+export default function MechanicsClient({ initialData, branches, currentBranchId }: MechanicsClientProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedMechanic, setSelectedMechanic] = useState<Mechanic | null>(null)
@@ -125,6 +126,7 @@ export default function MechanicsClient({ initialData, branches }: MechanicsClie
         onClose={() => setIsModalOpen(false)}
         mechanic={selectedMechanic}
         branches={branches}
+        currentBranchId={currentBranchId}
       />
     </>
   )

@@ -22,7 +22,11 @@ export default async function KasirMekanikPage() {
         subtitle="Kelola data mekanik dan teknisi cabang Anda"
       />
       <div className="p-4 sm:p-6 animate-fade-in">
-        <MechanicsClient initialData={mechanics} branches={[]} />
+        <MechanicsClient
+          initialData={mechanics}
+          branches={[]}
+          currentBranchId={session.branchId}
+        />
       </div>
     </>
   )

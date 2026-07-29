@@ -26,7 +26,11 @@ export default async function MasterMechanicsPage() {
         subtitle="Kelola data mekanik dan teknisi untuk setiap cabang"
       />
       <div className="p-4 sm:p-6 animate-fade-in">
-        <MechanicsClient initialData={mechanics} branches={branches} />
+        <MechanicsClient
+          initialData={mechanics}
+          branches={branches}
+          currentBranchId={session.branchId}
+        />
       </div>
     </>
   )
