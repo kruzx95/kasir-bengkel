@@ -1,3 +1,5 @@
+import { getSession } from '@/lib/session'
+import { redirect } from 'next/navigation'
 import Header from '@/components/layout/Header'
 import { getBranches } from '@/actions/branch'
 import { getShopName } from '@/actions/settings'
@@ -9,6 +11,9 @@ export const metadata: Metadata = {
 }
 
 export default async function CabangPage() {
+  const session = await getSession()
+  if (!session || session.role !== 'ADMIN') redirect('/kasir')
+
   const [branches, shopName] = await Promise.all([
     getBranches(),
     getShopName(),
