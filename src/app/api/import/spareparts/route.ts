@@ -8,7 +8,7 @@ type ExcelRow = Record<string, unknown>
 export async function POST(request: NextRequest) {
   try {
     const session = await getSession()
-    if (!session || session.role !== 'ADMIN') {
+    if (!session || (session.role !== 'ADMIN' && session.role !== 'KASIR')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -100,7 +100,10 @@ export async function POST(request: NextRequest) {
 
     // Determine target branches
     let branches: { id: string }[]
-    if (branchMode === 'all') {
+    if (session.role === 'KASIR' || (session.role === 'ADMIN' && session.branchId)) {
+      if (!session.branchId) return NextResponse.json({ error: 'Cabang user tidak ditemukan' }, { status: 400 })
+      branches = [{ id: session.branchId }]
+    } else if (branchMode === 'all') {
       branches = await prisma.branch.findMany({ where: { isActive: true }, select: { id: true } })
     } else {
       const branch = await prisma.branch.findUnique({ where: { id: branchMode }, select: { id: true } })

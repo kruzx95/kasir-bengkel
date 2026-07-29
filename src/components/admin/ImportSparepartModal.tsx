@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import Modal, { ModalFooter } from '@/components/ui/Modal'
 import Button from '@/components/ui/Button'
 import Select from '@/components/ui/Select'
@@ -21,9 +21,17 @@ interface ImportSparepartModalProps {
 export default function ImportSparepartModal({ open, onClose, branches }: ImportSparepartModalProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [file, setFile] = useState<File | null>(null)
-  const [branchMode, setBranchMode] = useState('all')
+  const [branchMode, setBranchMode] = useState(branches.length === 1 ? branches[0].id : 'all')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<{ success: boolean; message: string; details?: string[] } | null>(null)
+
+  useEffect(() => {
+    if (branches.length === 1) {
+      setBranchMode(branches[0].id)
+    } else {
+      setBranchMode('all')
+    }
+  }, [branches, open])
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0]
@@ -176,18 +184,20 @@ export default function ImportSparepartModal({ open, onClose, branches }: Import
           <p className="text-xs text-slate-400 mt-2">* wajib diisi</p>
         </div>
 
-        {/* Step 2: Pilih Cabang */}
-        <div>
-          <p className="text-sm font-semibold text-slate-700 mb-2">Langkah 2 — Pilih Cabang Tujuan</p>
-          <Select
-            options={[
-              { label: 'Semua Cabang (import ke semua)', value: 'all' },
-              ...branches.map(b => ({ label: b.name, value: b.id })),
-            ]}
-            value={branchMode}
-            onChange={(e) => setBranchMode(e.target.value)}
-          />
-        </div>
+        {/* Step 2: Pilih Cabang Tujuan */}
+        {branches.length > 1 && (
+          <div>
+            <p className="text-sm font-semibold text-slate-700 mb-2">Langkah 2 — Pilih Cabang Tujuan</p>
+            <Select
+              options={[
+                { label: 'Semua Cabang (import ke semua)', value: 'all' },
+                ...branches.map(b => ({ label: b.name, value: b.id })),
+              ]}
+              value={branchMode}
+              onChange={(e) => setBranchMode(e.target.value)}
+            />
+          </div>
+        )}
 
         {/* Step 3: Upload File */}
         <div>

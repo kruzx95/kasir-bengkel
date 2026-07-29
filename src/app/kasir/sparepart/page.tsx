@@ -36,10 +36,16 @@ export default async function SparepartStockPage(
             id: sp.id,
             name: sp.name,
             sku: sp.sku,
+            sparepartType: sp.sparepartType,
+            sparepartBrand: sp.sparepartBrand,
+            sparepartSize: sp.sparepartSize,
+            buyPrice: sp.buyPrice,
             sellPrice: sp.sellPrice,
             stock: sp.stock,
             unit: sp.unit,
+            branchId: sp.branchId,
           }))}
+          branches={[{ id: session.branchId, code: '', name: session.branchName ?? 'Cabang Anda' }]}
           totalCount={result.totalCount}
         />
         <Pagination 

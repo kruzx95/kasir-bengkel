@@ -75,7 +75,9 @@ export default function SparepartFormModal({
       description={
         isEditing
           ? 'Perbarui data sparepart'
-          : 'Sparepart baru akan otomatis ditambahkan ke semua cabang'
+          : branches.length > 1
+          ? 'Sparepart baru akan otomatis ditambahkan ke semua cabang'
+          : 'Tambah data sparepart baru'
       }
       size="lg"
     >

@@ -3,35 +3,53 @@
 import { useState, useTransition, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import Table from '@/components/ui/Table'
+import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
+import SparepartFormModal from '@/components/admin/SparepartFormModal'
+import ImportSparepartModal from '@/components/admin/ImportSparepartModal'
 import { formatCurrency } from '@/lib/utils'
-import { Package, Search, AlertTriangle } from 'lucide-react'
+import { Package, Search, AlertTriangle, Plus, Upload, Pencil } from 'lucide-react'
+
+interface Branch {
+  id: string
+  code: string
+  name: string
+}
 
 interface SparepartRow {
   id: string
   name: string
   sku: string | null
+  sparepartType?: string | null
+  sparepartBrand?: string | null
+  sparepartSize?: string | null
+  buyPrice?: number
   sellPrice: number
   stock: number
   unit: string
+  branchId?: string
 }
 
 interface StockClientProps {
   initialSpareparts: SparepartRow[]
+  branches: Branch[]
   totalCount: number
 }
 
-export default function StockClient({ initialSpareparts, totalCount }: StockClientProps) {
+export default function StockClient({ initialSpareparts, branches, totalCount }: StockClientProps) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const [isPending, startTransition] = useTransition()
 
+  const [modalOpen, setModalOpen] = useState(false)
+  const [importModalOpen, setImportModalOpen] = useState(false)
+  const [editData, setEditData] = useState<SparepartRow | null>(null)
+
   const initialSearch = searchParams.get('search') || ''
   const [searchQuery, setSearchQuery] = useState(initialSearch)
   const [filter, setFilter] = useState<'all' | 'low' | 'empty'>('all')
 
-  // Simpan searchParams ke ref agar tidak masuk dependency array dan menyebabkan infinite loop
   const searchParamsRef = useRef(searchParams)
   useEffect(() => {
     searchParamsRef.current = searchParams
@@ -54,7 +72,6 @@ export default function StockClient({ initialSpareparts, totalCount }: StockClie
   }, [searchQuery, pathname, router])
 
   const filteredData = initialSpareparts.filter((sp) => {
-    // Stock filter (masih client-side untuk halaman ini)
     const matchesFilter =
       filter === 'all' ||
       (filter === 'low' && sp.stock > 0 && sp.stock <= 5) ||
@@ -69,6 +86,16 @@ export default function StockClient({ initialSpareparts, totalCount }: StockClie
     if (stock === 0) return <Badge variant="danger" size="md">Habis</Badge>
     if (stock <= 5) return <Badge variant="warning" size="md">{stock}</Badge>
     return <Badge variant="success" size="md">{stock}</Badge>
+  }
+
+  const handleEdit = (sp: SparepartRow) => {
+    setEditData(sp)
+    setModalOpen(true)
+  }
+
+  const handleClose = () => {
+    setModalOpen(false)
+    setEditData(null)
   }
 
   const columns = [
@@ -112,6 +139,21 @@ export default function StockClient({ initialSpareparts, totalCount }: StockClie
         </div>
       ),
     },
+    {
+      key: 'actions',
+      header: '',
+      className: 'text-right w-16',
+      render: (row: SparepartRow) => (
+        <div className="flex items-center justify-end">
+          <Button
+            size="sm"
+            variant="ghost"
+            icon={Pencil}
+            onClick={() => handleEdit(row)}
+          />
+        </div>
+      ),
+    },
   ]
 
   return (
@@ -128,42 +170,64 @@ export default function StockClient({ initialSpareparts, totalCount }: StockClie
             {lowStockCount > 0 && (
               <span className="font-semibold text-amber-700">{lowStockCount} item stok menipis</span>
             )}
-            {' — '}Segera hubungi admin untuk restock.
+            {' — '}Segera lakukan restock jika diperlukan.
           </p>
         </div>
       )}
 
-      {/* Search & Filter */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Cari nama atau SKU..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 transition-all duration-200 hover:border-slate-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none"
-          />
+      {/* Search & Filter & Action Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1 max-w-2xl">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Cari nama atau SKU..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 transition-all duration-200 hover:border-slate-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none"
+            />
+          </div>
+
+          <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-xl p-1 shrink-0 self-start sm:self-auto">
+            {[
+              { key: 'all' as const, label: 'Semua' },
+              { key: 'low' as const, label: 'Menipis' },
+              { key: 'empty' as const, label: 'Habis' },
+            ].map((f) => (
+              <button
+                key={f.key}
+                onClick={() => setFilter(f.key)}
+                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 ${
+                  filter === f.key
+                    ? 'bg-primary-600 text-white shadow-sm'
+                    : 'text-slate-500 hover:bg-slate-50'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-xl p-1 shrink-0 self-start sm:self-auto">
-          {[
-            { key: 'all' as const, label: 'Semua' },
-            { key: 'low' as const, label: 'Menipis' },
-            { key: 'empty' as const, label: 'Habis' },
-          ].map((f) => (
-            <button
-              key={f.key}
-              onClick={() => setFilter(f.key)}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 ${
-                filter === f.key
-                  ? 'bg-primary-600 text-white shadow-sm'
-                  : 'text-slate-500 hover:bg-slate-50'
-              }`}
-            >
-              {f.label}
-            </button>
-          ))}
+        {/* Action Buttons for Kasir */}
+        <div className="flex items-center gap-2 shrink-0">
+          <Button
+            variant="outline"
+            icon={Upload}
+            onClick={() => setImportModalOpen(true)}
+          >
+            Import Excel
+          </Button>
+          <Button
+            icon={Plus}
+            onClick={() => {
+              setEditData(null)
+              setModalOpen(true)
+            }}
+          >
+            Tambah Sparepart
+          </Button>
         </div>
       </div>
 
@@ -184,6 +248,22 @@ export default function StockClient({ initialSpareparts, totalCount }: StockClie
           emptyMessage="Tidak ada sparepart yang cocok."
         />
       </div>
+
+      {/* Form Modal */}
+      <SparepartFormModal
+        open={modalOpen}
+        onClose={handleClose}
+        branches={branches}
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        editData={editData as any}
+      />
+
+      {/* Import Modal */}
+      <ImportSparepartModal
+        open={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
+        branches={branches}
+      />
     </>
   )
 }
