@@ -32,9 +32,10 @@ interface CustomersClientProps {
   initialCustomers: CustomerRow[]
   branchId: string
   totalCount: number
+  corporateList?: Array<{ value: string; label: string }>
 }
 
-export default function CustomersClient({ initialCustomers, branchId, totalCount }: CustomersClientProps) {
+export default function CustomersClient({ initialCustomers, branchId, totalCount, corporateList }: CustomersClientProps) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -194,6 +195,7 @@ export default function CustomersClient({ initialCustomers, branchId, totalCount
         onClose={handleClose}
         branchId={branchId}
         editData={editData}
+        corporateList={corporateList}
       />
     </>
   )

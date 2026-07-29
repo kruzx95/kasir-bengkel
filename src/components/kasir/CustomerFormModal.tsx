@@ -118,8 +118,8 @@ export default function CustomerFormModal({
           </div>
         ) : null}
 
-        {/* Corporate Customer Dropdown (Admin only or if explicitly enabled) */}
-        {(isAdmin) && (
+        {/* Corporate Customer Dropdown (Admin or Kasir with corporate options available) */}
+        {(isAdmin || (corporateOptions && corporateOptions.length > 1)) && (
           <CorporateCustomerSelect
             key={`corp-${formKey}`}
             name="corporateCustomerId"

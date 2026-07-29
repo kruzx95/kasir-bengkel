@@ -194,7 +194,7 @@ export default function TagihanClient({ corporate, allCustomers }: TagihanClient
           setBillingData(transformBillingData(updated))
           setLoaded(true)
         }
-        setSettleMsg(res.message)
+        setSettleMsg(res.message ?? null)
       } else {
         alert(res.message || 'Gagal mencatat pembayaran')
       }
@@ -415,7 +415,7 @@ export default function TagihanClient({ corporate, allCustomers }: TagihanClient
                 {((billingData?.transactions.length ?? 0) > 0) && (
                   <div className="p-5 border-t border-slate-200 bg-slate-50 flex justify-between items-center">
                     <div className="text-sm text-slate-500">
-                      {billingData.transactions.length} transaksi
+                      {billingData?.transactions.length || 0} transaksi
                     </div>
                     <div className="text-right">
                       <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Grand Total</p>

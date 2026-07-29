@@ -1,6 +1,7 @@
 import Header from '@/components/layout/Header'
 import { getSession } from '@/lib/session'
 import { getPaginatedCustomers } from '@/actions/customer'
+import { getCorporateCustomers } from '@/actions/corporate'
 import CustomersClient from './CustomersClient'
 import Pagination from '@/components/ui/Pagination'
 import type { Metadata } from 'next'
@@ -20,8 +21,12 @@ export default async function PelangganPage(
   const session = await getSession()
   if (!session || !session.branchId) return null
 
-  const result = await getPaginatedCustomers(page, limit, session.branchId, search)
+  const [result, corporates] = await Promise.all([
+    getPaginatedCustomers(page, limit, session.branchId, search),
+    getCorporateCustomers(session.branchId),
+  ])
   const customers = result.data
+  const corporateList = corporates.map((c) => ({ value: c.id, label: `${c.name}` }))
 
   return (
     <>
@@ -34,6 +39,7 @@ export default async function PelangganPage(
           initialCustomers={customers as Parameters<typeof CustomersClient>[0]['initialCustomers']}
           branchId={session.branchId}
           totalCount={result.totalCount}
+          corporateList={corporateList}
         />
         <Pagination 
           currentPage={result.currentPage}

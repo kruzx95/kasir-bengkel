@@ -481,10 +481,10 @@ export default function NewTransactionClient({
               onChange={(e) => {
                 const selectedId = e.target.value
                 setCustomerId(selectedId)
-                setIsCorporate(false)
+                const customer = customers.find(c => c.id === selectedId)
+                setIsCorporate(!!customer?.corporateCustomerId)
                 // Auto-fill odometer from selected customer's registered odometer
                 if (selectedId) {
-                  const customer = customers.find(c => c.id === selectedId)
                   if (customer?.odometer != null) {
                     setOdometer(customer.odometer)
                   } else {
@@ -511,18 +511,29 @@ export default function NewTransactionClient({
 
             {/* Corporate billing info - auto-detect for corporate customers */}
             {isSelectedCorporate && (
-              <div className="p-3 bg-violet-50 border border-violet-200 rounded-xl">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center shrink-0">
-                    <Package className="w-4 h-4 text-violet-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-violet-900">Tagihan Korporat</p>
-                    <p className="text-xs text-violet-600 mt-0.5">
-                      Status: PENDING_CORPORATE (otomatis)
-                    </p>
+              <div className="p-3 bg-violet-50 border border-violet-200 rounded-xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center shrink-0">
+                      <Package className="w-4 h-4 text-violet-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-violet-900">Pelanggan Korporat</p>
+                      <p className="text-xs text-violet-600">
+                        {isCorporate ? 'Status: Piutang Korporat (PENDING_CORPORATE)' : 'Status: Langsung Bayar (COMPLETED)'}
+                      </p>
+                    </div>
                   </div>
                 </div>
+                <label className="flex items-center gap-2 pt-1 border-t border-violet-200/60 cursor-pointer text-xs font-medium text-violet-900">
+                  <input
+                    type="checkbox"
+                    checked={!isCorporate}
+                    onChange={(e) => setIsCorporate(!e.target.checked)}
+                    className="rounded border-violet-300 text-violet-600 focus:ring-violet-500"
+                  />
+                  <span>Langsung Bayar di Kasir (Lunas Saat Ini)</span>
+                </label>
               </div>
             )}
 
