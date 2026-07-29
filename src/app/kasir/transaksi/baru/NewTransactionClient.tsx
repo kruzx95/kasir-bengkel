@@ -8,7 +8,7 @@ import Select from '@/components/ui/Select'
 import Badge from '@/components/ui/Badge'
 import { createTransaction, type TransactionPayload } from '@/actions/transaction'
 import { formatCurrency } from '@/lib/utils'
-import { Trash2, Search, ArrowLeft, Receipt, Wrench, Package, User, RotateCcw, Plus } from 'lucide-react'
+import { Trash2, Search, ArrowLeft, Receipt, Wrench, Package, User, RotateCcw, Plus, Building2 } from 'lucide-react'
 import Link from 'next/link'
 
 const DRAFT_KEY = 'irian_motor_tx_draft'
@@ -71,6 +71,7 @@ interface NewTransactionClientProps {
   services: { id: string; name: string; price: number }[]
   spareparts: { id: string; name: string; sellPrice: number; stock: number; sku: string | null }[]
   mechanics?: { id: string; name: string }[]
+  corporates?: { id: string; name: string }[]
   basePath?: string
   branchId?: string | null
 }
@@ -80,6 +81,7 @@ export default function NewTransactionClient({
   services,
   spareparts,
   mechanics = [],
+  corporates = [],
   basePath = '/kasir/transaksi',
   branchId: txBranchId,
 }: NewTransactionClientProps) {
@@ -495,6 +497,24 @@ export default function NewTransactionClient({
                 }
               }}
             />
+
+            {/* Corporate badge: shown when selected customer belongs to a PT */}
+            {customerId && isSelectedCorporate && (() => {
+              const corp = corporates.find(c => c.id === customers.find(cu => cu.id === customerId)?.corporateCustomerId)
+              return (
+                <div className="flex items-start gap-2 p-3 bg-violet-50 border border-violet-200 rounded-xl">
+                  <Building2 className="w-4 h-4 text-violet-600 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-sm font-bold text-violet-800">
+                      {corp ? corp.name : 'Kendaraan Korporat'}
+                    </p>
+                    <p className="text-xs text-violet-600 mt-0.5">
+                      Transaksi ini akan masuk ke Piutang Korporat (PENDING_CORPORATE)
+                    </p>
+                  </div>
+                </div>
+              )
+            })()}
 
             {customerId && (
               <Input

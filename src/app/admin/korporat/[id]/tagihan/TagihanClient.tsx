@@ -6,8 +6,9 @@ import Input from '@/components/ui/Input'
 import Table from '@/components/ui/Table'
 import { getCorporateBilling, assignCustomerToCorporate, createCorporatePayment, type CreatePaymentInput } from '@/actions/corporate'
 import { formatCurrency } from '@/lib/utils'
-import { Filter, CheckCircle, Users, Printer, UserPlus, UserMinus, Wallet, History } from 'lucide-react'
+import { Filter, CheckCircle, Users, Printer, UserPlus, UserMinus, Wallet, History, Car } from 'lucide-react'
 import PaymentModal from './PaymentModal'
+import VehicleFormModal from './VehicleFormModal'
 import { getCorporatePaymentHistory, voidCorporatePayment } from '@/actions/corporate'
 
 interface CorporateData {
@@ -118,6 +119,9 @@ export default function TagihanClient({ corporate, allCustomers, isAdmin = false
 
   // Payment modal state
   const [paymentModalOpen, setPaymentModalOpen] = useState(false)
+
+  // Add vehicle modal state
+  const [addVehicleModalOpen, setAddVehicleModalOpen] = useState(false)
 
   const handleFilter = () => {
     startTransition(async () => {
@@ -523,11 +527,20 @@ export default function TagihanClient({ corporate, allCustomers, isAdmin = false
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Assigned */}
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
-            <div className="p-5 border-b border-slate-100 bg-violet-50/50">
+            <div className="p-5 border-b border-slate-100 bg-violet-50/50 flex items-center justify-between">
               <h3 className="font-semibold text-slate-900 flex items-center gap-2">
                 <Users className="w-4 h-4 text-violet-600" />
                 Kendaraan Terdaftar ({assignedCustomers.length})
               </h3>
+              <Button
+                size="sm"
+                variant="outline"
+                icon={Car}
+                className="text-violet-600 border-violet-200 hover:bg-violet-50"
+                onClick={() => setAddVehicleModalOpen(true)}
+              >
+                Tambah Kendaraan
+              </Button>
             </div>
             <div className="divide-y divide-slate-100">
               {assignedCustomers.length === 0 ? (
@@ -687,6 +700,16 @@ export default function TagihanClient({ corporate, allCustomers, isAdmin = false
             setLoaded(true)
           })
         }}
+      />
+
+      {/* Add Vehicle Modal */}
+      <VehicleFormModal
+        open={addVehicleModalOpen}
+        onClose={() => setAddVehicleModalOpen(false)}
+        corporateCustomerId={corporate.id}
+        branchId={corporate.branch.id}
+        corporateName={corporate.name}
+        onSuccess={() => window.location.reload()}
       />
     </div>
   )

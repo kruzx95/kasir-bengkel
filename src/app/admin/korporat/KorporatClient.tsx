@@ -97,6 +97,8 @@ export default function KorporatClient({ initialData, branches, isAdmin, current
     return { totalUnpaid, totalPaidThisMonth, totalCorporate, totalVehicles }
   }, [data])
 
+  const basePath = isAdmin ? '/admin/korporat' : '/kasir/korporat'
+
   const columns = [
     {
       key: 'name',
@@ -172,7 +174,7 @@ export default function KorporatClient({ initialData, branches, isAdmin, current
       className: 'text-right w-40',
       render: (row: CorporateRow) => (
         <div className="flex items-center justify-end gap-1">
-          <Link href={`/admin/korporat/${row.id}/tagihan`}>
+          <Link href={`${basePath}/${row.id}/tagihan`}>
             <Button size="sm" variant="outline" icon={FileText}>
               Tagihan
             </Button>

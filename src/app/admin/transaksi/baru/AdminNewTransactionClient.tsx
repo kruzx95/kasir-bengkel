@@ -5,6 +5,7 @@ import { getCustomers } from '@/actions/customer'
 import { getServices } from '@/actions/service'
 import { getSpareparts } from '@/actions/sparepart'
 import { getMechanics } from '@/actions/mechanic'
+import { getCorporateCustomers } from '@/actions/corporate'
 import NewTransactionClient from '@/app/kasir/transaksi/baru/NewTransactionClient'
 import Select from '@/components/ui/Select'
 import { Building2 } from 'lucide-react'
@@ -16,6 +17,7 @@ interface AdminNewTransactionClientProps {
     services: Services
     spareparts: Spareparts
     mechanics: Mechanics
+    corporates: Corporates
     branchId: string
   }
 }
@@ -24,6 +26,7 @@ type Customers = Awaited<ReturnType<typeof getCustomers>>
 type Services = Awaited<ReturnType<typeof getServices>>
 type Spareparts = Awaited<ReturnType<typeof getSpareparts>>
 type Mechanics = Awaited<ReturnType<typeof getMechanics>>
+type Corporates = Awaited<ReturnType<typeof getCorporateCustomers>>
 
 export default function AdminNewTransactionClient({ branches, preloadedData }: AdminNewTransactionClientProps) {
   const [selectedBranchId, setSelectedBranchId] = useState(preloadedData?.branchId || '')
@@ -34,6 +37,7 @@ export default function AdminNewTransactionClient({ branches, preloadedData }: A
     services: Services
     spareparts: Spareparts
     mechanics: Mechanics
+    corporates: Corporates
   } | null>(preloadedData || null)
 
   const handleBranchChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -43,13 +47,14 @@ export default function AdminNewTransactionClient({ branches, preloadedData }: A
 
     if (branchId) {
       startTransition(async () => {
-        const [c, s, sp, m] = await Promise.all([
+        const [c, s, sp, m, corp] = await Promise.all([
           getCustomers(branchId),
           getServices(branchId),
           getSpareparts(branchId),
           getMechanics(branchId),
+          getCorporateCustomers(branchId),
         ])
-        setData({ customers: c, services: s, spareparts: sp, mechanics: m })
+        setData({ customers: c, services: s, spareparts: sp, mechanics: m, corporates: corp })
       })
     }
   }
@@ -101,6 +106,7 @@ export default function AdminNewTransactionClient({ branches, preloadedData }: A
             id: m.id, 
             name: m.name 
           }))}
+          corporates={data.corporates.map(c => ({ id: c.id, name: c.name }))}
           basePath="/admin/transaksi"
           branchId={selectedBranchId}
         />

@@ -210,6 +210,54 @@ export async function assignCustomerToCorporate(customerId: string, corporateCus
   }
 }
 
+export type CreateCorporateVehicleState = {
+  errors?: Record<string, string[]>
+  message?: string
+  success?: boolean
+} | undefined
+
+/**
+ * Membuat pelanggan baru dan langsung meng-assign ke korporat tertentu.
+ * Digunakan dari tab Kendaraan pada halaman Tagihan Korporat.
+ */
+export async function createCorporateVehicle(
+  corporateCustomerId: string,
+  branchId: string,
+  state: CreateCorporateVehicleState,
+  formData: FormData
+): Promise<CreateCorporateVehicleState> {
+  const session = await getSession()
+  if (!session || !canAccessCorporate(session)) return { message: 'Unauthorized' }
+
+  const name = formData.get('name') as string
+  if (!name?.trim()) return { errors: { name: ['Nama kendaraan/pengemudi wajib diisi'] } }
+
+  try {
+    const customer = await prisma.customer.create({
+      data: {
+        branchId,
+        corporateCustomerId,
+        name: name.trim(),
+        phone: (formData.get('phone') as string) || null,
+        plateNumber: (formData.get('plateNumber') as string) || null,
+        vehicleBrand: (formData.get('vehicleBrand') as string) || null,
+        vehicleType: (formData.get('vehicleType') as string) || null,
+        vehicleColor: (formData.get('vehicleColor') as string) || null,
+        vehicleYear: (formData.get('vehicleYear') as string) || null,
+        fuelType: (formData.get('fuelType') as 'GASOLINE' | 'DIESEL' | null) || null,
+        odometer: formData.get('odometer') ? Number(formData.get('odometer')) : null,
+        address: (formData.get('address') as string) || null,
+      },
+    })
+    revalidatePath(`/admin/korporat/${corporateCustomerId}/tagihan`)
+    revalidatePath(`/kasir/korporat/${corporateCustomerId}/tagihan`)
+    revalidatePath('/kasir/transaksi/baru')
+    return { success: true, message: `Kendaraan ${customer.name} berhasil ditambahkan` }
+  } catch {
+    return { message: 'Gagal menambahkan kendaraan' }
+  }
+}
+
 // ============================================
 // CORPORATE BILLING (Phase 5 - Read)
 // ============================================

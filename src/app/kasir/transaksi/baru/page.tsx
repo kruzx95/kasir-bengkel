@@ -3,6 +3,7 @@ import { getCustomers } from '@/actions/customer'
 import { getServices } from '@/actions/service'
 import { getSpareparts } from '@/actions/sparepart'
 import { getMechanics } from '@/actions/mechanic'
+import { getCorporateCustomers } from '@/actions/corporate'
 import NewTransactionClient from './NewTransactionClient'
 import type { Metadata } from 'next'
 
@@ -15,11 +16,12 @@ export default async function TransaksiBaruPage() {
   if (!session || !session.branchId) return null
 
   // Fetch necessary master data for the branch
-  const [customers, services, spareparts, mechanics] = await Promise.all([
+  const [customers, services, spareparts, mechanics, corporates] = await Promise.all([
     getCustomers(session.branchId),
     getServices(session.branchId),
     getSpareparts(session.branchId),
     getMechanics(session.branchId),
+    getCorporateCustomers(session.branchId),
   ])
 
   return (
@@ -35,6 +37,7 @@ export default async function TransaksiBaruPage() {
           sku: sp.sku
         }))}
         mechanics={mechanics.filter(m => m.isActive).map(m => ({ id: m.id, name: m.name }))}
+        corporates={corporates.map(c => ({ id: c.id, name: c.name }))}
       />
     </div>
   )

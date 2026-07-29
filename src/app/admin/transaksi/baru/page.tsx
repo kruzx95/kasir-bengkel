@@ -4,6 +4,7 @@ import { getCustomers } from '@/actions/customer'
 import { getServices } from '@/actions/service'
 import { getSpareparts } from '@/actions/sparepart'
 import { getMechanics } from '@/actions/mechanic'
+import { getCorporateCustomers } from '@/actions/corporate'
 import AdminNewTransactionClient from './AdminNewTransactionClient'
 import type { Metadata } from 'next'
 
@@ -34,18 +35,19 @@ export default async function AdminTransaksiBaruPage() {
 
   // If Admin Toko, fetch data directly for their branch
   const branchId = session.branchId!
-  const [c, s, sp, m] = await Promise.all([
+  const [c, s, sp, m, corp] = await Promise.all([
     getCustomers(branchId),
     getServices(branchId),
     getSpareparts(branchId),
     getMechanics(branchId),
+    getCorporateCustomers(branchId),
   ])
 
   return (
     <div className="p-4 sm:p-6 animate-fade-in max-w-7xl mx-auto">
       <AdminNewTransactionClient 
         branches={[]} 
-        preloadedData={{ customers: c, services: s, spareparts: sp, mechanics: m, branchId }} 
+        preloadedData={{ customers: c, services: s, spareparts: sp, mechanics: m, corporates: corp, branchId }} 
       />
     </div>
   )
