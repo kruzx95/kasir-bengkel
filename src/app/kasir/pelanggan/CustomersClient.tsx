@@ -192,6 +192,7 @@ export default function CustomersClient({ initialCustomers, branchId, totalCount
 
       {/* Modal */}
       <CustomerFormModal
+        key={modalOpen ? `customer-modal-${editData?.id || 'new'}` : 'customer-modal-closed'}
         open={modalOpen}
         onClose={handleClose}
         branchId={branchId}

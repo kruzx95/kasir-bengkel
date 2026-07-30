@@ -18,7 +18,16 @@ interface CorporateData {
   name: string
   billingCycle: string
   branch: { id: string; name: string }
-  customers: { id: string; name: string; plateNumber: string | null; vehicleBrand?: string | null; vehicleType?: string | null; odometer?: number | null }[]
+  customers: {
+    id: string
+    name: string
+    plateNumber: string | null
+    vehicleBrand?: string | null
+    vehicleType?: string | null
+    odometer?: number | null
+    transactions?: { id: string; transactionDate: string | Date }[]
+    _count?: { transactions: number }
+  }[]
   hideServiceOnInvoice?: boolean
 }
 
@@ -164,6 +173,16 @@ export default function TagihanClient({ corporate, allCustomers, isAdmin = false
     })
   }
 
+  const refreshBilling = () => {
+    startTransition(async () => {
+      const res = await getCorporateBilling(corporate.id, startDate, endDate)
+      if (res) {
+        setBillingData(transformBillingData(res))
+        setLoaded(true)
+      }
+    })
+  }
+
   // Load payment history
   const loadPaymentHistory = () => {
     startTransition(async () => {
@@ -182,6 +201,7 @@ export default function TagihanClient({ corporate, allCustomers, isAdmin = false
     const res = await voidCorporatePayment(paymentId, reason)
     if (res.success) {
       loadPaymentHistory()
+      refreshBilling()
     } else {
       alert(res.message)
     }
@@ -194,6 +214,7 @@ export default function TagihanClient({ corporate, allCustomers, isAdmin = false
     startTransition(() => {
       router.refresh()
     })
+    refreshBilling()
   }
 
   // Full settlement
@@ -294,13 +315,64 @@ export default function TagihanClient({ corporate, allCustomers, isAdmin = false
         </span>
       ),
     },
+    {
+      key: 'action',
+      header: 'Nota',
+      render: (row: BillingRow) => {
+        const txPath = isAdmin ? '/admin/transaksi' : '/kasir/transaksi'
+        return (
+          <a
+            href={`${txPath}/${row.id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Cetak Struk/Nota Individual"
+            className="p-1.5 text-slate-500 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors inline-flex items-center gap-1 text-xs font-medium border border-slate-200"
+          >
+            <Printer className="w-3.5 h-3.5" />
+            <span>Nota</span>
+          </a>
+        )
+      },
+    },
   ]
 
-  // Customers not yet in this corporate (from same branch)
-  const unassignedCustomers = allCustomers.filter(
-    c => !c.corporateCustomerId || c.corporateCustomerId !== corporate.id
+  // Assigned customers come directly from corporate.customers (authoritative list)
+  const assignedCustomers = corporate.customers
+  const assignedIds = useMemo(() => new Set(corporate.customers.map(c => c.id)), [corporate.customers])
+
+  // Customers not yet in any corporate (from same branch)
+  const unassignedCustomers = useMemo(
+    () => allCustomers.filter(c => !c.corporateCustomerId && !assignedIds.has(c.id)),
+    [allCustomers, assignedIds]
   )
-  const assignedCustomers = allCustomers.filter(c => c.corporateCustomerId === corporate.id)
+
+  // Vehicle filter state ('all' | 'serviced' | 'unserviced')
+  const [vehicleFilter, setVehicleFilter] = useState<'all' | 'serviced' | 'unserviced'>('all')
+
+  const vehicleStats = useMemo(() => {
+    let serviced = 0
+    let unserviced = 0
+    assignedCustomers.forEach(c => {
+      const isServiced = (c.transactions && c.transactions.length > 0) || (c._count && c._count.transactions > 0)
+      if (isServiced) serviced++
+      else unserviced++
+    })
+    return { total: assignedCustomers.length, serviced, unserviced }
+  }, [assignedCustomers])
+
+  const filteredAssignedCustomers = useMemo(() => {
+    if (vehicleFilter === 'serviced') {
+      return assignedCustomers.filter(
+        c => (c.transactions && c.transactions.length > 0) || (c._count && c._count.transactions > 0)
+      )
+    }
+    if (vehicleFilter === 'unserviced') {
+      return assignedCustomers.filter(
+        c => !(c.transactions && c.transactions.length > 0) && !(c._count && c._count.transactions > 0)
+      )
+    }
+    return assignedCustomers
+  }, [assignedCustomers, vehicleFilter])
 
   const groupedByDate = useMemo(() => {
     if (!billingData?.transactions) return []
@@ -334,7 +406,10 @@ export default function TagihanClient({ corporate, allCustomers, isAdmin = false
       {/* Tab */}
       <div className="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit print:hidden">
         <button
-          onClick={() => setActiveTab('tagihan')}
+          onClick={() => {
+            setActiveTab('tagihan')
+            if (loaded) refreshBilling()
+          }}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
             activeTab === 'tagihan' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
           }`}
@@ -560,49 +635,131 @@ export default function TagihanClient({ corporate, allCustomers, isAdmin = false
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Assigned */}
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
-            <div className="p-5 border-b border-slate-100 bg-violet-50/50 flex items-center justify-between">
-              <h3 className="font-semibold text-slate-900 flex items-center gap-2">
-                <Users className="w-4 h-4 text-violet-600" />
-                Kendaraan Terdaftar ({assignedCustomers.length})
-              </h3>
-              <Button
-                size="sm"
-                variant="outline"
-                icon={Car}
-                className="text-violet-600 border-violet-200 hover:bg-violet-50"
-                onClick={() => setAddVehicleModalOpen(true)}
-              >
-                Tambah Kendaraan
-              </Button>
+            <div className="p-5 border-b border-slate-100 bg-violet-50/50 space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-slate-900 flex items-center gap-2">
+                  <Users className="w-4 h-4 text-violet-600" />
+                  Kendaraan Terdaftar ({assignedCustomers.length})
+                </h3>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  icon={Car}
+                  className="text-violet-600 border-violet-200 hover:bg-violet-50"
+                  onClick={() => setAddVehicleModalOpen(true)}
+                >
+                  Tambah Kendaraan
+                </Button>
+              </div>
+
+              {/* Filter Pills */}
+              <div className="flex gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => setVehicleFilter('all')}
+                  className={`px-3 py-1 text-xs font-semibold rounded-full transition-all ${
+                    vehicleFilter === 'all'
+                      ? 'bg-violet-600 text-white shadow-xs'
+                      : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  Semua ({vehicleStats.total})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setVehicleFilter('serviced')}
+                  className={`px-3 py-1 text-xs font-semibold rounded-full transition-all flex items-center gap-1.5 ${
+                    vehicleFilter === 'serviced'
+                      ? 'bg-emerald-600 text-white shadow-xs'
+                      : 'bg-white text-emerald-700 border border-emerald-200 hover:bg-emerald-50'
+                  }`}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  Sudah Servis ({vehicleStats.serviced})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setVehicleFilter('unserviced')}
+                  className={`px-3 py-1 text-xs font-semibold rounded-full transition-all flex items-center gap-1.5 ${
+                    vehicleFilter === 'unserviced'
+                      ? 'bg-amber-600 text-white shadow-xs'
+                      : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                  Belum Servis ({vehicleStats.unserviced})
+                </button>
+              </div>
             </div>
             <div className="divide-y divide-slate-100">
-              {assignedCustomers.length === 0 ? (
-                <p className="p-6 text-sm text-slate-400 text-center">Belum ada kendaraan terdaftar.</p>
-              ) : assignedCustomers.map(c => (
-                <div key={c.id} className="flex items-center justify-between px-5 py-3">
-                  <div>
-                    <p className="text-sm font-medium text-slate-900">{c.name}</p>
-                    {c.plateNumber && <p className="text-xs text-slate-400 font-mono">{c.plateNumber}</p>}
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      icon={Wrench}
-                      className="text-violet-600 border-violet-200 hover:bg-violet-50"
-                      onClick={() => setServiceVehicle(c)}
-                    >
-                      Service
-                    </Button>
-                    <Button
-                      size="sm" variant="ghost" icon={UserMinus}
-                      className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                      loading={assigningId === c.id}
-                      onClick={() => handleAssign(c.id, false)}
-                    />
-                  </div>
-                </div>
-              ))}
+              {filteredAssignedCustomers.length === 0 ? (
+                <p className="p-6 text-sm text-slate-400 text-center">
+                  {vehicleFilter === 'all'
+                    ? 'Belum ada kendaraan terdaftar.'
+                    : vehicleFilter === 'serviced'
+                    ? 'Belum ada kendaraan yang sudah servis.'
+                    : 'Semua kendaraan sudah pernah servis.'}
+                </p>
+              ) : (
+                filteredAssignedCustomers.map(c => {
+                  const isServiced =
+                    (c.transactions && c.transactions.length > 0) || (c._count && c._count.transactions > 0)
+                  const lastTxDate = c.transactions?.[0]?.transactionDate
+
+                  return (
+                    <div key={c.id} className="flex items-center justify-between px-5 py-3">
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-medium text-slate-900">{c.name}</p>
+                          {isServiced ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                              Sudah Servis
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+                              <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                              Belum Servis
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-400">
+                          {c.plateNumber && <span className="font-mono">{c.plateNumber}</span>}
+                          {lastTxDate && (
+                            <span>
+                              · Servis Terakhir:{' '}
+                              {new Date(lastTxDate).toLocaleDateString('id-ID', {
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric',
+                              })}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          icon={Wrench}
+                          className="text-violet-600 border-violet-200 hover:bg-violet-50"
+                          onClick={() => setServiceVehicle(c)}
+                        >
+                          Service
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          icon={UserMinus}
+                          className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                          loading={assigningId === c.id}
+                          onClick={() => handleAssign(c.id, false)}
+                        />
+                      </div>
+                    </div>
+                  )
+                })
+              )}
             </div>
           </div>
 
@@ -758,6 +915,7 @@ export default function TagihanClient({ corporate, allCustomers, isAdmin = false
           startTransition(() => {
             router.refresh()
           })
+          if (loaded) refreshBilling()
         }}
       />
 
@@ -773,10 +931,12 @@ export default function TagihanClient({ corporate, allCustomers, isAdmin = false
           services={services}
           spareparts={spareparts}
           mechanics={mechanics}
+          isAdmin={isAdmin}
           onSuccess={() => {
             startTransition(() => {
               router.refresh()
             })
+            refreshBilling()
           }}
         />
       )}

@@ -53,16 +53,25 @@ export default function CustomerFormModal({
     return updateCustomer(editData!.id, state, formData)
   }
 
+  const [submitted, setSubmitted] = useState(false)
+
   const [state, formAction, pending] = useActionState(
     isEditing ? updateAction : createAction,
     undefined
   )
 
   useEffect(() => {
-    if (state?.success) {
+    if (!open) {
+      setSubmitted(false)
+    }
+  }, [open])
+
+  useEffect(() => {
+    if (open && submitted && state?.success) {
+      setSubmitted(false)
       onClose()
     }
-  }, [state?.success, onClose])
+  }, [open, submitted, state?.success, onClose])
 
   const fuelTypeOptions = [
     { value: 'GASOLINE', label: 'Bensin (Gasoline)' },
@@ -92,7 +101,7 @@ export default function CustomerFormModal({
         </div>
       )}
 
-      <form action={formAction} className="space-y-4">
+      <form key={formKey} action={formAction} onSubmit={() => setSubmitted(true)} className="space-y-4">
         {/* Hidden branchId for kasir */}
         {branchId ? (
           <input type="hidden" name="branchId" value={branchId} />

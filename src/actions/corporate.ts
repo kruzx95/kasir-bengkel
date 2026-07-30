@@ -93,7 +93,22 @@ export async function getCorporateCustomerById(id: string) {
     include: {
       branch: { select: { id: true, name: true } },
       customers: {
-        select: { id: true, name: true, plateNumber: true, vehicleBrand: true, vehicleType: true, odometer: true },
+        select: {
+          id: true,
+          name: true,
+          plateNumber: true,
+          vehicleBrand: true,
+          vehicleType: true,
+          odometer: true,
+          transactions: {
+            select: { id: true, transactionDate: true },
+            orderBy: { transactionDate: 'desc' },
+            take: 1,
+          },
+          _count: {
+            select: { transactions: true },
+          },
+        },
       },
     },
   })
@@ -260,6 +275,8 @@ export async function createCorporateVehicle(
     })
     revalidatePath(`/admin/korporat/${corporateCustomerId}/tagihan`)
     revalidatePath(`/kasir/korporat/${corporateCustomerId}/tagihan`)
+    revalidatePath('/admin/korporat')
+    revalidatePath('/kasir/korporat')
     revalidatePath('/kasir/transaksi/baru')
     return { success: true, message: `Kendaraan ${customer.name} berhasil ditambahkan` }
   } catch {
@@ -732,19 +749,46 @@ export async function createCorporateServiceTransaction(
         }
       }
 
-      // Generate invoice number
+      // Generate unique invoice number (Format: INV-BRGCODE-YYYYMMDD-0001)
       const branch = await tx.branch.findUnique({
         where: { id: input.branchId },
         select: { code: true },
       })
       const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '')
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
-      const countToday = await tx.transaction.count({
-        where: { branchId: input.branchId, transactionDate: { gte: today } },
+      const prefix = `INV-${branch?.code || 'MAIN'}-${dateStr}-`
+
+      const lastTx = await tx.transaction.findFirst({
+        where: {
+          branchId: input.branchId,
+          invoiceNumber: { startsWith: prefix },
+        },
+        orderBy: { invoiceNumber: 'desc' },
+        select: { invoiceNumber: true },
       })
-      const sequence = (countToday + 1).toString().padStart(4, '0')
-      const invoiceNumber = `INV-${branch?.code}-${dateStr}-${sequence}`
+
+      let nextSeq = 1
+      if (lastTx?.invoiceNumber) {
+        const parts = lastTx.invoiceNumber.split('-')
+        const lastSeq = parseInt(parts[parts.length - 1], 10)
+        if (!isNaN(lastSeq)) {
+          nextSeq = lastSeq + 1
+        }
+      }
+
+      let invoiceNumber = `${prefix}${nextSeq.toString().padStart(4, '0')}`
+      let exists = await tx.transaction.findUnique({
+        where: { invoiceNumber },
+        select: { id: true },
+      })
+
+      while (exists) {
+        nextSeq++
+        invoiceNumber = `${prefix}${nextSeq.toString().padStart(4, '0')}`
+        exists = await tx.transaction.findUnique({
+          where: { invoiceNumber },
+          select: { id: true },
+        })
+      }
 
       // Calculate totals
       let subtotal = 0

@@ -211,6 +211,7 @@ export default function AdminCustomersClient({ initialCustomers, branches, initi
       </div>
 
       <CustomerFormModal
+        key={modalOpen ? `customer-modal-${editData?.id || 'new'}` : 'customer-modal-closed'}
         open={modalOpen}
         onClose={handleClose}
         branches={branches}

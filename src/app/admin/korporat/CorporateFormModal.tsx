@@ -1,6 +1,6 @@
 'use client'
 
-import { useActionState, useEffect, useMemo } from 'react'
+import { useActionState, useEffect, useMemo, useState } from 'react'
 import Modal, { ModalFooter } from '@/components/ui/Modal'
 import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
@@ -59,14 +59,25 @@ export default function CorporateFormModal({
   const updateAction = async (state: CorporateState, formData: FormData) =>
     updateCorporateCustomer(editData!.id, state, formData)
 
+  const [submitted, setSubmitted] = useState(false)
+
   const [state, formAction, pending] = useActionState(
     isEditing ? updateAction : createAction,
     undefined
   )
 
   useEffect(() => {
-    if (state?.success) onClose()
-  }, [state?.success, onClose])
+    if (!open) {
+      setSubmitted(false)
+    }
+  }, [open])
+
+  useEffect(() => {
+    if (open && submitted && state?.success) {
+      setSubmitted(false)
+      onClose()
+    }
+  }, [open, submitted, state?.success, onClose])
 
   // Derive a form key that changes when editData changes (forces form remount/reset)
   const formKey = useMemo(() => editData?.id ?? 'create', [editData?.id])
@@ -102,7 +113,7 @@ export default function CorporateFormModal({
         </div>
       )}
 
-      <form action={formAction} className="space-y-4">
+      <form key={formKey} action={formAction} onSubmit={() => setSubmitted(true)} className="space-y-4">
         <div className="pb-1">
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Data Perusahaan</p>
           <div className="space-y-4">

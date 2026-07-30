@@ -1,6 +1,6 @@
 'use client'
 
-import { useActionState, useEffect, useRef } from 'react'
+import { useActionState, useEffect, useRef, useState } from 'react'
 import Modal, { ModalFooter } from '@/components/ui/Modal'
 import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
@@ -30,7 +30,7 @@ export default function VehicleFormModal({
   onSuccessRef.current = onSuccess
   onCloseRef.current = onClose
 
-  const handledSuccessRef = useRef(false)
+  const [submitted, setSubmitted] = useState(false)
 
   const boundAction = createCorporateVehicle.bind(null, corporateCustomerId, branchId)
 
@@ -41,17 +41,17 @@ export default function VehicleFormModal({
 
   useEffect(() => {
     if (!open) {
-      handledSuccessRef.current = false
+      setSubmitted(false)
     }
   }, [open])
 
   useEffect(() => {
-    if (state?.success && !handledSuccessRef.current) {
-      handledSuccessRef.current = true
+    if (open && submitted && state?.success) {
+      setSubmitted(false)
       onSuccessRef.current?.()
       onCloseRef.current()
     }
-  }, [state?.success])
+  }, [open, submitted, state?.success])
 
   const fuelTypeOptions = [
     { value: 'GASOLINE', label: 'Bensin (Gasoline)' },
@@ -72,7 +72,7 @@ export default function VehicleFormModal({
         </div>
       )}
 
-      <form action={formAction} className="space-y-4">
+      <form action={formAction} onSubmit={() => setSubmitted(true)} className="space-y-4">
         {/* Info PT */}
         <div className="flex items-center gap-2 p-3 bg-violet-50 border border-violet-100 rounded-xl">
           <Car className="w-4 h-4 text-violet-500 shrink-0" />

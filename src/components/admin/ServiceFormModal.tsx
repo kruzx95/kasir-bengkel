@@ -1,6 +1,6 @@
 'use client'
 
-import { useActionState, useEffect } from 'react'
+import { useActionState, useEffect, useState } from 'react'
 import Modal, { ModalFooter } from '@/components/ui/Modal'
 import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
@@ -45,16 +45,25 @@ export default function ServiceFormModal({
     return updateService(editData!.id, state, formData)
   }
 
+  const [submitted, setSubmitted] = useState(false)
+
   const [state, formAction, pending] = useActionState(
     isEditing ? updateAction : createAction,
     undefined
   )
 
   useEffect(() => {
-    if (state?.success) {
+    if (!open) {
+      setSubmitted(false)
+    }
+  }, [open])
+
+  useEffect(() => {
+    if (open && submitted && state?.success) {
+      setSubmitted(false)
       onClose()
     }
-  }, [state?.success, onClose])
+  }, [open, submitted, state?.success, onClose])
 
   const branchOptions = branches.map((b) => ({
     value: b.id,
@@ -78,7 +87,7 @@ export default function ServiceFormModal({
         </div>
       )}
 
-      <form action={formAction} className="space-y-4">
+      <form action={formAction} onSubmit={() => setSubmitted(true)} className="space-y-4">
         <Input
           id="name"
           name="name"

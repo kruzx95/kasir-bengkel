@@ -61,6 +61,7 @@ interface ServiceVehicleModalProps {
   services: ServiceOption[]
   spareparts: SparepartOption[]
   mechanics: MechanicOption[]
+  isAdmin?: boolean
   onSuccess?: (invoiceNumber: string) => void
 }
 
@@ -89,6 +90,7 @@ export default function ServiceVehicleModal({
   services,
   spareparts,
   mechanics,
+  isAdmin = false,
   onSuccess,
 }: ServiceVehicleModalProps) {
   const [isPending, startTransition] = useTransition()
@@ -98,7 +100,7 @@ export default function ServiceVehicleModal({
   const [notes, setNotes] = useState<string>('')
   const [discount, setDiscount] = useState<string>('0')
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
-  const [successData, setSuccessData] = useState<{ invoiceNumber: string } | null>(null)
+  const [successData, setSuccessData] = useState<{ invoiceNumber: string; transactionId?: string } | null>(null)
   const [items, setItems] = useState<LineItem[]>([])
   const [serviceSearch, setServiceSearch] = useState('')
   const [sparepartSearch, setSparepartSearch] = useState('')
@@ -223,7 +225,7 @@ export default function ServiceVehicleModal({
       })
 
       if (res.success && res.invoiceNumber) {
-        setSuccessData({ invoiceNumber: res.invoiceNumber })
+        setSuccessData({ invoiceNumber: res.invoiceNumber, transactionId: res.transactionId })
         onSuccess?.(res.invoiceNumber)
       } else {
         setErrorMsg(res.message || 'Gagal membuat nota service')
@@ -232,6 +234,9 @@ export default function ServiceVehicleModal({
   }
 
   if (successData) {
+    const txPath = isAdmin ? '/admin/transaksi' : '/kasir/transaksi'
+    const targetUrl = `${txPath}/${successData.transactionId || successData.invoiceNumber}`
+
     return (
       <Modal open={open} onClose={handleClose} title="Nota Berhasil Dibuat" size="md">
         <div className="flex flex-col items-center text-center py-6 gap-4">
@@ -256,9 +261,11 @@ export default function ServiceVehicleModal({
           </div>
         </div>
         <ModalFooter>
-          <Button variant="outline" icon={Printer} onClick={() => window.print()}>
-            Print Nota
-          </Button>
+          <a href={targetUrl} target="_blank" rel="noopener noreferrer">
+            <Button variant="outline" icon={Printer}>
+              Cetak Struk Nota
+            </Button>
+          </a>
           <Button onClick={handleClose}>Tutup</Button>
         </ModalFooter>
       </Modal>

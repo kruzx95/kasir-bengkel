@@ -87,6 +87,11 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
                   Dibatalkan
                 </span>
               )}
+              {tx.status === 'PENDING_CORPORATE' && (
+                <span className="px-3 py-1 bg-amber-100 text-amber-700 font-black text-sm rounded-lg tracking-wider border border-amber-200 uppercase print:text-xs print:px-1.5 print:py-0.5">
+                  Piutang Korporat
+                </span>
+              )}
               <h2 className="text-2xl sm:text-3xl font-black text-slate-200 uppercase tracking-wider print:text-lg">INVOICE</h2>
             </div>
             <p className="text-lg font-bold text-slate-900 font-mono mb-2 print:text-sm print:mb-0.5">{tx.invoiceNumber}</p>
@@ -190,7 +195,9 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start pt-6 border-t border-slate-200 gap-6 print:pt-2 print:gap-2">
           <div className="sm:w-1/2 sm:pr-8 print:pr-2">
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 print:mb-0.5 print:text-[10px]">Metode Pembayaran</p>
-            <p className="text-sm font-bold text-slate-900 mb-6 print:mb-2 print:text-xs">{tx.paymentMethod}</p>
+            <p className="text-sm font-bold text-slate-900 mb-6 print:mb-2 print:text-xs">
+              {tx.status === 'PENDING_CORPORATE' ? 'Tagihan Korporat (Piutang)' : tx.paymentMethod}
+            </p>
             
             {tx.notes && (
               <>
@@ -215,6 +222,21 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
               <span className="text-base font-bold text-slate-900 print:text-sm">Total Akhir</span>
               <span className="text-2xl font-black text-primary-600 print:text-base print:font-bold">{formatCurrency(tx.total)}</span>
             </div>
+
+            {(tx.status === 'PENDING_CORPORATE' || tx.customer?.corporateCustomer) && (
+              <>
+                <div className="flex justify-between text-sm text-slate-600 print:text-xs pt-2 border-t border-slate-100">
+                  <span>Sudah Dibayar</span>
+                  <span className="font-semibold text-emerald-600">{formatCurrency(tx.paidAmount || 0)}</span>
+                </div>
+                <div className="flex justify-between text-sm font-bold text-slate-900 print:text-xs">
+                  <span>Sisa Piutang</span>
+                  <span className={(tx.total - (tx.paidAmount || 0)) > 0 ? 'text-red-600 font-bold' : 'text-emerald-600 font-bold'}>
+                    {formatCurrency(Math.max(0, tx.total - (tx.paidAmount || 0)))}
+                  </span>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
