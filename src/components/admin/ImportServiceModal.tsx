@@ -5,7 +5,7 @@ import Modal, { ModalFooter } from '@/components/ui/Modal'
 import Button from '@/components/ui/Button'
 import Select from '@/components/ui/Select'
 import { Upload, Download, FileSpreadsheet, CheckCircle, AlertTriangle, X } from 'lucide-react'
-import * as XLSX from 'xlsx'
+import { exportTemplateExcel } from '@/lib/exportExcel'
 
 interface Branch {
   id: string
@@ -39,21 +39,25 @@ export default function ImportServiceModal({ open, onClose, branches, onSuccess 
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
-  const handleDownloadTemplate = () => {
-    const templateData = [
-      { nama: 'Ganti Oli Mesin', harga: 25000, kategori: 'Oli' },
-      { nama: 'Tune Up Ringan', harga: 50000, kategori: 'Tune Up' },
-      { nama: 'Ganti Ban Depan', harga: 15000, kategori: 'Ban' },
-      { nama: 'Servis Karburator', harga: 75000, kategori: 'Karburator' },
-      { nama: 'Ganti Kampas Rem', harga: 20000, kategori: 'Rem' },
-    ]
-
-    const ws = XLSX.utils.json_to_sheet(templateData)
-    ws['!cols'] = [{ wch: 30 }, { wch: 12 }, { wch: 20 }]
-
-    const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, 'Jasa Servis')
-    XLSX.writeFile(wb, 'template_import_servis.xlsx')
+  const handleDownloadTemplate = async () => {
+    await exportTemplateExcel({
+      shopName:  'Irian Motor',
+      title:     'TEMPLATE IMPORT JASA SERVIS',
+      filename:  'template_import_servis.xlsx',
+      sheetName: 'Jasa Servis',
+      columns: [
+        { header: 'nama',     key: 'nama',     width: 36, required: true,  note: 'Nama jasa / layanan servis' },
+        { header: 'harga',    key: 'harga',    width: 16, required: true,  note: 'Angka saja (Rp)', numFmt: '#,##0', align: 'right' },
+        { header: 'kategori', key: 'kategori', width: 22, required: false, note: 'Contoh: Oli, Rem, Tune Up' },
+      ],
+      exampleRows: [
+        { nama: 'Ganti Oli Mesin', harga: 25000, kategori: 'Oli' },
+        { nama: 'Tune Up Ringan', harga: 50000, kategori: 'Tune Up' },
+        { nama: 'Ganti Ban Depan', harga: 15000, kategori: 'Ban' },
+        { nama: 'Servis Karburator', harga: 75000, kategori: 'Karburator' },
+        { nama: 'Ganti Kampas Rem', harga: 20000, kategori: 'Rem' },
+      ],
+    })
   }
 
   const handleImport = async () => {

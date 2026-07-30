@@ -130,7 +130,7 @@ export default function Sidebar({ role, userName, branchName, shopName, mobileOp
       <aside
         className={cn(
           // Base styles
-          'fixed left-0 top-0 z-50 h-screen bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 text-sidebar-text flex flex-col transition-all duration-300 shadow-2xl',
+          'fixed left-0 top-0 z-50 h-screen bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 text-sidebar-text flex flex-col transition-all duration-300 shadow-2xl print:hidden',
           // Desktop: always visible
           'lg:z-40',
           collapsed ? 'lg:w-[72px]' : 'lg:w-64',

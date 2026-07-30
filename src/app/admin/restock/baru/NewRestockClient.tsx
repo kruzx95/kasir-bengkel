@@ -184,6 +184,7 @@ export default function NewRestockClient({ branches, spareparts }: NewRestockCli
       return
     }
     if (!supplierName) {
+      setShowPoInfo(true)
       setError('Nama supplier wajib diisi.')
       return
     }
@@ -211,6 +212,9 @@ export default function NewRestockClient({ branches, spareparts }: NewRestockCli
 
       const res = await createRestock(payload)
       if (res.success) {
+        if (res.id) {
+          window.open(`/cetak-indent/${res.id}`, '_blank')
+        }
         router.push(`${base}/restock`)
       } else {
         setError(res.message || 'Gagal menyimpan data')

@@ -453,17 +453,17 @@ export default function TagihanClient({ corporate, allCustomers, isAdmin = false
               </div>
 
               {/* ===== INVOICE PRINT (HIDDEN ON SCREEN) ===== */}
-              <div className="hidden print:block w-full text-black">
+              <div className="hidden print:block w-full text-black print:break-inside-avoid">
                 {/* Header */}
-                <div className="border-b-2 border-black pb-4 mb-6">
-                  <h1 className="text-2xl font-black uppercase mb-1">INVOICE TAGIHAN</h1>
-                  <h2 className="text-lg font-bold">{corporate.branch.name}</h2>
-                  <div className="mt-4 flex justify-between items-end">
+                <div className="border-b-2 border-black pb-3 mb-4 print:pb-2 print:mb-3">
+                  <h1 className="text-xl font-black uppercase mb-0.5 print:text-lg">INVOICE TAGIHAN</h1>
+                  <h2 className="text-base font-bold print:text-sm">{corporate.branch.name}</h2>
+                  <div className="mt-2 flex justify-between items-end">
                     <div>
-                      <p className="text-sm font-semibold uppercase text-gray-600">Ditagihkan Kepada:</p>
-                      <p className="text-lg font-bold">{corporate.name}</p>
+                      <p className="text-xs font-semibold uppercase text-gray-600">Ditagihkan Kepada:</p>
+                      <p className="text-base font-bold print:text-sm">{corporate.name}</p>
                     </div>
-                    <div className="text-right text-sm">
+                    <div className="text-right text-xs">
                       <p><span className="font-semibold">Periode:</span> {new Date(startDate).toLocaleDateString('id-ID', { month: 'short', year: 'numeric' })} - {new Date(endDate).toLocaleDateString('id-ID', { month: 'short', year: 'numeric' })}</p>
                       <p><span className="font-semibold">Tanggal Cetak:</span> {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
                     </div>
@@ -471,47 +471,47 @@ export default function TagihanClient({ corporate, allCustomers, isAdmin = false
                 </div>
 
                 {/* Content Grouped by Date */}
-                <div className="space-y-8">
+                <div className="space-y-4 print:space-y-3">
                   {groupedByDate.map(([dateStr, txs]) => (
-                    <div key={dateStr}>
-                      <div className="bg-gray-100 font-bold p-2 mb-2 border border-gray-300">
+                    <div key={dateStr} className="print:break-inside-avoid">
+                      <div className="bg-gray-100 font-bold p-1.5 mb-1.5 border border-gray-300 text-xs">
                         Tanggal Servis: {new Date(dateStr).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
                       </div>
-                      <table className="w-full text-sm border-collapse">
+                      <table className="w-full text-xs border-collapse">
                         <thead>
                           <tr className="border-b border-black">
-                            <th className="text-left py-2 px-1">Kendaraan</th>
-                            <th className="text-left py-2 px-1">Layanan / Sparepart</th>
-                            <th className="text-center py-2 px-1">Qty</th>
-                            <th className="text-right py-2 px-1">Harga</th>
-                            <th className="text-right py-2 px-1">Subtotal</th>
+                            <th className="text-left py-1 px-1">Kendaraan</th>
+                            <th className="text-left py-1 px-1">Layanan / Sparepart</th>
+                            <th className="text-center py-1 px-1">Qty</th>
+                            <th className="text-right py-1 px-1">Harga</th>
+                            <th className="text-right py-1 px-1">Subtotal</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-300">
                           {txs.map((tx) => (
                             <tr key={tx.id}>
-                              <td className="py-3 px-1 align-top w-1/4">
+                              <td className="py-2 px-1 align-top w-1/4">
                                 <p className="font-bold">{tx.customer?.name || '—'}</p>
-                                {tx.customer?.plateNumber && <p className="font-mono text-xs">{tx.customer.plateNumber}</p>}
-                                <p className="text-xs text-gray-500 mt-1">{tx.invoiceNumber}</p>
+                                {tx.customer?.plateNumber && <p className="font-mono text-[10px]">{tx.customer.plateNumber}</p>}
+                                <p className="text-[10px] text-gray-500 mt-0.5">{tx.invoiceNumber}</p>
                               </td>
-                              <td className="py-3 px-1 align-top" colSpan={4}>
-                                <table className="w-full">
+                              <td className="py-2 px-1 align-top" colSpan={4}>
+                                <table className="w-full text-xs">
                                   <tbody>
                                     {tx.items
                                       .filter(item => (billingData?.corporate?.hideServiceOnInvoice ?? corporate.hideServiceOnInvoice) ? item.itemType !== 'SERVICE' : true)
                                       .map((item, i) => (
                                       <tr key={i}>
-                                        <td className="w-1/2 py-1">{item.itemName}</td>
-                                        <td className="w-1/6 py-1 text-center">{item.quantity}</td>
-                                        <td className="w-1/6 py-1 text-right">{formatCurrency(item.unitPrice)}</td>
-                                        <td className="w-1/6 py-1 text-right font-semibold">{formatCurrency(item.subtotal)}</td>
+                                        <td className="w-1/2 py-0.5">{item.itemName}</td>
+                                        <td className="w-1/6 py-0.5 text-center">{item.quantity}</td>
+                                        <td className="w-1/6 py-0.5 text-right">{formatCurrency(item.unitPrice)}</td>
+                                        <td className="w-1/6 py-0.5 text-right font-semibold">{formatCurrency(item.subtotal)}</td>
                                       </tr>
                                     ))}
                                     {/* Transaction Subtotal Row */}
                                     <tr>
-                                      <td colSpan={3} className="py-2 text-right text-xs font-semibold uppercase text-gray-600 border-t border-dashed border-gray-300">Total Kendaraan Ini:</td>
-                                      <td className="py-2 text-right font-bold border-t border-dashed border-gray-300">{formatCurrency(tx.total)}</td>
+                                      <td colSpan={3} className="py-1 text-right text-[10px] font-semibold uppercase text-gray-600 border-t border-dashed border-gray-300">Total Kendaraan Ini:</td>
+                                      <td className="py-1 text-right font-bold border-t border-dashed border-gray-300">{formatCurrency(tx.total)}</td>
                                     </tr>
                                   </tbody>
                                 </table>
@@ -525,13 +525,13 @@ export default function TagihanClient({ corporate, allCustomers, isAdmin = false
                 </div>
 
                 {/* Grand Total */}
-                <div className="mt-8 pt-4 border-t-2 border-black flex justify-end">
+                <div className="mt-4 pt-2 border-t-2 border-black flex justify-end">
                   <div className="w-1/2 md:w-1/3">
-                    <div className="flex justify-between items-center mb-2">
+                    <div className="flex justify-between items-center mb-1 text-xs">
                       <span className="font-semibold text-gray-600">Total Transaksi</span>
                       <span className="font-bold">{billingData?.transactions?.length || 0}</span>
                     </div>
-                    <div className="flex justify-between items-center text-xl border-t border-black pt-2">
+                    <div className="flex justify-between items-center text-base border-t border-black pt-1">
                       <span className="font-black uppercase">Grand Total</span>
                       <span className="font-black">{formatCurrency(billingData?.grandTotal || 0)}</span>
                     </div>
@@ -539,14 +539,14 @@ export default function TagihanClient({ corporate, allCustomers, isAdmin = false
                 </div>
 
                 {/* Signature */}
-                <div className="mt-16 flex justify-between px-8">
+                <div className="mt-8 flex justify-between px-8 print:mt-6">
                   <div className="text-center">
-                    <p className="mb-16 font-semibold">{corporate.name}</p>
-                    <p className="border-t border-black pt-1 px-4 text-sm">( Tanda Tangan & Cap )</p>
+                    <p className="mb-10 font-semibold text-xs print:mb-8">{corporate.name}</p>
+                    <p className="border-t border-black pt-1 px-4 text-xs">( Tanda Tangan & Cap )</p>
                   </div>
                   <div className="text-center">
-                    <p className="mb-16 font-semibold">{corporate.branch.name}</p>
-                    <p className="border-t border-black pt-1 px-4 text-sm">( Admin Bengkel )</p>
+                    <p className="mb-10 font-semibold text-xs print:mb-8">{corporate.branch.name}</p>
+                    <p className="border-t border-black pt-1 px-4 text-xs">( Admin Bengkel )</p>
                   </div>
                 </div>
               </div>
@@ -748,6 +748,7 @@ export default function TagihanClient({ corporate, allCustomers, isAdmin = false
 
       {/* Add Vehicle Modal */}
       <VehicleFormModal
+        key={addVehicleModalOpen ? 'vehicle-modal-open' : 'vehicle-modal-closed'}
         open={addVehicleModalOpen}
         onClose={() => setAddVehicleModalOpen(false)}
         corporateCustomerId={corporate.id}

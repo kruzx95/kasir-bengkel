@@ -5,7 +5,7 @@ import Modal, { ModalFooter } from '@/components/ui/Modal'
 import Button from '@/components/ui/Button'
 import Select from '@/components/ui/Select'
 import { Upload, Download, FileSpreadsheet, CheckCircle, AlertTriangle, X } from 'lucide-react'
-import * as XLSX from 'xlsx'
+import { exportTemplateExcel } from '@/lib/exportExcel'
 
 interface Branch {
   id: string
@@ -39,61 +39,29 @@ export default function ImportSparepartModal({ open, onClose, branches }: Import
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
-  const handleDownloadTemplate = () => {
-    const templateData = [
-      {
-        nama: 'Oli Mesin AHM 20W-50',
-        sku: 'OLI-AHM-20W50',
-        jenis: 'Oli',
-        merk: 'AHM',
-        ukuran: '20W-50',
-        harga_beli: 35000,
-        harga_jual: 45000,
-        stok: 20,
-        satuan: 'botol',
-      },
-      {
-        nama: 'Busi NGK CR7HSA',
-        sku: 'BUSI-NGK-CR7',
-        jenis: 'Busi',
-        merk: 'NGK',
-        ukuran: 'CR7HSA',
-        harga_beli: 18000,
-        harga_jual: 25000,
-        stok: 15,
-        satuan: 'pcs',
-      },
-      {
-        nama: 'Kampas Rem Depan Vario',
-        sku: '',
-        jenis: 'Kampas Rem',
-        merk: 'Honda',
-        ukuran: '',
-        harga_beli: 40000,
-        harga_jual: 55000,
-        stok: 10,
-        satuan: 'set',
-      },
-    ]
-
-    const ws = XLSX.utils.json_to_sheet(templateData)
-
-    // Set column widths
-    ws['!cols'] = [
-      { wch: 30 }, // nama
-      { wch: 18 }, // sku
-      { wch: 15 }, // jenis
-      { wch: 15 }, // merk
-      { wch: 12 }, // ukuran
-      { wch: 14 }, // harga_beli
-      { wch: 14 }, // harga_jual
-      { wch: 8 },  // stok
-      { wch: 10 }, // satuan
-    ]
-
-    const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, 'Sparepart')
-    XLSX.writeFile(wb, 'template_import_sparepart.xlsx')
+  const handleDownloadTemplate = async () => {
+    await exportTemplateExcel({
+      shopName:  'Irian Motor',
+      title:     'TEMPLATE IMPORT SPAREPART',
+      filename:  'template_import_sparepart.xlsx',
+      sheetName: 'Sparepart',
+      columns: [
+        { header: 'nama',        key: 'nama',        width: 32, required: true,  note: 'Nama lengkap sparepart' },
+        { header: 'sku',         key: 'sku',         width: 18, required: false, note: 'Kode SKU (opsional)' },
+        { header: 'jenis',       key: 'jenis',       width: 16, required: false, note: 'Contoh: Oli, Busi, Rem' },
+        { header: 'merk',        key: 'merk',        width: 16, required: false, note: 'Merek produk' },
+        { header: 'ukuran',      key: 'ukuran',      width: 14, required: false, note: 'Ukuran/tipe' },
+        { header: 'harga_beli',  key: 'harga_beli',  width: 16, required: true,  note: 'Angka saja (Rp)', numFmt: '#,##0', align: 'right' },
+        { header: 'harga_jual',  key: 'harga_jual',  width: 16, required: true,  note: 'Angka saja (Rp)', numFmt: '#,##0', align: 'right' },
+        { header: 'stok',        key: 'stok',        width: 10, required: false, note: 'Jumlah stok awal', align: 'right' },
+        { header: 'satuan',      key: 'satuan',      width: 12, required: false, note: 'pcs / botol / set / dll' },
+      ],
+      exampleRows: [
+        { nama: 'Oli Mesin AHM 20W-50', sku: 'OLI-AHM-20W50', jenis: 'Oli', merk: 'AHM', ukuran: '20W-50', harga_beli: 35000, harga_jual: 45000, stok: 20, satuan: 'botol' },
+        { nama: 'Busi NGK CR7HSA', sku: 'BUSI-NGK-CR7', jenis: 'Busi', merk: 'NGK', ukuran: 'CR7HSA', harga_beli: 18000, harga_jual: 25000, stok: 15, satuan: 'pcs' },
+        { nama: 'Kampas Rem Depan Vario', sku: '', jenis: 'Kampas Rem', merk: 'Honda', ukuran: '', harga_beli: 40000, harga_jual: 55000, stok: 10, satuan: 'set' },
+      ],
+    })
   }
 
   const handleImport = async () => {

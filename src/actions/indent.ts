@@ -17,7 +17,7 @@ const indentItemSchema = z.object({
 })
 
 const indentSchema = z.object({
-  branchId: z.string().min(1, 'Cabang wajib dipilih'),
+  branchId: z.string().optional(),
   supplierName: z.string().min(1, 'Nama supplier wajib diisi'),
   orderDate: z.string(),
   expectedDate: z.string().optional().nullable(),
@@ -39,13 +39,21 @@ export async function createIndentOrder(payload: IndentPayload) {
 
     const validated = indentSchema.safeParse(payload)
     if (!validated.success) {
-      return { success: false, message: 'Validasi form gagal' }
+      const firstError = validated.error.issues[0]
+      const msg = firstError
+        ? `[${firstError.path.join('.')}] ${firstError.message}`
+        : 'Validasi form gagal'
+      console.error('Indent Validation Errors:', validated.error.issues)
+      return { success: false, message: msg }
     }
 
     const data = validated.data
 
-    const isSuperAdmin = session.role === 'ADMIN' && !session.branchId
-    const targetBranchId = isSuperAdmin ? data.branchId : session.branchId!
+    // Resolve branch: session branch takes priority, fallback to payload branchId (for super admin)
+    const targetBranchId = session.branchId || data.branchId || ''
+    if (!targetBranchId) {
+      return { success: false, message: 'Cabang tidak ditemukan. Hubungi administrator.' }
+    }
 
     // For manual items, create the sparepart first
     const processedItems = []
@@ -79,7 +87,7 @@ export async function createIndentOrder(payload: IndentPayload) {
       }
     }
 
-    await prisma.indentOrder.create({
+    const newIndent = await prisma.indentOrder.create({
       data: {
         branchId: targetBranchId,
         userId: session.userId,
@@ -102,7 +110,7 @@ export async function createIndentOrder(payload: IndentPayload) {
     revalidatePath('/admin/restock')
     revalidatePath('/kasir/restock')
     revalidatePath('/admin/master/spareparts')
-    return { success: true, message: 'Pesanan indent berhasil disimpan' }
+    return { success: true, id: newIndent.id, message: 'Pesanan indent berhasil disimpan' }
   } catch (error: unknown) {
     console.error('Create Indent Error:', error)
     const message = error instanceof Error ? error.message : 'Gagal menyimpan indent'
@@ -221,6 +229,8 @@ const receiveSchema = z.object({
   date: z.string(),
   notes: z.string().optional().nullable(),
   receiptImagePath: z.string().optional().nullable(),
+  additionalPayment: z.number().min(0).optional(),
+  paymentMethod: z.string().optional().nullable(),
   items: z.array(receiveItemSchema).min(1),
 })
 
@@ -283,7 +293,9 @@ export async function receiveIndentOrder(payload: ReceiveIndentPayload) {
         })
       }
 
-      const paymentStatus = indentOrder.dpAmount >= total ? 'LUNAS' : 'HUTANG'
+      const additionalPayment = data.additionalPayment || 0
+      const totalPaid = (indentOrder.dpAmount || 0) + additionalPayment
+      const paymentStatus = totalPaid >= total ? 'LUNAS' : 'HUTANG'
 
       // Create restock record linked to indent
       const restock = await tx.restock.create({
@@ -295,7 +307,7 @@ export async function receiveIndentOrder(payload: ReceiveIndentPayload) {
           notes: data.notes,
           receiptImagePath: data.receiptImagePath || null,
           total,
-          paidAmount: indentOrder.dpAmount,
+          paidAmount: totalPaid,
           paymentStatus,
           indentOrderId: data.indentOrderId,
           items: { create: restockItems },
@@ -314,7 +326,10 @@ export async function receiveIndentOrder(payload: ReceiveIndentPayload) {
 
       await tx.indentOrder.update({
         where: { id: data.indentOrderId },
-        data: { status: newStatus },
+        data: {
+          status: newStatus,
+          dpAmount: totalPaid,
+        },
       })
 
       return restock

@@ -16,7 +16,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
 export default async function CetakIndentPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
-  if (!session || session.role !== 'ADMIN') {
+  if (!session) {
     redirect('/login')
   }
 
@@ -58,44 +58,41 @@ export default async function CetakIndentPage({ params }: { params: Promise<{ id
     <>
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
-          @page { size: A4 portrait; margin: 10mm; }
-          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; background: white; }
+          @page { size: A4 portrait; margin: 5mm; }
+          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; background: white; padding: 0 !important; font-size: 10pt !important; }
           .no-print { display: none !important; }
+          .print-container { box-shadow: none !important; padding: 0 !important; width: 100% !important; min-height: auto !important; margin: 0 !important; }
+          tr, table, .print-container { break-inside: avoid !important; page-break-inside: avoid !important; }
         }
-        .cetak-page { font-family: 'Inter', sans-serif; background: #f8fafc; min-height: 100vh; padding: 20px; color: #0f172a; }
+        .cetak-page { font-family: 'Inter', sans-serif; background: #f8fafc; min-height: 100vh; padding: 16px; color: #0f172a; }
         .print-container { 
           width: 210mm;
-          min-height: 297mm;
           background: white; 
           margin: 0 auto; 
-          padding: 10mm; 
+          padding: 8mm 10mm; 
           box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); 
         }
-        @media print {
-          body { padding: 0; background: white; }
-          .print-container { box-shadow: none; padding: 0; width: 100%; min-height: auto; }
-        }
         table { width: 100%; border-collapse: collapse; }
-        th, td { border: 1px solid #cbd5e1; padding: 6px 10px; font-size: 12px; }
+        th, td { border: 1px solid #cbd5e1; padding: 5px 8px; font-size: 11px; }
         th { background: #f1f5f9; font-weight: 600; text-align: left; }
         .text-right { text-align: right; }
         .text-center { text-align: center; }
-        h1 { font-size: 18px; font-weight: 700; margin: 0 0 4px 0; }
-        h2 { font-size: 14px; font-weight: 600; margin: 0; color: #475569; }
-        .header-grid { display: grid; grid-template-columns: 1fr auto; gap: 20px; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; }
-        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; font-size: 12px; }
-        .info-block { display: flex; flex-direction: column; gap: 4px; }
+        h1 { font-size: 16px; font-weight: 700; margin: 0 0 2px 0; }
+        h2 { font-size: 13px; font-weight: 600; margin: 0; color: #475569; }
+        .header-grid { display: grid; grid-template-columns: 1fr auto; gap: 16px; margin-bottom: 12px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; }
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 12px; font-size: 11px; }
+        .info-block { display: flex; flex-direction: column; gap: 3px; }
         .info-row { display: flex; }
         .info-label { width: 110px; font-weight: 600; color: #475569; }
         .info-value { flex: 1; }
-        .signature-section { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 40px; text-align: center; font-size: 12px; }
-        .signature-box { display: flex; flex-direction: column; justify-content: space-between; height: 80px; }
-        .signature-line { border-top: 1px solid #cbd5e1; width: 160px; margin: 0 auto; padding-top: 4px; font-weight: 600; }
+        .signature-section { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 20px; text-align: center; font-size: 11px; }
+        .signature-box { display: flex; flex-direction: column; justify-content: space-between; height: 50px; }
+        .signature-line { border-top: 1px solid #cbd5e1; width: 140px; margin: 0 auto; padding-top: 2px; font-weight: 600; }
         .status-badge { 
-          display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+          display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
         }
         .customer-notice {
-          background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 12px 16px; margin-top: 24px; font-size: 11px; color: #1e40af;
+          background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 8px 12px; margin-top: 12px; font-size: 10.5px; color: #1e40af;
         }
       `}} />
       

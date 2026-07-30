@@ -60,51 +60,51 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
       </div>
 
       {/* Invoice Document */}
-      <div className="bg-white p-5 sm:p-10 rounded-2xl border border-slate-200/80 shadow-sm print:shadow-none print:border-none print:p-0">
+      <div className="bg-white p-5 sm:p-10 rounded-2xl border border-slate-200/80 shadow-sm print:shadow-none print:border-none print:p-0 print:break-inside-avoid">
         
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start border-b border-slate-200 pb-6 sm:pb-8 mb-6 sm:mb-8 gap-4">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start border-b border-slate-200 pb-6 sm:pb-8 mb-6 sm:mb-8 gap-4 print:pb-3 print:mb-3 print:gap-2">
           <div>
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-12 h-12 bg-primary-600 rounded-xl flex items-center justify-center">
-                <Receipt className="w-6 h-6 text-white" />
+            <div className="flex items-center gap-3 mb-2 print:mb-1">
+              <div className="w-12 h-12 bg-primary-600 rounded-xl flex items-center justify-center print:w-8 print:h-8 print:rounded-lg">
+                <Receipt className="w-6 h-6 text-white print:w-4 print:h-4" />
               </div>
               <div>
-                <h1 className="text-xl sm:text-2xl font-bold text-slate-900">{shopName}</h1>
-                <p className="text-sm text-slate-500 font-medium">Cabang {tx.branch.name}</p>
+                <h1 className="text-xl sm:text-2xl font-bold text-slate-900 print:text-base">{shopName}</h1>
+                <p className="text-sm text-slate-500 font-medium print:text-xs">Cabang {tx.branch.name}</p>
               </div>
             </div>
-            <div className="text-sm text-slate-600 space-y-1 mt-4">
-              <p className="flex items-center gap-2"><MapPin className="w-4 h-4 text-slate-400" /> {tx.branch.address}</p>
+            <div className="text-sm text-slate-600 space-y-1 mt-4 print:mt-1 print:text-xs">
+              <p className="flex items-center gap-2"><MapPin className="w-4 h-4 text-slate-400 print:w-3 print:h-3" /> {tx.branch.address}</p>
               {tx.branch.phone && (
-                <p className="flex items-center gap-2"><Phone className="w-4 h-4 text-slate-400" /> {tx.branch.phone}</p>
+                <p className="flex items-center gap-2"><Phone className="w-4 h-4 text-slate-400 print:w-3 print:h-3" /> {tx.branch.phone}</p>
               )}
             </div>
           </div>
           
           <div className="sm:text-right">
-            <div className="flex sm:justify-end gap-2 mb-2">
+            <div className="flex sm:justify-end gap-2 mb-2 print:mb-0.5">
               {tx.status === 'CANCELLED' && (
-                <span className="px-3 py-1 bg-red-100 text-red-600 font-black text-sm rounded-lg tracking-widest border border-red-200 uppercase">
+                <span className="px-3 py-1 bg-red-100 text-red-600 font-black text-sm rounded-lg tracking-widest border border-red-200 uppercase print:text-xs print:px-1.5 print:py-0.5">
                   Dibatalkan
                 </span>
               )}
-              <h2 className="text-2xl sm:text-3xl font-black text-slate-200 uppercase tracking-wider">INVOICE</h2>
+              <h2 className="text-2xl sm:text-3xl font-black text-slate-200 uppercase tracking-wider print:text-lg">INVOICE</h2>
             </div>
-            <p className="text-lg font-bold text-slate-900 font-mono mb-2">{tx.invoiceNumber}</p>
-            <div className="flex items-center sm:justify-end gap-2 text-sm text-slate-500 mb-1">
-              <Calendar className="w-4 h-4" />
+            <p className="text-lg font-bold text-slate-900 font-mono mb-2 print:text-sm print:mb-0.5">{tx.invoiceNumber}</p>
+            <div className="flex items-center sm:justify-end gap-2 text-sm text-slate-500 mb-1 print:text-xs print:mb-0.5">
+              <Calendar className="w-4 h-4 print:w-3 print:h-3" />
               <span>
                 {new Date(tx.createdAt).toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                 {' • '}
                 {new Date(tx.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
               </span>
             </div>
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-slate-500 print:text-xs">
               Kasir: <span className="font-medium text-slate-700">{tx.user.name}</span>
             </p>
             {tx.mechanic && (
-              <p className="text-sm text-slate-500 mt-1">
+              <p className="text-sm text-slate-500 mt-1 print:mt-0 print:text-xs">
                 Mekanik: <span className="font-medium text-slate-700">{tx.mechanic.name}</span>
               </p>
             )}
@@ -112,40 +112,45 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
         </div>
 
         {/* Customer Info */}
-        <div className="bg-slate-50 rounded-xl p-4 sm:p-5 mb-6 sm:mb-8">
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-4">
+        <div className="bg-slate-50 rounded-xl p-4 sm:p-5 mb-6 sm:mb-8 print:p-2.5 print:mb-3 print:bg-slate-50/50 print:border print:border-slate-200 print:rounded-lg">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-4 print:mb-1">
             <div>
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Ditagihkan Kepada</p>
-              <div className="flex items-center gap-2 mb-1">
-                <User className="w-4 h-4 text-slate-400" />
-                <p className="text-base font-bold text-slate-900">{tx.customer?.name || 'Pelanggan Umum'}</p>
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 print:mb-0.5 print:text-[10px]">Ditagihkan Kepada</p>
+              <div className="flex items-center gap-2 mb-1 print:mb-0.5">
+                <User className="w-4 h-4 text-slate-400 print:w-3 print:h-3" />
+                <p className="text-base font-bold text-slate-900 print:text-sm">{tx.customer?.name || 'Pelanggan Umum'}</p>
               </div>
-              {tx.customer?.phone && <p className="text-sm text-slate-600 ml-6">{tx.customer.phone}</p>}
+              {tx.customer?.corporateCustomer?.name && (
+                <p className="text-xs font-medium text-blue-700 bg-blue-50 px-2 py-0.5 rounded w-fit mb-1 border border-blue-200 print:border-none print:bg-transparent print:p-0 print:text-black print:text-xs">
+                  Korporat: {tx.customer.corporateCustomer.name}
+                </p>
+              )}
+              {tx.customer?.phone && <p className="text-sm text-slate-600 ml-6 print:ml-0 print:text-xs">{tx.customer.phone}</p>}
             </div>
             
             {tx.customer?.vehicleType && (
               <div className="sm:text-right">
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Kendaraan</p>
-                <p className="text-sm font-medium text-slate-900">{tx.customer.vehicleType}</p>
-                {tx.customer.plateNumber && <p className="text-sm text-slate-600 font-mono">{tx.customer.plateNumber}</p>}
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 print:mb-0.5 print:text-[10px]">Kendaraan</p>
+                <p className="text-sm font-medium text-slate-900 print:text-xs">{tx.customer.vehicleType}</p>
+                {tx.customer.plateNumber && <p className="text-sm text-slate-600 font-mono print:text-xs">{tx.customer.plateNumber}</p>}
               </div>
             )}
           </div>
 
           {/* Odometer Section */}
           {(tx.odometer || tx.odometerHistory?.length > 0) && (
-            <div className="border-t border-slate-200 pt-4">
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Riwayat Odometer</p>
-              <div className="space-y-2">
+            <div className="border-t border-slate-200 pt-4 print:pt-2 print:mt-1">
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 print:mb-1 print:text-[10px]">Riwayat Odometer</p>
+              <div className="space-y-2 print:space-y-1">
                 {tx.odometer && (
-                  <div className="flex items-center justify-between text-sm bg-primary-50 px-3 py-2 rounded-lg border border-primary-100">
+                  <div className="flex items-center justify-between text-sm bg-primary-50 px-3 py-2 rounded-lg border border-primary-100 print:py-1 print:px-2 print:text-xs">
                     <span className="font-semibold text-primary-900">Kunjungan Ini</span>
                     <span className="font-bold text-primary-700">{tx.odometer.toLocaleString('id-ID')} km</span>
                   </div>
                 )}
                 {tx.odometerHistory?.map((history: { date: Date; odometer: number; invoiceNumber: string }, idx: number) => (
-                  <div key={idx} className="flex items-center justify-between text-sm text-slate-600 px-3 py-2">
-                    <span className="text-xs">
+                  <div key={idx} className="flex items-center justify-between text-sm text-slate-600 px-3 py-2 print:py-0.5 print:px-2 print:text-xs">
+                    <span className="text-xs print:text-[10px]">
                       {new Date(history.date).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
                     </span>
                     <span className="font-mono font-medium">{history.odometer.toLocaleString('id-ID')} km</span>
@@ -157,26 +162,26 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
         </div>
 
         {/* Items Table */}
-        <div className="overflow-x-auto mb-6 sm:mb-8">
+        <div className="overflow-x-auto mb-6 sm:mb-8 print:mb-3">
         <table className="w-full min-w-[400px]">
           <thead>
-            <tr className="border-b-2 border-slate-200">
-              <th className="text-left py-3 text-sm font-semibold text-slate-500 w-1/2">Deskripsi Item</th>
-              <th className="text-center py-3 text-sm font-semibold text-slate-500">Qty</th>
-              <th className="text-right py-3 text-sm font-semibold text-slate-500">Harga Satuan</th>
-              <th className="text-right py-3 text-sm font-semibold text-slate-500">Jumlah</th>
+            <tr className="border-b-2 border-slate-200 print:border-b">
+              <th className="text-left py-3 text-sm font-semibold text-slate-500 w-1/2 print:py-1.5 print:text-xs">Deskripsi Item</th>
+              <th className="text-center py-3 text-sm font-semibold text-slate-500 print:py-1.5 print:text-xs">Qty</th>
+              <th className="text-right py-3 text-sm font-semibold text-slate-500 print:py-1.5 print:text-xs">Harga Satuan</th>
+              <th className="text-right py-3 text-sm font-semibold text-slate-500 print:py-1.5 print:text-xs">Jumlah</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {tx.items.map((item) => (
               <tr key={item.id} className="group">
-                <td className="py-4">
-                  <p className="text-sm font-semibold text-slate-900">{item.itemName}</p>
-                  <p className="text-xs text-slate-400">{item.itemType === 'SERVICE' ? 'Jasa Servis' : 'Sparepart'}</p>
+                <td className="py-4 print:py-1.5">
+                  <p className="text-sm font-semibold text-slate-900 print:text-xs">{item.itemName}</p>
+                  <p className="text-xs text-slate-400 print:text-[10px]">{item.itemType === 'SERVICE' ? 'Jasa Servis' : 'Sparepart'}</p>
                 </td>
-                <td className="text-center py-4 text-sm text-slate-700">{item.quantity}</td>
-                <td className="text-right py-4 text-sm text-slate-700">{formatCurrency(item.unitPrice)}</td>
-                <td className="text-right py-4 text-sm font-semibold text-slate-900">{formatCurrency(item.subtotal)}</td>
+                <td className="text-center py-4 text-sm text-slate-700 print:py-1.5 print:text-xs">{item.quantity}</td>
+                <td className="text-right py-4 text-sm text-slate-700 print:py-1.5 print:text-xs">{formatCurrency(item.unitPrice)}</td>
+                <td className="text-right py-4 text-sm font-semibold text-slate-900 print:py-1.5 print:text-xs">{formatCurrency(item.subtotal)}</td>
               </tr>
             ))}
           </tbody>
@@ -184,53 +189,53 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
         </div>
 
         {/* Totals & Notes */}
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start pt-6 border-t border-slate-200 gap-6">
-          <div className="sm:w-1/2 sm:pr-8">
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Metode Pembayaran</p>
-            <p className="text-sm font-bold text-slate-900 mb-6">{tx.paymentMethod}</p>
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start pt-6 border-t border-slate-200 gap-6 print:pt-2 print:gap-2">
+          <div className="sm:w-1/2 sm:pr-8 print:pr-2">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 print:mb-0.5 print:text-[10px]">Metode Pembayaran</p>
+            <p className="text-sm font-bold text-slate-900 mb-6 print:mb-2 print:text-xs">{tx.paymentMethod}</p>
             
             {tx.notes && (
               <>
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Catatan</p>
-                <p className="text-sm text-slate-600 bg-amber-50/50 p-3 rounded-lg border border-amber-100/50 italic">&quot;{tx.notes}&quot;</p>
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 print:mb-0.5 print:text-[10px]">Catatan</p>
+                <p className="text-sm text-slate-600 bg-amber-50/50 p-3 rounded-lg border border-amber-100/50 italic print:p-1.5 print:text-xs print:rounded-none">&quot;{tx.notes}&quot;</p>
               </>
             )}
           </div>
           
-          <div className="sm:w-1/2 space-y-3">
-            <div className="flex justify-between text-sm text-slate-600">
+          <div className="sm:w-1/2 space-y-3 print:space-y-1">
+            <div className="flex justify-between text-sm text-slate-600 print:text-xs">
               <span>Subtotal</span>
               <span>{formatCurrency(tx.subtotal)}</span>
             </div>
             {tx.discount > 0 && (
-              <div className="flex justify-between text-sm text-emerald-600">
+              <div className="flex justify-between text-sm text-emerald-600 print:text-xs">
                 <span>Diskon</span>
                 <span>-{formatCurrency(tx.discount)}</span>
-            </div>
+              </div>
             )}
-            <div className="flex justify-between items-center pt-4 border-t border-slate-200 mt-4">
-              <span className="text-base font-bold text-slate-900">Total Akhir</span>
-              <span className="text-2xl font-black text-primary-600">{formatCurrency(tx.total)}</span>
+            <div className="flex justify-between items-center pt-4 border-t border-slate-200 mt-4 print:pt-1.5 print:mt-1">
+              <span className="text-base font-bold text-slate-900 print:text-sm">Total Akhir</span>
+              <span className="text-2xl font-black text-primary-600 print:text-base print:font-bold">{formatCurrency(tx.total)}</span>
             </div>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="mt-16 pt-8 border-t border-slate-200 text-center">
-          <p className="text-sm font-semibold text-slate-900 mb-1">Terima kasih atas kunjungan Anda!</p>
-          <p className="text-xs text-slate-500">Barang yang sudah dibeli tidak dapat ditukar atau dikembalikan.</p>
+        <div className="mt-16 pt-8 border-t border-slate-200 text-center print:mt-3 print:pt-2">
+          <p className="text-sm font-semibold text-slate-900 mb-1 print:text-xs print:mb-0.5">Terima kasih atas kunjungan Anda!</p>
+          <p className="text-xs text-slate-500 print:text-[10px]">Barang yang sudah dibeli tidak dapat ditukar atau dikembalikan.</p>
 
           {/* Social Media — only shown if at least one field is filled */}
           {(tx.branch.instagramHandle || tx.branch.facebookPage || tx.branch.whatsappNumber) && (
-            <div className="mt-4 pt-4 border-t border-slate-100 flex flex-wrap items-center justify-center gap-3">
+            <div className="mt-4 pt-4 border-t border-slate-100 flex flex-wrap items-center justify-center gap-3 print:mt-1.5 print:pt-1.5 print:gap-2">
               {tx.branch.instagramHandle && (
                 <a
                   href={`https://instagram.com/${tx.branch.instagramHandle}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 text-xs text-pink-600 hover:text-pink-700 transition-colors print:text-slate-600 print:no-underline"
+                  className="flex items-center gap-1.5 text-xs text-pink-600 hover:text-pink-700 transition-colors print:text-slate-600 print:no-underline print:text-[10px]"
                 >
-                  <InstagramIcon className="w-3.5 h-3.5" />
+                  <InstagramIcon className="w-3.5 h-3.5 print:w-3 print:h-3" />
                   @{tx.branch.instagramHandle}
                 </a>
               )}
@@ -239,9 +244,9 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
                   href={`https://facebook.com/${tx.branch.facebookPage}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-700 transition-colors print:text-slate-600 print:no-underline"
+                  className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-700 transition-colors print:text-slate-600 print:no-underline print:text-[10px]"
                 >
-                  <FacebookIcon className="w-3.5 h-3.5" />
+                  <FacebookIcon className="w-3.5 h-3.5 print:w-3 print:h-3" />
                   {tx.branch.facebookPage}
                 </a>
               )}
@@ -250,9 +255,9 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
                   href={`https://wa.me/${tx.branch.whatsappNumber}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 text-xs text-emerald-600 hover:text-emerald-700 transition-colors print:text-slate-600 print:no-underline"
+                  className="flex items-center gap-1.5 text-xs text-emerald-600 hover:text-emerald-700 transition-colors print:text-slate-600 print:no-underline print:text-[10px]"
                 >
-                  <WhatsAppIcon className="w-3.5 h-3.5" />
+                  <WhatsAppIcon className="w-3.5 h-3.5 print:w-3 print:h-3" />
                   {tx.branch.whatsappNumber}
                 </a>
               )}

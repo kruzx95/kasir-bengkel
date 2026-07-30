@@ -1,12 +1,12 @@
 'use client'
 
-import { useActionState, useEffect, useMemo } from 'react'
+import { useActionState, useEffect, useMemo, useState } from 'react'
 import Modal, { ModalFooter } from '@/components/ui/Modal'
 import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
 import Button from '@/components/ui/Button'
 import { createCustomer, updateCustomer, type CustomerState } from '@/actions/customer'
-import { Save, UserPlus } from 'lucide-react'
+import { Save, UserPlus, Building2, CheckCircle2 } from 'lucide-react'
 
 interface CustomerData {
   id: string
@@ -74,7 +74,7 @@ export default function CustomerFormModal({
 
   // Corporate options (from parent or default)
   const corporateOptions = useMemo(
-    () => [{ value: '', label: '— Individu —' }, ...(corporateList || [])],
+    () => corporateList || [],
     [corporateList]
   )
 
@@ -113,7 +113,7 @@ export default function CustomerFormModal({
         ) : null}
 
         {/* Corporate Customer Dropdown (Admin or Kasir with corporate options available) */}
-        {(isAdmin || (corporateOptions && corporateOptions.length > 1)) && (
+        {(isAdmin || corporateOptions.length > 0) && (
           <CorporateCustomerSelect
             key={`corp-${formKey}`}
             name="corporateCustomerId"
@@ -248,19 +248,81 @@ function CorporateCustomerSelect({
   corporateList: Array<{ value: string; label: string }>
   selectedId: string | null
 }) {
+  const [selectedVal, setSelectedVal] = useState<string>(selectedId || '')
+
+  useEffect(() => {
+    setSelectedVal(selectedId || '')
+  }, [selectedId])
+
+  const selectedCorpName = useMemo(() => {
+    return corporateList.find((c) => c.value === selectedVal)?.label
+  }, [corporateList, selectedVal])
+
   return (
-    <div className="mb-4">
-      <Select
-        id={name}
-        name={name}
-        label="Pelanggan Korporat (Opsional)"
-        options={[
-          { value: '', label: '— Individu —' },
-          ...corporateList,
-        ]}
-        defaultValue={selectedId || ''}
-        placeholder="Pilih korporat..."
-      />
+    <div
+      className={`p-3.5 rounded-xl border transition-all duration-200 mb-4 ${
+        selectedVal
+          ? 'bg-blue-50/50 border-blue-200 shadow-xs'
+          : 'bg-slate-50/60 border-slate-200/80'
+      }`}
+    >
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <div
+            className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
+              selectedVal ? 'bg-blue-100 text-blue-600' : 'bg-slate-200/70 text-slate-600'
+            }`}
+          >
+            <Building2 className="w-4 h-4" />
+          </div>
+          <div>
+            <label
+              htmlFor={name}
+              className="block text-xs font-semibold text-slate-800 uppercase tracking-wider"
+            >
+              Pelanggan Korporat
+            </label>
+            <p className="text-[11px] text-slate-500">
+              Pilih jika transaksi dijamin armada / perusahaan korporat
+            </p>
+          </div>
+        </div>
+        <span
+          className={`text-[10px] font-medium px-2 py-0.5 rounded-full transition-colors ${
+            selectedVal
+              ? 'bg-blue-100 text-blue-700 font-semibold'
+              : 'bg-slate-200/60 text-slate-500'
+          }`}
+        >
+          {selectedVal ? 'Korporat' : 'Individu'}
+        </span>
+      </div>
+
+      <div className="relative">
+        <select
+          id={name}
+          name={name}
+          value={selectedVal}
+          onChange={(e) => setSelectedVal(e.target.value)}
+          className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-900 transition-all hover:border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3csvg%20xmlns%3d%27http%3a%2f%2fwww.w3.org%2f2000%2fsvg%27%20width%3d%2712%27%20height%3d%2712%27%20viewBox%3d%270%200%2012%2012%27%3e%3cpath%20fill%3d%27%2394a3b8%27%20d%3d%27M2%204l4%204%204-4%27%2f%3e%3c%2fsvg%3e')] bg-[length:12px] bg-[right_14px_center] bg-no-repeat pr-9 cursor-pointer"
+        >
+          <option value="">— Pelanggan Individu (Non-Korporat) —</option>
+          {corporateList.map((corp) => (
+            <option key={corp.value} value={corp.value}>
+              🏢 {corp.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {selectedVal && selectedCorpName && (
+        <div className="mt-2.5 p-2 px-3 bg-blue-100/70 border border-blue-200/80 rounded-lg flex items-center gap-2 text-xs text-blue-900 animate-fade-in">
+          <CheckCircle2 className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+          <span>
+            Pelanggan terhubung dengan korporat <strong className="font-semibold">{selectedCorpName}</strong>
+          </span>
+        </div>
+      )}
     </div>
   )
 }

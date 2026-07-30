@@ -21,6 +21,7 @@ interface CustomerRow {
   fuelType: string | null
   odometer: number | null
   branchId: string
+  corporateCustomerId?: string | null
   branch: {
     id: string
     code: string

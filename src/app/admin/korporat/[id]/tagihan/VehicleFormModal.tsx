@@ -1,6 +1,6 @@
 'use client'
 
-import { useActionState, useEffect } from 'react'
+import { useActionState, useEffect, useRef } from 'react'
 import Modal, { ModalFooter } from '@/components/ui/Modal'
 import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
@@ -25,6 +25,13 @@ export default function VehicleFormModal({
   corporateName,
   onSuccess,
 }: VehicleFormModalProps) {
+  const onSuccessRef = useRef(onSuccess)
+  const onCloseRef = useRef(onClose)
+  onSuccessRef.current = onSuccess
+  onCloseRef.current = onClose
+
+  const handledSuccessRef = useRef(false)
+
   const boundAction = createCorporateVehicle.bind(null, corporateCustomerId, branchId)
 
   const [state, formAction, pending] = useActionState<CreateCorporateVehicleState, FormData>(
@@ -33,11 +40,18 @@ export default function VehicleFormModal({
   )
 
   useEffect(() => {
-    if (state?.success) {
-      onSuccess?.()
-      onClose()
+    if (!open) {
+      handledSuccessRef.current = false
     }
-  }, [state?.success, onClose, onSuccess])
+  }, [open])
+
+  useEffect(() => {
+    if (state?.success && !handledSuccessRef.current) {
+      handledSuccessRef.current = true
+      onSuccessRef.current?.()
+      onCloseRef.current()
+    }
+  }, [state?.success])
 
   const fuelTypeOptions = [
     { value: 'GASOLINE', label: 'Bensin (Gasoline)' },

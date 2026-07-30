@@ -195,10 +195,10 @@ textarea {
   animation: slideInLeft 0.3s ease-out;
 }
 
-/* EPSON LX-310 (Dot Matrix) Print Styles */
+/* EPSON LX-310 (Dot Matrix) & Standard Print Styles */
 @media print {
   @page {
-    margin: 0; /* Removes browser default header (title) and footer (url) */
+    margin: 5mm; /* Clean compact margin for printer */
   }
 
   /* Force monochrome & transparent backgrounds for crisp ink ribbon */
@@ -209,14 +209,23 @@ textarea {
     text-shadow: none !important;
   }
 
-  /* Use monospace font for perfect column alignment & fast draft printing */
+  /* Use monospace font for perfect column alignment & compact printing */
   body {
-    padding: 1cm; /* Re-add padding since @page margin is 0 */
+    padding: 4mm !important;
     font-family:
       ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
       "Courier New", monospace !important;
-    font-size: 11pt; /* standard readable size for continuous form */
-    line-height: 1.3;
+    font-size: 10pt !important;
+    line-height: 1.25 !important;
+  }
+
+  /* Prevent awkward page break splitting inside rows and cards */
+  tr,
+  table,
+  .print-avoid-break,
+  .print\:break-inside-avoid {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
   }
 
   /* Reset layout constraints to use full continuous paper width */

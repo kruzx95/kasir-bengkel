@@ -140,34 +140,42 @@ export default function NewIndentClient({ branches, spareparts, customers }: New
   }
 
   const handleSubmit = () => {
-    if (!supplierName) { setError('Nama supplier wajib diisi.'); return }
-    if (items.length === 0) { setError('Pilih minimal satu barang.'); return }
+    if (items.length === 0) {
+      setError('Pilih minimal satu barang.')
+      return
+    }
+
+    const finalSupplier = supplierName.trim() || '—'
     setError(null)
 
     startTransition(async () => {
       const payload: IndentPayload = {
-        branchId,
-        supplierName,
+        branchId: branchId || (branches[0]?.id ?? ''),
+        supplierName: finalSupplier,
         orderDate,
         expectedDate: expectedDate || null,
         notes: notes || null,
-        dpAmount,
+        dpAmount: isNaN(dpAmount) ? 0 : dpAmount,
         type: 'CUSTOMER',
         customerId: customerId || null,
         items: items.map(i => ({
           sparepartId: i.sparepartId || null,
-          isManual: i.isManual,
-          name: i.name,
-          sku: i.sku,
-          quantity: i.quantity,
-          estimatedPrice: i.estimatedPrice,
+          isManual: i.isManual ?? false,
+          name: i.name ?? '',
+          sku: i.sku || null,
+          quantity: Math.max(1, i.quantity),
+          estimatedPrice: isNaN(i.estimatedPrice) ? 0 : i.estimatedPrice,
         })),
       }
 
       const res = await createIndentOrder(payload)
       if (res.success) {
+        if (res.id) {
+          window.open(`/cetak-indent/${res.id}`, '_blank')
+        }
         router.push(`${base}/indent`)
       } else {
+        setShowPoInfo(true)
         setError(res.message || 'Gagal menyimpan pesanan')
       }
     })

@@ -340,7 +340,16 @@ export async function getTransactionDetails(id: string) {
         odometer: true,
         createdAt: true,
         customer: {
-          select: { id: true, name: true, phone: true, plateNumber: true, vehicleType: true }
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+            plateNumber: true,
+            vehicleType: true,
+            corporateCustomer: {
+              select: { id: true, name: true }
+            }
+          }
         },
         user: {
           select: { id: true, name: true }

@@ -40,7 +40,7 @@ export async function createRestock(payload: RestockPayload) {
 
     const data = validated.data
 
-    await prisma.$transaction(async (tx) => {
+    const po = await prisma.$transaction(async (tx) => {
       const isSuperAdmin = session.role === 'ADMIN' && !session.branchId
       const targetBranchId = isSuperAdmin ? data.branchId : session.branchId!
 
@@ -101,7 +101,7 @@ export async function createRestock(payload: RestockPayload) {
     revalidatePath('/admin/master/spareparts')
     revalidatePath('/admin/stock-gudang')
     revalidatePath('/admin/stock-toko')
-    return { success: true, message: 'Barang masuk berhasil dicatat. Barang baru akan tampil di Master Data Stock Gudang dengan qty sesuai input PO.' }
+    return { success: true, id: po.id, message: 'Barang masuk berhasil dicatat. Barang baru akan tampil di Master Data Stock Gudang dengan qty sesuai input PO.' }
   } catch (error) {
     console.error('Create Restock Error:', error)
     return { success: false, message: 'Gagal menyimpan barang masuk' }

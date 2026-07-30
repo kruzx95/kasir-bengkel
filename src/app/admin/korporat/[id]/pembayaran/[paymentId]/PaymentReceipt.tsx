@@ -78,11 +78,11 @@ export default function PaymentReceipt({ payment }: PaymentReceiptProps) {
       </div>
 
       {/* Receipt Content */}
-      <div className="bg-white p-8 border border-slate-200 shadow-sm">
+      <div className="bg-white p-8 border border-slate-200 shadow-sm print:p-0 print:border-none print:shadow-none print:break-inside-avoid">
         {/* Header */}
-        <div className="border-b-2 border-slate-900 pb-4 mb-6">
-          <h1 className="text-2xl font-black uppercase text-center mb-1">Bukti Pembayaran Korporat</h1>
-          <p className="text-center text-sm text-slate-500">
+        <div className="border-b-2 border-slate-900 pb-4 mb-6 print:pb-2 print:mb-3">
+          <h1 className="text-2xl font-black uppercase text-center mb-1 print:text-lg">Bukti Pembayaran Korporat</h1>
+          <p className="text-center text-sm text-slate-500 print:text-xs">
             {payment.branch.name}
             {payment.branch.address && <span className="block text-xs mt-0.5">{payment.branch.address}</span>}
             {payment.branch.phone && <span className="block text-xs">Telp: {payment.branch.phone}</span>}
@@ -90,13 +90,13 @@ export default function PaymentReceipt({ payment }: PaymentReceiptProps) {
         </div>
 
         {/* Payment Info */}
-        <div className="grid grid-cols-2 gap-4 mb-6 text-sm">
+        <div className="grid grid-cols-2 gap-4 mb-6 text-sm print:gap-2 print:mb-3 print:text-xs">
           <div>
-            <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">No. Pembayaran</p>
+            <p className="text-xs text-slate-500 uppercase tracking-wider mb-1 print:text-[10px]">No. Pembayaran</p>
             <p className="font-mono font-bold text-slate-900">{payment.id}</p>
           </div>
           <div>
-            <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Tanggal Bayar</p>
+            <p className="text-xs text-slate-500 uppercase tracking-wider mb-1 print:text-[10px]">Tanggal Bayar</p>
             <p className="font-bold text-slate-900">
               {new Date(payment.paidAt).toLocaleDateString('id-ID', {
                 day: 'numeric',
@@ -106,14 +106,14 @@ export default function PaymentReceipt({ payment }: PaymentReceiptProps) {
             </p>
           </div>
           <div>
-            <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Periode</p>
+            <p className="text-xs text-slate-500 uppercase tracking-wider mb-1 print:text-[10px]">Periode</p>
             <p className="font-bold text-slate-900">
               {new Date(payment.periodStart).toLocaleDateString('id-ID', { month: 'short', year: 'numeric' })} —{' '}
               {new Date(payment.periodEnd).toLocaleDateString('id-ID', { month: 'short', year: 'numeric' })}
             </p>
           </div>
           <div>
-            <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Metode Bayar</p>
+            <p className="text-xs text-slate-500 uppercase tracking-wider mb-1 print:text-[10px]">Metode Bayar</p>
             <p className="font-bold text-slate-900">{payment.paymentMethod}</p>
           </div>
         </div>

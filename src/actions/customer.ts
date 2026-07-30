@@ -17,6 +17,7 @@ const CustomerSchema = z.object({
   fuelType: z.enum(['GASOLINE', 'DIESEL']).optional(),
   odometer: z.coerce.number().int().min(0).optional(),
   branchId: z.string().min(1, 'Cabang wajib dipilih'),
+  corporateCustomerId: z.string().optional().nullable(),
 })
 
 export type CustomerState = {
@@ -128,6 +129,8 @@ export async function createCustomer(
     ? (session.branchId || 'UNASSIGNED')
     : formData.get('branchId') as string
 
+  const corporateCustomerIdRaw = formData.get('corporateCustomerId') as string | null
+
   const validatedFields = CustomerSchema.safeParse({
     name: formData.get('name'),
     phone: formData.get('phone') || undefined,
@@ -140,6 +143,7 @@ export async function createCustomer(
     fuelType: (formData.get('fuelType') as string) || undefined,
     odometer: formData.get('odometer') ? Number(formData.get('odometer')) : undefined,
     branchId,
+    corporateCustomerId: corporateCustomerIdRaw || null,
   })
 
   if (!validatedFields.success) {
@@ -160,6 +164,7 @@ export async function createCustomer(
         fuelType: validatedFields.data.fuelType || null,
         odometer: validatedFields.data.odometer ?? null,
         branchId: validatedFields.data.branchId,
+        corporateCustomerId: validatedFields.data.corporateCustomerId || null,
       },
     })
     revalidatePath('/kasir/pelanggan')
@@ -183,6 +188,8 @@ export async function updateCustomer(
     ? (session.branchId || 'UNASSIGNED')
     : formData.get('branchId') as string
 
+  const corporateCustomerIdRaw = formData.get('corporateCustomerId') as string | null
+
   const validatedFields = CustomerSchema.safeParse({
     name: formData.get('name'),
     phone: formData.get('phone') || undefined,
@@ -195,6 +202,7 @@ export async function updateCustomer(
     fuelType: (formData.get('fuelType') as string) || undefined,
     odometer: formData.get('odometer') ? Number(formData.get('odometer')) : undefined,
     branchId,
+    corporateCustomerId: corporateCustomerIdRaw || null,
   })
 
   if (!validatedFields.success) {
@@ -215,9 +223,11 @@ export async function updateCustomer(
         vehicleYear: validatedFields.data.vehicleYear || null,
         fuelType: validatedFields.data.fuelType || null,
         odometer: validatedFields.data.odometer ?? null,
+        corporateCustomerId: validatedFields.data.corporateCustomerId || null,
       },
     })
     revalidatePath('/kasir/pelanggan')
+    revalidatePath('/admin/pelanggan')
     return { success: true, message: 'Pelanggan berhasil diperbarui' }
   } catch {
     return { message: 'Gagal memperbarui pelanggan' }

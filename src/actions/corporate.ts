@@ -132,6 +132,7 @@ export async function createCorporateCustomer(
       data: { ...validated.data, branchId: targetBranchId }
     })
     revalidatePath('/admin/korporat')
+    revalidatePath('/kasir/korporat')
     return { success: true, message: 'Pelanggan korporat berhasil ditambahkan' }
   } catch {
     return { message: 'Gagal menambahkan pelanggan korporat' }
@@ -173,7 +174,9 @@ export async function updateCorporateCustomer(
       data: { ...validated.data, branchId: targetBranchId }
     })
     revalidatePath('/admin/korporat')
+    revalidatePath('/kasir/korporat')
     revalidatePath(`/admin/korporat/${id}/tagihan`)
+    revalidatePath(`/kasir/korporat/${id}/tagihan`)
     return { success: true, message: 'Data berhasil diperbarui' }
   } catch {
     return { message: 'Gagal memperbarui data' }
@@ -187,6 +190,7 @@ export async function deleteCorporateCustomer(id: string) {
   try {
     await prisma.corporateCustomer.update({ where: { id }, data: { isActive: false } })
     revalidatePath('/admin/korporat')
+    revalidatePath('/kasir/korporat')
     return { success: true }
   } catch {
     return { success: false, message: 'Gagal menghapus' }

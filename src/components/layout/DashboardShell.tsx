@@ -60,9 +60,9 @@ export default function DashboardShell({ role, userName, branchName, shopName, c
             collapsed={sidebarCollapsed}
             onCollapseChange={setSidebarCollapsed}
           />
-          <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-[72px]' : 'lg:ml-64'}`}>
-            <main className="flex-1 w-full min-w-0 overflow-auto">
-              <div className="px-3 sm:px-4 pt-2 sm:pt-3 pb-6 sm:pb-8 max-w-7xl mx-auto">
+          <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-[72px]' : 'lg:ml-64'} print:ml-0 print:p-0`}>
+            <main className="flex-1 w-full min-w-0 overflow-auto print:overflow-visible">
+              <div className="px-3 sm:px-4 pt-2 sm:pt-3 pb-6 sm:pb-8 max-w-7xl mx-auto print:p-0 print:m-0 print:max-w-none">
                 {children}
               </div>
             </main>

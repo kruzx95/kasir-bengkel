@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
+import Select from '@/components/ui/Select'
 import { receiveIndentOrder, type ReceiveIndentPayload } from '@/actions/indent'
 import { formatCurrency } from '@/lib/utils'
-import { ArrowLeft, Save, Upload, X } from 'lucide-react'
+import { ArrowLeft, Save, Upload, X, CheckCircle2, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
 
@@ -60,6 +61,26 @@ export default function ReceiveRestockClient({ order }: { order: IndentOrder }) 
     setReceivedItems(updated)
   }
 
+  // Calculate totals
+  const totalActual = receivedItems.reduce((acc, i) => acc + i.receivedQty * i.actualPrice, 0)
+  const remainingPayment = Math.max(0, totalActual - order.dpAmount)
+
+  // Settlement payment state (default: auto fill remaining payment)
+  const [additionalPayment, setAdditionalPayment] = useState<number>(remainingPayment)
+  const [paymentMethod, setPaymentMethod] = useState<'TUNAI' | 'TRANSFER'>('TUNAI')
+
+  // Auto-sync additional payment when item quantities/prices change unless manually edited
+  const [isManualPayment, setIsManualPayment] = useState(false)
+  useEffect(() => {
+    if (!isManualPayment) {
+      setAdditionalPayment(remainingPayment)
+    }
+  }, [remainingPayment, isManualPayment])
+
+  const totalPaid = order.dpAmount + (additionalPayment || 0)
+  const isFullyPaid = totalPaid >= totalActual
+  const currentUnpaidBalance = Math.max(0, totalActual - totalPaid)
+
   const handleReceiptUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -83,10 +104,6 @@ export default function ReceiveRestockClient({ order }: { order: IndentOrder }) 
     }
   }
 
-  // Calculate totals
-  const totalActual = receivedItems.reduce((acc, i) => acc + i.receivedQty * i.actualPrice, 0)
-  const remainingPayment = totalActual - order.dpAmount
-
   const handleSubmit = () => {
     const hasAnyReceived = receivedItems.some((i) => i.receivedQty > 0)
     if (!hasAnyReceived) {
@@ -102,6 +119,8 @@ export default function ReceiveRestockClient({ order }: { order: IndentOrder }) 
         date,
         notes: notes || null,
         receiptImagePath: receiptImagePath || null,
+        additionalPayment: additionalPayment || 0,
+        paymentMethod,
         items: receivedItems,
       }
       const res = await receiveIndentOrder(payload)
@@ -116,7 +135,7 @@ export default function ReceiveRestockClient({ order }: { order: IndentOrder }) 
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Link href={`${base}/indent`}>
+        <Link href={`${base}/restock`}>
           <Button variant="ghost" icon={ArrowLeft} className="w-10 h-10 p-0" />
         </Link>
         <div>
@@ -151,26 +170,106 @@ export default function ReceiveRestockClient({ order }: { order: IndentOrder }) 
             onChange={(e) => setNotes(e.target.value)}
           />
 
-          {/* Payment Info */}
-          <div className="pt-4 border-t border-slate-100">
-            <h3 className="text-sm font-semibold text-slate-700 mb-3">Informasi Tagihan</h3>
-            <div className="space-y-2 text-sm">
+          {/* Payment Info & Settlement */}
+          <div className="pt-4 border-t border-slate-100 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-slate-700">Informasi Tagihan</h3>
+              <span
+                className={`inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider ${
+                  isFullyPaid
+                    ? 'bg-emerald-100 text-emerald-700 border border-emerald-300'
+                    : 'bg-rose-100 text-rose-700 border border-rose-300'
+                }`}
+              >
+                {isFullyPaid ? (
+                  <>
+                    <CheckCircle2 className="w-3.5 h-3.5" /> LUNAS
+                  </>
+                ) : (
+                  <>
+                    <AlertCircle className="w-3.5 h-3.5" /> HUTANG
+                  </>
+                )}
+              </span>
+            </div>
+
+            <div className="space-y-1.5 text-sm bg-slate-50 p-3 rounded-xl border border-slate-200/80">
               <div className="flex justify-between">
                 <span className="text-slate-500">Total Pesanan:</span>
                 <span className="font-semibold text-slate-900">{formatCurrency(totalActual)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">DP Sudah Dibayar:</span>
-                <span className="font-semibold text-green-600">
-                  {formatCurrency(order.dpAmount)}
-                </span>
+                <span className="font-semibold text-green-600">{formatCurrency(order.dpAmount)}</span>
               </div>
-              <div className="flex justify-between pt-2 border-t border-slate-100">
-                <span className="text-slate-700 font-medium">Sisa Tagihan:</span>
-                <span className={`font-bold text-lg ${remainingPayment > 0 ? 'text-orange-600' : 'text-green-600'}`}>
+              <div className="flex justify-between pt-1.5 border-t border-slate-200">
+                <span className="text-slate-700 font-medium">Sisa Tagihan PO:</span>
+                <span className={`font-bold ${remainingPayment > 0 ? 'text-orange-600' : 'text-slate-900'}`}>
                   {formatCurrency(remainingPayment)}
                 </span>
               </div>
+            </div>
+
+            {/* Interactive Settlement Payment Input */}
+            <div className="space-y-3 pt-2">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-semibold text-slate-800">
+                  Pelunasan Saat Terima
+                </label>
+                <div className="flex gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsManualPayment(true)
+                      setAdditionalPayment(remainingPayment)
+                    }}
+                    className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2 py-0.5 rounded-lg transition-colors"
+                  >
+                    Bayar Lunas
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsManualPayment(true)
+                      setAdditionalPayment(0)
+                    }}
+                    className="text-[10px] font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-2 py-0.5 rounded-lg transition-colors"
+                  >
+                    Hutang (0)
+                  </button>
+                </div>
+              </div>
+
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-bold">Rp</span>
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="0"
+                  value={additionalPayment.toString()}
+                  onChange={(e) => {
+                    setIsManualPayment(true)
+                    setAdditionalPayment(parseFloat(e.target.value) || 0)
+                  }}
+                  className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-xl text-sm font-bold text-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all"
+                />
+              </div>
+
+              <Select
+                label="Metode Bayar Pelunasan"
+                options={[
+                  { label: 'Tunai (Cash)', value: 'TUNAI' },
+                  { label: 'Transfer Bank', value: 'TRANSFER' },
+                ]}
+                value={paymentMethod}
+                onChange={(e) => setPaymentMethod(e.target.value as 'TUNAI' | 'TRANSFER')}
+              />
+
+              {!isFullyPaid && (
+                <p className="text-xs text-rose-600 bg-rose-50/80 p-2 rounded-lg border border-rose-200">
+                  * Sisa utang ke supplier setelah penerimaan: <strong>{formatCurrency(currentUnpaidBalance)}</strong>
+                </p>
+              )}
             </div>
           </div>
 

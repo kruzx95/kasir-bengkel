@@ -235,3 +235,196 @@ export async function getIndentReportData(
     return { indents: [], summary: { count: 0, totalValue: 0, pendingCount: 0, partialCount: 0, receivedCount: 0, topSparepart: null as string | null } }
   }
 }
+
+export async function getCorporateReportData(
+  startDateStr?: string,
+  endDateStr?: string,
+  branchId?: string,
+  corporateCustomerId?: string
+) {
+  const session = await getSession()
+  if (!session) {
+    return {
+      corporates: [],
+      transactions: [],
+      payments: [],
+      ledgers: [],
+      summary: { totalInvoice: 0, totalPaid: 0, outstanding: 0, activeCompanies: 0 },
+    }
+  }
+
+  const today = new Date()
+  const defaultStart = new Date(today.getFullYear(), today.getMonth(), 1)
+  const startDate = startDateStr ? new Date(startDateStr) : defaultStart
+  startDate.setHours(0, 0, 0, 0)
+  const endDate = endDateStr ? new Date(endDateStr) : new Date(today)
+  endDate.setHours(23, 59, 59, 999)
+
+  try {
+    const corporates = await prisma.corporateCustomer.findMany({
+      where: {
+        isActive: true,
+        ...getBranchFilter(session, branchId),
+      },
+      select: {
+        id: true,
+        name: true,
+        contactPerson: true,
+        contactPhone: true,
+        billingCycle: true,
+        branch: { select: { name: true } },
+      },
+      orderBy: { name: 'asc' },
+    })
+
+    const corpWhere = corporateCustomerId
+      ? { id: corporateCustomerId }
+      : { isActive: true, ...getBranchFilter(session, branchId) }
+
+    const targetCorporates = await prisma.corporateCustomer.findMany({
+      where: corpWhere,
+      select: {
+        id: true,
+        name: true,
+        contactPerson: true,
+        contactPhone: true,
+        billingCycle: true,
+        customers: { select: { id: true, name: true, plateNumber: true } },
+      },
+    })
+
+    const customerIds = targetCorporates.flatMap((c) => c.customers.map((cust) => cust.id))
+
+    const transactions = await prisma.transaction.findMany({
+      where: {
+        customerId: { in: customerIds },
+        transactionDate: { gte: startDate, lte: endDate },
+        status: { in: ['COMPLETED', 'PENDING_CORPORATE'] },
+      },
+      include: {
+        branch: { select: { name: true } },
+        user: { select: { name: true } },
+        customer: {
+          select: {
+            name: true,
+            plateNumber: true,
+            vehicleType: true,
+            corporateCustomer: { select: { id: true, name: true } },
+          },
+        },
+        items: {
+          select: {
+            itemName: true,
+            itemType: true,
+            quantity: true,
+            unitPrice: true,
+            subtotal: true,
+          },
+        },
+      },
+      orderBy: { transactionDate: 'desc' },
+    })
+
+    const corpIdsFilter = corporateCustomerId ? [corporateCustomerId] : targetCorporates.map((c) => c.id)
+    const payments = await prisma.corporatePayment.findMany({
+      where: {
+        corporateCustomerId: { in: corpIdsFilter },
+        paidAt: { gte: startDate, lte: endDate },
+        voidedAt: null,
+      },
+      include: {
+        corporateCustomer: { select: { id: true, name: true } },
+        branch: { select: { name: true } },
+        createdBy: { select: { name: true } },
+      },
+      orderBy: { paidAt: 'desc' },
+    })
+
+    let totalInvoice = 0
+    let totalPendingInvoice = 0
+    transactions.forEach((tx) => {
+      totalInvoice += tx.total
+      if (tx.status === 'PENDING_CORPORATE') {
+        totalPendingInvoice += tx.total
+      }
+    })
+
+    let totalPaid = 0
+    payments.forEach((p) => {
+      totalPaid += p.amount
+    })
+
+    const ledgerMap: Record<
+      string,
+      {
+        id: string
+        name: string
+        contactPerson: string | null
+        contactPhone: string | null
+        billingCycle: string
+        transactionCount: number
+        totalInvoice: number
+        totalPaid: number
+        outstanding: number
+      }
+    > = {}
+
+    targetCorporates.forEach((corp) => {
+      ledgerMap[corp.id] = {
+        id: corp.id,
+        name: corp.name,
+        contactPerson: corp.contactPerson,
+        contactPhone: corp.contactPhone,
+        billingCycle: corp.billingCycle,
+        transactionCount: 0,
+        totalInvoice: 0,
+        totalPaid: 0,
+        outstanding: 0,
+      }
+    })
+
+    transactions.forEach((tx) => {
+      const corpId = tx.customer?.corporateCustomer?.id
+      if (corpId && ledgerMap[corpId]) {
+        ledgerMap[corpId].transactionCount += 1
+        ledgerMap[corpId].totalInvoice += tx.total
+        if (tx.status === 'PENDING_CORPORATE') {
+          ledgerMap[corpId].outstanding += tx.total
+        }
+      }
+    })
+
+    payments.forEach((p) => {
+      const corpId = p.corporateCustomer.id
+      if (corpId && ledgerMap[corpId]) {
+        ledgerMap[corpId].totalPaid += p.amount
+      }
+    })
+
+    const ledgers = Object.values(ledgerMap).filter(
+      (l) => l.transactionCount > 0 || l.totalPaid > 0 || l.outstanding > 0
+    )
+
+    return {
+      corporates,
+      transactions,
+      payments,
+      ledgers,
+      summary: {
+        totalInvoice,
+        totalPaid,
+        outstanding: totalPendingInvoice,
+        activeCompanies: ledgers.length,
+      },
+    }
+  } catch (error) {
+    console.error('getCorporateReportData error:', error)
+    return {
+      corporates: [],
+      transactions: [],
+      payments: [],
+      ledgers: [],
+      summary: { totalInvoice: 0, totalPaid: 0, outstanding: 0, activeCompanies: 0 },
+    }
+  }
+}

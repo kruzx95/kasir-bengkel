@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import Table from '@/components/ui/Table'
 import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
@@ -46,11 +47,16 @@ const cycleLabel: Record<string, string> = {
 }
 
 export default function KorporatClient({ initialData, branches, isAdmin, currentBranchId }: KorporatClientProps) {
+  const router = useRouter()
   const [modalOpen, setModalOpen] = useState(false)
   const [editData, setEditData] = useState<CorporateRow | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
   const [data, setData] = useState(initialData)
   const [search, setSearch] = useState('')
+
+  useEffect(() => {
+    setData(initialData)
+  }, [initialData])
 
   const handleEdit = (row: CorporateRow) => {
     setEditData(row)
@@ -63,6 +69,7 @@ export default function KorporatClient({ initialData, branches, isAdmin, current
     const result = await deleteCorporateCustomer(id)
     if (result.success) {
       setData(data.filter(d => d.id !== id))
+      router.refresh()
     } else {
       alert(result.message || 'Gagal menghapus')
     }
@@ -72,6 +79,7 @@ export default function KorporatClient({ initialData, branches, isAdmin, current
   const handleClose = () => {
     setModalOpen(false)
     setEditData(null)
+    router.refresh()
   }
 
   // Filter data by search
