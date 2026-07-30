@@ -7,7 +7,7 @@ import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
 import { createCorporatePayment, type CreatePaymentInput, type PaymentResult } from '@/actions/corporate'
 import { formatCurrency } from '@/lib/utils'
-import { X, Plus, Minus, Wallet } from 'lucide-react'
+import { Plus, Wallet } from 'lucide-react'
 
 interface TransactionItem {
   id: string

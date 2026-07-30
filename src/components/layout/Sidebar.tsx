@@ -21,7 +21,6 @@ import {
   Briefcase,
   Settings,
   BellRing,
-  ArrowLeftRight,
   Store,
   Warehouse,
 } from 'lucide-react'

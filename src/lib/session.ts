@@ -13,7 +13,10 @@ export type SessionPayload = {
   expiresAt: Date
 }
 
-const secretKey = process.env.SESSION_SECRET
+const secretKey = process.env.SESSION_SECRET || 'dev-default-session-secret-change-in-production-32-chars'
+if (process.env.NODE_ENV === 'production' && !process.env.SESSION_SECRET) {
+  console.warn('[SECURITY WARNING] SESSION_SECRET environment variable is not defined!')
+}
 const encodedKey = new TextEncoder().encode(secretKey)
 const SESSION_DURATION = 7 * 24 * 60 * 60 * 1000 // 7 days
 

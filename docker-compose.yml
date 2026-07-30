@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   mysql:
-    image: mysql:8.0
+    image: mariadb:10.11
     container_name: irian-motor-mysql
     environment:
       MYSQL_ROOT_PASSWORD: rootpassword

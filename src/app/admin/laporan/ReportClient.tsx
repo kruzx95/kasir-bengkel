@@ -8,7 +8,7 @@ import Table from '@/components/ui/Table'
 import Badge from '@/components/ui/Badge'
 import { formatCurrency } from '@/lib/utils'
 import { getReportData, getRestockReportData, getIndentReportData } from '@/actions/report'
-import { Download, Filter, Receipt, ShoppingCart, Printer, ClipboardList, Package, User } from 'lucide-react'
+import { Download, Filter, Receipt, ShoppingCart, Printer, ClipboardList } from 'lucide-react'
 
 import * as XLSX from 'xlsx'
 

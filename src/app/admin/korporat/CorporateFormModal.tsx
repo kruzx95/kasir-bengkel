@@ -12,6 +12,7 @@ interface Branch {
   id: string
   code: string
   name: string
+  isActive?: boolean
 }
 
 interface CorporateData {
@@ -30,7 +31,7 @@ interface CorporateData {
 interface CorporateFormModalProps {
   open: boolean
   onClose: () => void
-  branches?: Array<{ id: string; code: string; name: string; isActive?: boolean }>
+  branches?: Branch[]
   editData?: CorporateData | null
   /**
    * ID cabang user (kasir). Jika diisi, dropdown cabang disembunyikan dan

@@ -173,9 +173,11 @@ npm run start
 
 ## 🚀 Deploy ke VPS
 
-Lihat panduan lengkap di folder `deploy/`:
-- `deploy/deploy.sh` — Script deploy otomatis via Git
-- `deploy/setup-vps.sh` — Setup awal Ubuntu server
+Panduan lengkap step-by-step tersedia di [docs/PANDUAN_DEPLOY_VPS.md](file:///home/kruza/Documents/irian-motor/docs/PANDUAN_DEPLOY_VPS.md).
+
+File skrip pendukung di folder `deploy/`:
+- `deploy/deploy.sh` — Skrip update/redeploy otomatis via Git
+- `deploy/setup-vps.sh` — Skrip setup awal Ubuntu server
 - `deploy/nginx/irian-motor.conf` — Konfigurasi Nginx reverse proxy
 
 Untuk menjalankan aplikasi secara background di VPS, project ini menggunakan **PM2**:

@@ -24,12 +24,6 @@ interface CustomerData {
   corporateCustomerId?: string | null
 }
 
-interface CorporateCustomer {
-  id: string
-  name: string
-  branch: { name: string }
-}
-
 interface CustomerFormModalProps {
   open: boolean
   onClose: () => void
