@@ -41,7 +41,7 @@ export default function ImportServiceModal({ open, onClose, branches, onSuccess 
 
   const handleDownloadTemplate = async () => {
     await exportTemplateExcel({
-      shopName:  'Irian Motor',
+      shopName:  'MULYA LESTARI',
       title:     'TEMPLATE IMPORT JASA SERVIS',
       filename:  'template_import_servis.xlsx',
       sheetName: 'Jasa Servis',

@@ -32,8 +32,14 @@ export async function getDashboardMetrics() {
     items,
     prevMonthItems,
     lowStockItems,
+    monthRegularTrans,
+    monthCorporateTrans,
+    monthCorporatePendingTrans,
+    todayRegularTrans,
+    todayCorporateTrans,
+    todayCorporatePendingTrans,
   ] = await Promise.all([
-    // Today's Revenue
+    // Today's Revenue Total
     prisma.transaction.aggregate({
       where: {
         ...branchFilter,
@@ -43,7 +49,7 @@ export async function getDashboardMetrics() {
       _sum: { total: true },
     }),
 
-    // This Month's Revenue
+    // This Month's Revenue Total
     prisma.transaction.aggregate({
       where: {
         ...branchFilter,
@@ -119,6 +125,82 @@ export async function getDashboardMetrics() {
       orderBy: { stock: 'asc' },
       take: 10,
     }),
+
+    // Month Regular Revenue (Completed non-corporate)
+    prisma.transaction.aggregate({
+      where: {
+        ...branchFilter,
+        transactionDate: { gte: startOfMonth },
+        status: 'COMPLETED',
+        OR: [
+          { customerId: null },
+          { customer: { corporateCustomerId: null } },
+        ],
+      },
+      _sum: { total: true },
+      _count: { id: true },
+    }),
+
+    // Month Corporate Revenue (Completed corporate)
+    prisma.transaction.aggregate({
+      where: {
+        ...branchFilter,
+        transactionDate: { gte: startOfMonth },
+        status: 'COMPLETED',
+        customer: { corporateCustomerId: { not: null } },
+      },
+      _sum: { total: true },
+      _count: { id: true },
+    }),
+
+    // Month Corporate Pending Billing
+    prisma.transaction.aggregate({
+      where: {
+        ...branchFilter,
+        transactionDate: { gte: startOfMonth },
+        status: 'PENDING_CORPORATE',
+      },
+      _sum: { total: true },
+      _count: { id: true },
+    }),
+
+    // Today Regular Revenue
+    prisma.transaction.aggregate({
+      where: {
+        ...branchFilter,
+        transactionDate: { gte: today },
+        status: 'COMPLETED',
+        OR: [
+          { customerId: null },
+          { customer: { corporateCustomerId: null } },
+        ],
+      },
+      _sum: { total: true },
+      _count: { id: true },
+    }),
+
+    // Today Corporate Revenue
+    prisma.transaction.aggregate({
+      where: {
+        ...branchFilter,
+        transactionDate: { gte: today },
+        status: 'COMPLETED',
+        customer: { corporateCustomerId: { not: null } },
+      },
+      _sum: { total: true },
+      _count: { id: true },
+    }),
+
+    // Today Corporate Pending
+    prisma.transaction.aggregate({
+      where: {
+        ...branchFilter,
+        transactionDate: { gte: today },
+        status: 'PENDING_CORPORATE',
+      },
+      _sum: { total: true },
+      _count: { id: true },
+    }),
   ])
 
   // 3. Process results
@@ -182,6 +264,22 @@ export async function getDashboardMetrics() {
   return {
     dailyRevenue,
     monthlyRevenue,
+    dailyBreakdown: {
+      regularRevenue: todayRegularTrans._sum?.total || 0,
+      regularCount: todayRegularTrans._count?.id || 0,
+      corporateRevenue: todayCorporateTrans._sum?.total || 0,
+      corporateCount: todayCorporateTrans._count?.id || 0,
+      corporatePending: todayCorporatePendingTrans._sum?.total || 0,
+      pendingCount: todayCorporatePendingTrans._count?.id || 0,
+    },
+    monthlyBreakdown: {
+      regularRevenue: monthRegularTrans._sum?.total || 0,
+      regularCount: monthRegularTrans._count?.id || 0,
+      corporateRevenue: monthCorporateTrans._sum?.total || 0,
+      corporateCount: monthCorporateTrans._count?.id || 0,
+      corporatePending: monthCorporatePendingTrans._sum?.total || 0,
+      pendingCount: monthCorporatePendingTrans._count?.id || 0,
+    },
     trendData,
     branchRevenueData,
     topServices,

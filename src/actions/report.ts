@@ -3,11 +3,14 @@
 import { prisma } from '@/lib/prisma'
 import { getSession, getBranchFilter } from '@/lib/session'
 
-export async function getReportData(startDateStr?: string, endDateStr?: string, branchId?: string) {
+export async function getReportData(
+  startDateStr?: string,
+  endDateStr?: string,
+  branchId?: string,
+  txCategory: 'ALL' | 'REGULAR' | 'CORPORATE' = 'ALL'
+) {
   const session = await getSession()
   if (!session) return { transactions: [], summary: { total: 0, service: 0, sparepart: 0, discount: 0, pendingCorporate: 0 } }
-
-  // Let getBranchFilter handle the logic
 
   // Defaults: 1st of current month to today
   const today = new Date()
@@ -20,17 +23,32 @@ export async function getReportData(startDateStr?: string, endDateStr?: string, 
   endDate.setHours(23, 59, 59, 999)
 
   try {
-    const transactions = await prisma.transaction.findMany({
-      where: {
-        ...getBranchFilter(session, branchId),
-        transactionDate: {
-          gte: startDate,
-          lte: endDate,
-        },
-        // Include COMPLETED and PENDING_CORPORATE so corporate transactions
-        // are visible in the report even before they are settled
-        status: { in: ['COMPLETED', 'PENDING_CORPORATE'] },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const whereClause: any = {
+      ...getBranchFilter(session, branchId),
+      transactionDate: {
+        gte: startDate,
+        lte: endDate,
       },
+    }
+
+    if (txCategory === 'REGULAR') {
+      whereClause.status = 'COMPLETED'
+      whereClause.OR = [
+        { customerId: null },
+        { customer: { corporateCustomerId: null } },
+      ]
+    } else if (txCategory === 'CORPORATE') {
+      whereClause.OR = [
+        { status: 'PENDING_CORPORATE' },
+        { customer: { corporateCustomerId: { not: null } } },
+      ]
+    } else {
+      whereClause.status = { in: ['COMPLETED', 'PENDING_CORPORATE'] }
+    }
+
+    const transactions = await prisma.transaction.findMany({
+      where: whereClause,
       select: {
         id: true,
         invoiceNumber: true,
@@ -43,7 +61,14 @@ export async function getReportData(startDateStr?: string, endDateStr?: string, 
         total: true,
         notes: true,
         branch: { select: { name: true } },
-        customer: { select: { name: true, plateNumber: true } },
+        customer: {
+          select: {
+            name: true,
+            plateNumber: true,
+            corporateCustomerId: true,
+            corporateCustomer: { select: { id: true, name: true } },
+          },
+        },
         user: { select: { name: true } },
         items: {
           select: {

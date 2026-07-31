@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { getSession } from '@/lib/session'
 import { revalidatePath } from 'next/cache'
 
-const DEFAULT_SHOP_NAME = 'Bengkel Motor'
+const DEFAULT_SHOP_NAME = 'MULYA LESTARI'
 
 export async function getShopName(): Promise<string> {
   try {

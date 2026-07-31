@@ -39,7 +39,7 @@ interface CorporateTxRow {
     vehicleType?: string | null
     corporateCustomer?: { id: string; name: string } | null
   } | null
-  items: { itemName: string; quantity: number; subtotal: number }[]
+  items: { itemName: string; itemType?: string; quantity: number; unitPrice?: number; subtotal: number }[]
 }
 
 interface CorporatePaymentRow {
@@ -56,6 +56,8 @@ interface CorporatePaymentRow {
 interface TransactionItem {
   quantity: number
   itemName: string
+  itemType?: string
+  unitPrice?: number
   subtotal: number
 }
 
@@ -66,8 +68,14 @@ interface TransactionRow {
   items: TransactionItem[]
   branch: { name: string }
   user: { name: string }
-  customer?: { name?: string; plateNumber?: string | null } | null
+  customer?: {
+    name?: string
+    plateNumber?: string | null
+    corporateCustomerId?: string | null
+    corporateCustomer?: { id: string; name: string } | null
+  } | null
   type: string
+  status?: string
   total: number
   subtotal: number
   discount?: number
@@ -137,6 +145,7 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
   const [startDate, setStartDate] = useState(firstDayStr)
   const [endDate, setEndDate] = useState(todayStr)
   const [branchId, setBranchId] = useState('')
+  const [txCategory, setTxCategory] = useState<'ALL' | 'REGULAR' | 'CORPORATE'>('ALL')
   const [data, setData] = useState<TransactionRow[]>(initialData)
   const [summary, setSummary] = useState(initialSummary)
 
@@ -192,7 +201,7 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
   }
 
   const handleExportCorporateExcel = async () => {
-    if (corpSubTab === 'ringkasan') {
+    if (corpSubTab === 'ringkasan' && (!corpTransactions || corpTransactions.length === 0)) {
       const rows = corpLedgers.map((l) => ({
         perusahaan: l.name,
         kontak: l.contactPerson ? `${l.contactPerson} (${l.contactPhone || '-'})` : '-',
@@ -234,7 +243,13 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
         armada: tx.customer ? `${tx.customer.name} (${tx.customer.plateNumber || '-'})` : '-',
         cabang: tx.branch.name,
         petugas: tx.user.name,
-        rincianItem: tx.items.map((i) => `${i.quantity}x ${i.itemName}`).join('\n'),
+        rincianItem: tx.items
+          .map((i) => {
+            const typeLabel = i.itemType === 'SERVICE' ? '[JASA]' : '[BARANG]'
+            const priceInfo = i.unitPrice ? `@Rp ${i.unitPrice.toLocaleString('id-ID')} ` : ''
+            return `${typeLabel} ${i.quantity}x ${i.itemName} (${priceInfo}= Rp ${i.subtotal.toLocaleString('id-ID')})`
+          })
+          .join('\n'),
         total: tx.total,
         status: tx.status === 'PENDING_CORPORATE' ? 'BELUM LUNAS' : 'LUNAS',
       }))
@@ -252,7 +267,7 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
           { header: 'Armada / Plat', key: 'armada', width: 22 },
           { header: 'Cabang', key: 'cabang', width: 16 },
           { header: 'Petugas', key: 'petugas', width: 16 },
-          { header: 'Rincian Servis/Sparepart', key: 'rincianItem', width: 40 },
+          { header: 'Rincian Jasa & Barang (Qty, Harga, Subtotal)', key: 'rincianItem', width: 50 },
           { header: 'Total (Rp)', key: 'total', width: 18, numFmt: '"Rp "#,##0', align: 'right' },
           { header: 'Status', key: 'status', width: 14, align: 'center' },
         ],
@@ -267,8 +282,8 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
 
   const handleFilter = () => {
     startTransition(async () => {
-      const res = await getReportData(startDate, endDate, branchId)
-      setData(res.transactions)
+      const res = await getReportData(startDate, endDate, branchId, txCategory)
+      setData(res.transactions as unknown as TransactionRow[])
       setSummary(res.summary)
     })
   }
@@ -308,7 +323,7 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
       pelanggan:      order.customer?.name || (order.type === 'RESTOCK' ? 'Stok Sendiri' : '—'),
       petugas:        order.user.name,
       dp:             order.dpAmount || 0,
-      rincianItem:    order.items.map((i) => `${i.quantity}x ${i.sparepart.name}`).join('\n'),
+      rincianItem:    order.items.map((i) => `${i.quantity}x ${i.sparepart.name} (@Rp ${i.estimatedPrice.toLocaleString('id-ID')} = Rp ${(i.quantity * i.estimatedPrice).toLocaleString('id-ID')})`).join('\n'),
       estimasiTotal:  order.items.reduce((sum, i) => sum + i.quantity * i.estimatedPrice, 0),
       catatan:        order.notes || '',
     }))
@@ -348,19 +363,24 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
   }
 
   const handleExportExcel = async () => {
-    const rows = data.map((tx: TransactionRow) => ({
-      tanggal:        new Date(tx.transactionDate).toLocaleDateString('id-ID'),
-      noInvoice:      tx.invoiceNumber,
-      cabang:         tx.branch.name,
-      kasir:          tx.user.name,
-      pelanggan:      tx.customer?.name || 'Umum',
-      tipeTransaksi:  tx.type,
-      metodeBayar:    tx.paymentMethod || 'TUNAI',
-      rincianItem:    tx.items.map((i: TransactionItem) => `${i.quantity}x ${i.itemName}`).join('\n'),
-      subtotal:       tx.subtotal,
-      diskon:         tx.discount || 0,
-      totalAkhir:     tx.total,
-    }))
+    const rows = data.map((tx: TransactionRow) => {
+      const isCorp = tx.status === 'PENDING_CORPORATE' || !!tx.customer?.corporateCustomer || !!tx.customer?.corporateCustomerId
+      const corpName = tx.customer?.corporateCustomer?.name
+      return {
+        tanggal:           new Date(tx.transactionDate).toLocaleDateString('id-ID'),
+        noInvoice:         tx.invoiceNumber,
+        cabang:            tx.branch.name,
+        kasir:             tx.user.name,
+        pelanggan:         tx.customer?.name || 'Umum',
+        kategoriPelanggan: isCorp ? (corpName ? `Korporat (${corpName})` : 'Korporat') : 'Reguler',
+        tipeTransaksi:     tx.type,
+        metodeBayar:       tx.paymentMethod || 'TUNAI',
+        rincianItem:       tx.items.map((i: TransactionItem) => `${i.itemType === 'SERVICE' ? '[JASA]' : '[BARANG]'} ${i.quantity}x ${i.itemName}${i.unitPrice ? ` (@Rp ${i.unitPrice.toLocaleString('id-ID')})` : ''} = Rp ${i.subtotal.toLocaleString('id-ID')}`).join('\n'),
+        subtotal:          tx.subtotal,
+        diskon:            tx.discount || 0,
+        totalAkhir:        tx.total,
+      }
+    })
 
     const totalPenjualan = rows.reduce((sum, r) => sum + (r.totalAkhir as number), 0)
     const totalDiskon    = rows.reduce((sum, r) => sum + (r.diskon as number), 0)
@@ -375,9 +395,10 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
         { header: 'Tanggal',       key: 'tanggal',       width: 14 },
         { header: 'No. Invoice',   key: 'noInvoice',     width: 24, align: 'center' },
         { header: 'Cabang',        key: 'cabang',        width: 16 },
-        { header: 'Kasir',         key: 'kasir',         width: 16 },
-        { header: 'Pelanggan',     key: 'pelanggan',     width: 20 },
-        { header: 'Tipe',          key: 'tipeTransaksi', width: 12, align: 'center' },
+        { header: 'Kasir',              key: 'kasir',             width: 16 },
+        { header: 'Pelanggan',          key: 'pelanggan',         width: 20 },
+        { header: 'Kategori Pelanggan', key: 'kategoriPelanggan', width: 22 },
+        { header: 'Tipe',               key: 'tipeTransaksi',     width: 12, align: 'center' },
         { header: 'Metode Bayar',  key: 'metodeBayar',   width: 14, align: 'center' },
         { header: 'Rincian Item',  key: 'rincianItem',   width: 42 },
         { header: 'Subtotal (Rp)', key: 'subtotal',      width: 18, numFmt: '"Rp "#,##0', align: 'right' },
@@ -404,7 +425,7 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
       tanggal:      new Date(r.date).toLocaleDateString('id-ID'),
       supplier:     r.supplierName,
       cabang:       r.branch.name,
-      rincianItem:  r.items.map((i: RestockItem) => `${i.quantity}x ${i.sparepart.name}${i.sparepart.sparepartBrand ? ` (${i.sparepart.sparepartBrand})` : ''}`).join('\n'),
+      rincianItem:  r.items.map((i: RestockItem) => `${i.quantity}x ${i.sparepart.name}${i.sparepart.sparepartBrand ? ` (${i.sparepart.sparepartBrand})` : ''} (@Rp ${i.buyPrice.toLocaleString('id-ID')} = Rp ${(i.quantity * i.buyPrice).toLocaleString('id-ID')})`).join('\n'),
       jumlahItem:   r.items.reduce((s: number, i: RestockItem) => s + i.quantity, 0),
       total:        r.total,
     }))
@@ -459,6 +480,33 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
       ),
     },
     {
+      key: 'customer',
+      header: 'Pelanggan',
+      render: (row: TransactionRow) => {
+        const isCorp = row.status === 'PENDING_CORPORATE' || !!row.customer?.corporateCustomer || !!row.customer?.corporateCustomerId
+        const corpName = row.customer?.corporateCustomer?.name
+        return (
+          <div>
+            <p className="text-sm font-semibold text-slate-900">{row.customer?.name || 'Umum / Walk-in'}</p>
+            {row.customer?.plateNumber && (
+              <p className="text-xs text-slate-400 font-mono">{row.customer.plateNumber}</p>
+            )}
+            <div className="mt-1">
+              {isCorp ? (
+                <Badge variant="primary" size="sm" className="text-[10px]">
+                  {corpName ? `Korporat: ${corpName}` : 'Korporat'}
+                </Badge>
+              ) : (
+                <Badge variant="default" size="sm" className="bg-slate-100 text-slate-600 border-slate-200 text-[10px]">
+                  Reguler
+                </Badge>
+              )}
+            </div>
+          </div>
+        )
+      },
+    },
+    {
       key: 'type',
       header: 'Tipe',
       render: (row: TransactionRow) => (
@@ -469,9 +517,29 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
     },
     {
       key: 'items',
-      header: 'Total Item',
+      header: 'Rincian Jasa & Barang',
       render: (row: TransactionRow) => (
-        <span className="text-sm font-medium text-slate-700">{row.items.length} item</span>
+        <div className="space-y-1 py-1 max-w-md">
+          {row.items.map((item, idx) => {
+            const isService = item.itemType === 'SERVICE'
+            return (
+              <div key={idx} className="flex items-start justify-between gap-2 text-xs border-b border-slate-100 pb-1 last:border-0 last:pb-0">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <Badge variant={isService ? 'primary' : 'warning'} size="sm" className="shrink-0 text-[10px] px-1.5 py-0 font-medium">
+                    {isService ? 'JASA' : 'BARANG'}
+                  </Badge>
+                  <span className="font-medium text-slate-800 truncate">
+                    {item.quantity}x {item.itemName}
+                  </span>
+                </div>
+                <div className="text-right shrink-0 font-mono text-[11px] text-slate-600">
+                  {item.unitPrice ? `@${formatCurrency(item.unitPrice)} ` : ''}
+                  <span className="font-bold text-slate-900">({formatCurrency(item.subtotal)})</span>
+                </div>
+              </div>
+            )
+          })}
+        </div>
       ),
     },
     {
@@ -505,16 +573,23 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
     },
     {
       key: 'items',
-      header: 'Rincian Barang',
+      header: 'Rincian Barang & Harga Beli',
       render: (row: RestockRow) => (
-        <div className="space-y-0.5">
-          {row.items.map((item: RestockItem, i: number) => (
-            <p key={i} className="text-xs text-slate-600">
-              {item.quantity}x {item.sparepart.name}
-              {item.sparepart.sparepartBrand ? ` (${item.sparepart.sparepartBrand})` : ''}
-              {' — '}{formatCurrency(item.buyPrice)}/unit
-            </p>
-          ))}
+        <div className="space-y-1 py-1 max-w-md">
+          {row.items.map((item: RestockItem, i: number) => {
+            const itemSubtotal = item.quantity * item.buyPrice
+            return (
+              <div key={i} className="flex items-start justify-between gap-2 text-xs border-b border-slate-100 pb-1 last:border-0 last:pb-0">
+                <span className="font-medium text-slate-800">
+                  {item.quantity}x {item.sparepart.name}
+                  {item.sparepart.sparepartBrand ? ` (${item.sparepart.sparepartBrand})` : ''}
+                </span>
+                <div className="text-right shrink-0 font-mono text-[11px] text-slate-600">
+                  @{formatCurrency(item.buyPrice)} = <span className="font-bold text-slate-900">{formatCurrency(itemSubtotal)}</span>
+                </div>
+              </div>
+            )
+          })}
         </div>
       ),
     },
@@ -581,21 +656,31 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
     },
     {
       key: 'items',
-      header: 'Rincian Barang',
+      header: 'Rincian Barang & Est. Harga',
       render: (row: IndentOrderRow) => (
-        <div className="space-y-0.5 max-w-[260px]">
+        <div className="space-y-1 py-1 max-w-md">
           {row.items.map((item) => {
             const remaining = item.quantity - item.receivedQty
+            const itemEstTotal = item.quantity * item.estimatedPrice
             return (
-              <p key={item.id} className="text-xs text-slate-600">
-                <span className="font-semibold text-slate-800">{item.quantity}x</span> {item.sparepart.name}
-                {item.receivedQty > 0 && (
-                  <span className="text-green-600"> ({item.receivedQty} diterima)</span>
-                )}
-                {remaining > 0 && item.receivedQty > 0 && (
-                  <span className="text-amber-600"> • sisa {remaining}</span>
-                )}
-              </p>
+              <div key={item.id} className="flex items-start justify-between gap-2 text-xs border-b border-slate-100 pb-1 last:border-0 last:pb-0">
+                <div>
+                  <p className="font-medium text-slate-800">
+                    {item.quantity}x {item.sparepart.name}
+                  </p>
+                  <div className="text-[10px]">
+                    {item.receivedQty > 0 && (
+                      <span className="text-emerald-600 font-medium">({item.receivedQty} diterima) </span>
+                    )}
+                    {remaining > 0 && item.receivedQty > 0 && (
+                      <span className="text-amber-600 font-medium">• sisa {remaining}</span>
+                    )}
+                  </div>
+                </div>
+                <div className="text-right shrink-0 font-mono text-[11px] text-slate-600">
+                  @{formatCurrency(item.estimatedPrice)} = <span className="font-bold text-slate-900">{formatCurrency(itemEstTotal)}</span>
+                </div>
+              </div>
             )
           })}
         </div>
@@ -716,13 +801,19 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
     },
     {
       key: 'items',
-      header: 'Rincian Item',
+      header: 'Rincian Item & Harga',
       render: (row: CorporateTxRow) => (
-        <div className="space-y-0.5 max-w-xs">
+        <div className="space-y-1 py-1 max-w-md">
           {row.items.map((i, idx) => (
-            <p key={idx} className="text-xs text-slate-600">
-              <span className="font-semibold text-slate-800">{i.quantity}x</span> {i.itemName}
-            </p>
+            <div key={idx} className="flex items-start justify-between gap-2 text-xs border-b border-slate-100 pb-1 last:border-0 last:pb-0">
+              <span className="font-medium text-slate-800">
+                {i.quantity}x {i.itemName}
+              </span>
+              <div className="text-right shrink-0 font-mono text-[11px] text-slate-600">
+                {i.unitPrice ? `@${formatCurrency(i.unitPrice)} = ` : ''}
+                <span className="font-bold text-slate-900">{formatCurrency(i.subtotal)}</span>
+              </div>
+            </div>
           ))}
         </div>
       ),
@@ -811,7 +902,7 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
                 <Input label="Sampai Tanggal" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
               </div>
               {branches.length > 0 && (
-                <div className="w-full md:w-64">
+                <div className="w-full md:w-56">
                   <Select
                     label="Pilih Cabang"
                     options={[{ label: 'Semua Cabang', value: '' }, ...branches.map(b => ({ label: b.name, value: b.id }))]}
@@ -820,6 +911,19 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
                   />
                 </div>
               )}
+              <div className="w-full md:w-56">
+                <Select
+                  label="Tipe Pelanggan"
+                  options={[
+                    { label: 'Semua Transaksi', value: 'ALL' },
+                    { label: 'Reguler (Harian)', value: 'REGULAR' },
+                    { label: 'Korporat (Perusahaan)', value: 'CORPORATE' },
+                  ]}
+                  value={txCategory}
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  onChange={(e) => setTxCategory(e.target.value as any)}
+                />
+              </div>
               <Button onClick={handleFilter} loading={isPending} icon={Filter}>Filter</Button>
               <Button onClick={() => window.print()} variant="outline" icon={Printer} disabled={data.length === 0}>
                 Cetak

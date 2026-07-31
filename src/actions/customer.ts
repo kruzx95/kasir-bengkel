@@ -233,3 +233,131 @@ export async function updateCustomer(
     return { message: 'Gagal memperbarui pelanggan' }
   }
 }
+
+export async function deleteCustomer(id: string): Promise<{ success: boolean; message: string }> {
+  const session = await getSession()
+  if (!session || session.role !== 'ADMIN') {
+    return { success: false, message: 'Hanya Admin yang dapat menghapus pelanggan.' }
+  }
+
+  try {
+    // Cek apakah pelanggan punya transaksi
+    const txCount = await prisma.transaction.count({ where: { customerId: id } })
+    if (txCount > 0) {
+      return {
+        success: false,
+        message: `Pelanggan tidak dapat dihapus karena memiliki ${txCount} transaksi.`,
+      }
+    }
+
+    // Cek indent orders
+    const indentCount = await prisma.indentOrder.count({ where: { customerId: id } })
+    if (indentCount > 0) {
+      return {
+        success: false,
+        message: `Pelanggan tidak dapat dihapus karena memiliki ${indentCount} pesanan indent.`,
+      }
+    }
+
+    await prisma.customer.delete({ where: { id } })
+    revalidatePath('/admin/pelanggan')
+    revalidatePath('/kasir/pelanggan')
+    return { success: true, message: 'Pelanggan berhasil dihapus.' }
+  } catch (e) {
+    console.error('Delete customer error:', e)
+    return { success: false, message: 'Gagal menghapus pelanggan.' }
+  }
+}
+
+// ============================================
+// BULK ADD PELANGGAN — ADMIN ONLY (TESTING)
+// ============================================
+
+export type BulkCustomerRow = {
+  name: string
+  phone?: string
+  address?: string
+  plateNumber?: string
+  vehicleBrand?: string
+  vehicleType?: string
+  vehicleColor?: string
+  vehicleYear?: string
+  fuelType?: 'GASOLINE' | 'DIESEL'
+  odometer?: number
+}
+
+export type BulkCreateResult = {
+  success: boolean
+  created: number
+  failed: number
+  errors: string[]
+  message: string
+}
+
+export async function bulkCreateCustomers(
+  rows: BulkCustomerRow[],
+  branchId: string,
+  corporateCustomerId?: string | null
+): Promise<BulkCreateResult> {
+  const session = await getSession()
+  if (!session || session.role !== 'ADMIN') {
+    return { success: false, created: 0, failed: 0, errors: ['Unauthorized'], message: 'Hanya Admin yang dapat menggunakan fitur ini.' }
+  }
+
+  if (!branchId) {
+    return { success: false, created: 0, failed: 0, errors: ['branchId required'], message: 'Cabang wajib dipilih.' }
+  }
+
+  if (!rows || rows.length === 0) {
+    return { success: false, created: 0, failed: 0, errors: [], message: 'Tidak ada data untuk dimasukkan.' }
+  }
+
+  const errors: string[] = []
+  let created = 0
+  let failed = 0
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i]
+    // Otomatis tambahkan suffix " Testing" pada nama
+    const nameWithSuffix = row.name.trim().toLowerCase().endsWith('testing')
+      ? row.name.trim()
+      : `${row.name.trim()} Testing`
+
+    try {
+      await prisma.customer.create({
+        data: {
+          name: nameWithSuffix,
+          phone: row.phone || null,
+          address: row.address || null,
+          plateNumber: row.plateNumber || null,
+          vehicleBrand: row.vehicleBrand || null,
+          vehicleType: row.vehicleType || null,
+          vehicleColor: row.vehicleColor || null,
+          vehicleYear: row.vehicleYear || null,
+          fuelType: row.fuelType || null,
+          odometer: row.odometer ?? null,
+          branchId,
+          corporateCustomerId: corporateCustomerId || null,
+        },
+      })
+      created++
+    } catch (e) {
+      failed++
+      errors.push(`Baris ${i + 1} (${row.name}): Gagal disimpan`)
+      console.error(`Bulk create row ${i + 1} error:`, e)
+    }
+  }
+
+  revalidatePath('/admin/pelanggan')
+  revalidatePath('/kasir/pelanggan')
+
+  return {
+    success: failed === 0,
+    created,
+    failed,
+    errors,
+    message: failed === 0
+      ? `${created} pelanggan testing berhasil ditambahkan.`
+      : `${created} berhasil, ${failed} gagal.`,
+  }
+}

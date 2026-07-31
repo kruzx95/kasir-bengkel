@@ -41,7 +41,7 @@ export default function ImportSparepartModal({ open, onClose, branches }: Import
 
   const handleDownloadTemplate = async () => {
     await exportTemplateExcel({
-      shopName:  'Irian Motor',
+      shopName:  'MULYA LESTARI',
       title:     'TEMPLATE IMPORT SPAREPART',
       filename:  'template_import_sparepart.xlsx',
       sheetName: 'Sparepart',

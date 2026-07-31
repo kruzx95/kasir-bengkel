@@ -6,7 +6,9 @@ import Table from '@/components/ui/Table'
 import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
 import CustomerFormModal from '@/components/kasir/CustomerFormModal'
-import { Plus, Pencil, Users, Search, Bike } from 'lucide-react'
+import BulkAddCustomerModal from '@/components/admin/BulkAddCustomerModal'
+import { deleteCustomer } from '@/actions/customer'
+import { Plus, Pencil, Users, Search, Bike, FlaskConical, Trash2, AlertTriangle } from 'lucide-react'
 
 interface CustomerRow {
   id: string
@@ -45,6 +47,10 @@ export default function AdminCustomersClient({ initialCustomers, branches, initi
 
   const [modalOpen, setModalOpen] = useState(false)
   const [editData, setEditData] = useState<CustomerRow | null>(null)
+  const [bulkModalOpen, setBulkModalOpen] = useState(false)
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
+  const [deleteLoading, setDeleteLoading] = useState(false)
+  const [deleteMsg, setDeleteMsg] = useState<{ success: boolean; text: string } | null>(null)
   
   const initialSearch = searchParams.get('search') || ''
   const [searchQuery, setSearchQuery] = useState(initialSearch)
@@ -85,6 +91,21 @@ export default function AdminCustomersClient({ initialCustomers, branches, initi
   const handleClose = () => {
     setModalOpen(false)
     setEditData(null)
+  }
+
+  const handleDelete = async (id: string) => {
+    setDeleteLoading(true)
+    setDeleteMsg(null)
+    const res = await deleteCustomer(id)
+    setDeleteLoading(false)
+    if (res.success) {
+      setDeleteConfirmId(null)
+      setDeleteMsg({ success: true, text: res.message })
+      router.refresh()
+      setTimeout(() => setDeleteMsg(null), 4000)
+    } else {
+      setDeleteMsg({ success: false, text: res.message })
+    }
   }
 
   const columns = [
@@ -139,14 +160,26 @@ export default function AdminCustomersClient({ initialCustomers, branches, initi
     {
       key: 'actions',
       header: '',
-      className: 'text-right w-16',
+      className: 'text-right w-24',
       render: (row: CustomerRow) => (
-        <Button
-          size="sm"
-          variant="ghost"
-          icon={Pencil}
-          onClick={() => handleEdit(row)}
-        />
+        <div className="flex items-center justify-end gap-1">
+          <Button
+            size="sm"
+            variant="ghost"
+            icon={Pencil}
+            onClick={() => handleEdit(row)}
+          />
+          <Button
+            size="sm"
+            variant="ghost"
+            icon={Trash2}
+            onClick={() => {
+              setDeleteConfirmId(row.id)
+              setDeleteMsg(null)
+            }}
+            className="text-slate-400 hover:text-red-500 hover:bg-red-50"
+          />
+        </div>
       ),
     },
   ]
@@ -182,16 +215,26 @@ export default function AdminCustomersClient({ initialCustomers, branches, initi
             </select>
           </div>
         )}
-        <Button
-          icon={Plus}
-          className="w-full sm:w-auto shrink-0"
-          onClick={() => {
-            setEditData(null)
-            setModalOpen(true)
-          }}
-        >
-          Tambah Pelanggan
-        </Button>
+        <div className="flex gap-2 w-full sm:w-auto shrink-0">
+          <Button
+            icon={FlaskConical}
+            variant="ghost"
+            className="w-full sm:w-auto border border-violet-200 text-violet-700 hover:bg-violet-50 hover:border-violet-400"
+            onClick={() => setBulkModalOpen(true)}
+          >
+            Bulk Add Testing
+          </Button>
+          <Button
+            icon={Plus}
+            className="w-full sm:w-auto"
+            onClick={() => {
+              setEditData(null)
+              setModalOpen(true)
+            }}
+          >
+            Tambah Pelanggan
+          </Button>
+        </div>
       </div>
 
       <div className="flex items-center gap-2 mb-3">
@@ -224,6 +267,73 @@ export default function AdminCustomersClient({ initialCustomers, branches, initi
           }))
         }
       />
+
+      <BulkAddCustomerModal
+        open={bulkModalOpen}
+        onClose={() => setBulkModalOpen(false)}
+        branches={branches}
+        corporateList={corporateList || []}
+      />
+
+      {/* ── Delete Confirmation Dialog ── */}
+      {deleteConfirmId && (() => {
+        const target = initialCustomers.find(c => c.id === deleteConfirmId)
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => { setDeleteConfirmId(null); setDeleteMsg(null) }} />
+            <div className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl shadow-black/20 animate-fade-in">
+              <div className="p-6">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center shrink-0">
+                    <AlertTriangle className="w-5 h-5 text-red-500" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-semibold text-slate-900">Hapus Pelanggan?</h3>
+                    <p className="text-sm text-slate-500 mt-1">
+                      Anda akan menghapus <span className="font-semibold text-slate-800">{target?.name}</span>.
+                      Tindakan ini tidak dapat dibatalkan.
+                    </p>
+                  </div>
+                </div>
+
+                {deleteMsg && !deleteMsg.success && (
+                  <div className="mt-4 flex items-start gap-2 px-3 py-2.5 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+                    <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                    <p>{deleteMsg.text}</p>
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center justify-end gap-2 px-6 pb-5">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => { setDeleteConfirmId(null); setDeleteMsg(null) }}
+                  disabled={deleteLoading}
+                >
+                  Batal
+                </Button>
+                <Button
+                  size="sm"
+                  icon={Trash2}
+                  onClick={() => handleDelete(deleteConfirmId)}
+                  disabled={deleteLoading}
+                  className="bg-red-500 hover:bg-red-600 text-white border-red-500 hover:border-red-600"
+                >
+                  {deleteLoading ? 'Menghapus...' : 'Ya, Hapus'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* ── Toast sukses ── */}
+      {deleteMsg?.success && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 px-4 py-3 bg-emerald-600 text-white rounded-xl shadow-lg shadow-emerald-900/20 animate-fade-in text-sm font-medium">
+          <div className="w-4 h-4 border-2 border-white/50 border-t-white rounded-full" />
+          {deleteMsg.text}
+        </div>
+      )}
     </>
   )
 }

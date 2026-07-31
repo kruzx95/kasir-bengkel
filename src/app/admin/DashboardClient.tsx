@@ -4,12 +4,28 @@ import { formatCurrency } from '@/lib/utils'
 import {
   LineChart, Line, PieChart, Pie, Cell, Legend, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer
 } from 'recharts'
-import { TrendingUp, Wallet, Wrench, Package, ArrowUpRight, CalendarClock } from 'lucide-react'
+import { TrendingUp, Wallet, Wrench, Package, ArrowUpRight, CalendarClock, User, Building2, Clock, Coins } from 'lucide-react'
 
 interface DashboardClientProps {
   metrics: {
     dailyRevenue: number
     monthlyRevenue: number
+    dailyBreakdown?: {
+      regularRevenue: number
+      regularCount: number
+      corporateRevenue: number
+      corporateCount: number
+      corporatePending: number
+      pendingCount: number
+    }
+    monthlyBreakdown?: {
+      regularRevenue: number
+      regularCount: number
+      corporateRevenue: number
+      corporateCount: number
+      corporatePending: number
+      pendingCount: number
+    }
     trendData: { date: string, revenue: number }[]
     branchRevenueData: { name: string, revenue: number }[]
     topServices: { name: string, qty: number, revenue: number }[]
@@ -45,12 +61,20 @@ const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
 }
 
 export default function DashboardClient({ metrics }: DashboardClientProps) {
+  const mb = metrics.monthlyBreakdown || { regularRevenue: 0, regularCount: 0, corporateRevenue: 0, corporateCount: 0, corporatePending: 0, pendingCount: 0 }
+  const db = metrics.dailyBreakdown || { regularRevenue: 0, regularCount: 0, corporateRevenue: 0, corporateCount: 0, corporatePending: 0, pendingCount: 0 }
+
+  const totalMonthVolume = mb.regularRevenue + mb.corporateRevenue + mb.corporatePending
+  const regPercent = totalMonthVolume > 0 ? Math.round((mb.regularRevenue / totalMonthVolume) * 100) : 0
+  const corpPercent = totalMonthVolume > 0 ? Math.round((mb.corporateRevenue / totalMonthVolume) * 100) : 0
+  const pendingPercent = totalMonthVolume > 0 ? Math.round((mb.corporatePending / totalMonthVolume) * 100) : 0
 
   return (
     <div className="p-4 sm:p-6 animate-fade-in space-y-4 sm:space-y-6">
       
       {/* Top Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Today's Revenue Card */}
         <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm relative overflow-hidden group">
           <div className="absolute -right-6 -top-6 w-24 h-24 bg-emerald-50 rounded-full group-hover:scale-150 transition-transform duration-500 ease-out" />
           <div className="relative z-10">
@@ -59,9 +83,14 @@ export default function DashboardClient({ metrics }: DashboardClientProps) {
             </div>
             <p className="text-sm font-medium text-slate-500 mb-1">Pendapatan Hari Ini</p>
             <p className="text-2xl font-bold text-slate-900">{formatCurrency(metrics.dailyRevenue)}</p>
+            <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+              <span>Reguler: <strong className="text-slate-700">{formatCurrency(db.regularRevenue)}</strong></span>
+              <span>Korporat: <strong className="text-blue-600">{formatCurrency(db.corporateRevenue)}</strong></span>
+            </div>
           </div>
         </div>
 
+        {/* Month's Revenue Card */}
         <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm relative overflow-hidden group">
           <div className="absolute -right-6 -top-6 w-24 h-24 bg-primary-50 rounded-full group-hover:scale-150 transition-transform duration-500 ease-out" />
           <div className="relative z-10">
@@ -70,20 +99,106 @@ export default function DashboardClient({ metrics }: DashboardClientProps) {
             </div>
             <p className="text-sm font-medium text-slate-500 mb-1">Pendapatan Bulan Ini</p>
             <p className="text-2xl font-bold text-slate-900">{formatCurrency(metrics.monthlyRevenue)}</p>
+            <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+              <span>Reguler: <strong className="text-slate-700">{formatCurrency(mb.regularRevenue)}</strong></span>
+              <span>Korporat Lunas: <strong className="text-emerald-600">{formatCurrency(mb.corporateRevenue)}</strong></span>
+            </div>
           </div>
         </div>
 
+        {/* Business Performance Header Card */}
         <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm relative overflow-hidden group col-span-1 md:col-span-2">
-           <div className="absolute right-0 top-0 w-32 h-full bg-linear-to-l from-slate-50 to-transparent" />
+           <div className="absolute right-0 top-0 w-32 h-full bg-gradient-to-l from-slate-50 to-transparent" />
            <div className="relative z-10 flex justify-between items-center h-full">
              <div>
                <h3 className="text-lg font-bold text-slate-900 mb-1">Performa Bisnis</h3>
-               <p className="text-sm text-slate-500 max-w-[200px]">Pantau terus pergerakan transaksi harian di semua cabang.</p>
+               <p className="text-sm text-slate-500 max-w-xs">Pantau terus pergerakan omset reguler harian & transaksi korporat di semua cabang.</p>
              </div>
              <div className="w-16 h-16 bg-slate-900 rounded-2xl flex items-center justify-center text-white rotate-3 shadow-lg shadow-slate-900/20">
                <ArrowUpRight className="w-8 h-8" />
              </div>
            </div>
+        </div>
+      </div>
+
+      {/* ===== RINCIAN PENDAPATAN: REGULER VS KORPORAT ===== */}
+      <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600">
+              <Coins className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-slate-900">Rincian Pendapatan (Reguler vs Korporat)</h3>
+              <p className="text-xs text-slate-500">Breakdown transaksi harian reguler vs piutang & omset perusahaan korporat bulan ini</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Visual Progress Ratio Bar */}
+        <div className="space-y-1.5">
+          <div className="flex justify-between items-center text-xs font-semibold text-slate-600">
+            <span>Komposisi Omset Bulan Ini</span>
+            <span>{formatCurrency(totalMonthVolume)}</span>
+          </div>
+          <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden flex">
+            <div style={{ width: `${regPercent}%` }} className="bg-blue-500 transition-all duration-500" title={`Reguler: ${regPercent}%`} />
+            <div style={{ width: `${corpPercent}%` }} className="bg-emerald-500 transition-all duration-500" title={`Korporat Lunas: ${corpPercent}%`} />
+            <div style={{ width: `${pendingPercent}%` }} className="bg-amber-500 transition-all duration-500" title={`Korporat Pending: ${pendingPercent}%`} />
+          </div>
+          <div className="flex flex-wrap items-center gap-4 text-xs pt-1">
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+              <span className="text-slate-600 font-medium">Reguler: {regPercent}%</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+              <span className="text-slate-600 font-medium">Korporat Lunas: {corpPercent}%</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+              <span className="text-slate-600 font-medium">Piutang Korporat Pending: {pendingPercent}%</span>
+            </div>
+          </div>
+        </div>
+
+        {/* 3 Detail Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+          {/* Card 1: Regular */}
+          <div className="p-4 rounded-xl bg-blue-50/50 border border-blue-100 flex items-start gap-3">
+            <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center shrink-0">
+              <User className="w-5 h-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Transaksi Reguler</p>
+              <p className="text-xl font-black text-slate-900 mt-0.5">{formatCurrency(mb.regularRevenue)}</p>
+              <p className="text-xs text-slate-500 mt-1">{mb.regularCount} transaksi pelanggan harian</p>
+            </div>
+          </div>
+
+          {/* Card 2: Corporate Settled */}
+          <div className="p-4 rounded-xl bg-emerald-50/50 border border-emerald-100 flex items-start gap-3">
+            <div className="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-lg flex items-center justify-center shrink-0">
+              <Building2 className="w-5 h-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">Korporat (Lunas)</p>
+              <p className="text-xl font-black text-slate-900 mt-0.5">{formatCurrency(mb.corporateRevenue)}</p>
+              <p className="text-xs text-slate-500 mt-1">{mb.corporateCount} transaksi armada lunas</p>
+            </div>
+          </div>
+
+          {/* Card 3: Corporate Pending */}
+          <div className="p-4 rounded-xl bg-amber-50/50 border border-amber-100 flex items-start gap-3">
+            <div className="w-10 h-10 bg-amber-100 text-amber-600 rounded-lg flex items-center justify-center shrink-0">
+              <Clock className="w-5 h-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold uppercase tracking-wider text-amber-700">Piutang Korporat Pending</p>
+              <p className="text-xl font-black text-amber-900 mt-0.5">{formatCurrency(mb.corporatePending)}</p>
+              <p className="text-xs text-slate-500 mt-1">{mb.pendingCount} nota armada belum dibayar</p>
+            </div>
+          </div>
         </div>
       </div>
 

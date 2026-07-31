@@ -7,6 +7,7 @@ import { getCustomers } from '@/actions/customer'
 import { getServices } from '@/actions/service'
 import { getSpareparts } from '@/actions/sparepart'
 import { getMechanics } from '@/actions/mechanic'
+import { getShopName } from '@/actions/settings'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -23,11 +24,12 @@ export default async function KasirTagihanPage({ params }: { params: Promise<{ i
 
   const branchId = corporate.branch.id
 
-  const [allCustomers, services, spareparts, mechanics] = await Promise.all([
+  const [allCustomers, services, spareparts, mechanics, shopName] = await Promise.all([
     getCustomers(branchId),
     getServices(branchId),
     getSpareparts(branchId),
     getMechanics(branchId),
+    getShopName(),
   ])
 
   return (
@@ -52,6 +54,7 @@ export default async function KasirTagihanPage({ params }: { params: Promise<{ i
             sparepartBrand: s.sparepartBrand,
           }))}
           mechanics={mechanics.map(m => ({ id: m.id, name: m.name }))}
+          shopName={shopName}
         />
       </div>
     </>
