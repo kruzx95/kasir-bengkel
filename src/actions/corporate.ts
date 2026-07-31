@@ -52,12 +52,15 @@ export async function getCorporateCustomers(branchId?: string) {
         return { ...corp, currentMonthTotal: 0, totalUnpaidAmount: 0, totalPaidThisMonth: 0 }
       }
 
-      // Total PENDING (belum dibayar sama sekali) bulan ini
+      // Total PENDING / Korporat bulan ini
       const pendingAgg = await prisma.transaction.aggregate({
         where: {
           customerId: { in: customerIds },
-          status: 'PENDING_CORPORATE',
           transactionDate: { gte: firstDay },
+          OR: [
+            { status: 'PENDING_CORPORATE' },
+            { corporatePaymentLinks: { some: {} } }
+          ]
         },
         _sum: { total: true, paidAmount: true },
       })
@@ -317,8 +320,11 @@ export async function getCorporateBilling(corporateCustomerId: string, startDate
   const transactions = await prisma.transaction.findMany({
     where: {
       customerId: { in: customerIds },
-      status: 'PENDING_CORPORATE',
       transactionDate: { gte: startDate, lte: endDate },
+      OR: [
+        { status: 'PENDING_CORPORATE' },
+        { corporatePaymentLinks: { some: {} } }
+      ]
     },
     include: {
       customer: { select: { name: true, plateNumber: true } },
@@ -426,7 +432,10 @@ export async function createCorporatePayment(input: CreatePaymentInput): Promise
         where: {
           id: { in: txIds },
           customerId: { in: customerIds },
-          status: 'PENDING_CORPORATE',
+          OR: [
+            { status: 'PENDING_CORPORATE' },
+            { corporatePaymentLinks: { some: {} } }
+          ]
         },
         select: { id: true, total: true, paidAmount: true, invoiceNumber: true },
       })
@@ -519,7 +528,13 @@ export async function getCorporatePaymentHistory(
       transactionLinks: {
         include: {
           transaction: {
-            select: { id: true, invoiceNumber: true, transactionDate: true, total: true },
+            select: {
+              id: true,
+              invoiceNumber: true,
+              transactionDate: true,
+              total: true,
+              customer: { select: { name: true, plateNumber: true } },
+            },
           },
         },
       },
@@ -650,17 +665,22 @@ export async function settleCorporateBilling(
   const transactions = await prisma.transaction.findMany({
     where: {
       customerId: { in: customerIds },
-      status: 'PENDING_CORPORATE',
       transactionDate: { gte: startDate, lte: endDate },
+      OR: [
+        { status: 'PENDING_CORPORATE' },
+        { corporatePaymentLinks: { some: {} } }
+      ]
     },
     select: { id: true, total: true, paidAmount: true },
   })
 
-  if (transactions.length === 0) {
+  const unpaid = transactions.filter((t) => (t.total - (t.paidAmount || 0)) > 0.01)
+
+  if (unpaid.length === 0) {
     return { success: false, message: 'Tidak ada tagihan yang perlu dilunasi' }
   }
 
-  const allocations = transactions.map((t) => ({
+  const allocations = unpaid.map((t) => ({
     transactionId: t.id,
     amount: t.total - (t.paidAmount || 0),
   }))

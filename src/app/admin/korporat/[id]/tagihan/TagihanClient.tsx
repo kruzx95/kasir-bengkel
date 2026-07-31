@@ -826,6 +826,35 @@ export default function TagihanClient({ corporate, allCustomers, isAdmin = false
                   ),
                 },
                 {
+                  key: 'vehicles',
+                  header: 'Kendaraan / Pelanggan',
+                  render: (row: any) => {
+                    const links = row.transactionLinks || []
+                    if (links.length === 0) return <span className="text-xs text-slate-400">—</span>
+
+                    return (
+                      <div className="space-y-1 max-w-[220px]">
+                        {links.slice(0, 2).map((l: any, idx: number) => {
+                          const cust = l.transaction?.customer
+                          return (
+                            <p key={idx} className="text-xs text-slate-800 leading-tight">
+                              <span className="font-semibold">{cust?.name || '—'}</span>
+                              {cust?.plateNumber && (
+                                <span className="text-slate-500 font-mono ml-1 text-[11px]">({cust.plateNumber})</span>
+                              )}
+                            </p>
+                          )
+                        })}
+                        {links.length > 2 && (
+                          <p className="text-[11px] font-medium text-violet-600">
+                            +{links.length - 2} kendaraan lainnya
+                          </p>
+                        )}
+                      </div>
+                    )
+                  },
+                },
+                {
                   key: 'amount',
                   header: 'Jumlah',
                   render: (row: any) => (

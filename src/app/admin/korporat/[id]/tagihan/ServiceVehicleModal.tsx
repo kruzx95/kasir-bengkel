@@ -261,10 +261,14 @@ export default function ServiceVehicleModal({
           </div>
         </div>
         <ModalFooter>
-          <a href={targetUrl} target="_blank" rel="noopener noreferrer">
-            <Button variant="outline" icon={Printer}>
-              Cetak Struk Nota
-            </Button>
+          <a
+            href={targetUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center font-medium transition-all duration-200 px-4 py-2.5 text-sm gap-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 hover:border-slate-300 active:scale-[0.98]"
+          >
+            <Printer className="w-4 h-4 shrink-0" />
+            Cetak Struk Nota
           </a>
           <Button onClick={handleClose}>Tutup</Button>
         </ModalFooter>
