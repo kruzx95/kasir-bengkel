@@ -63,24 +63,70 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Format file harus .xlsx atau .xls' }, { status: 400 })
     }
 
-    // Parse Excel
+    // Parse Excel to 2D matrix
     const buffer = await file.arrayBuffer()
     const workbook = XLSX.read(buffer, { type: 'array' })
-    const sheet = workbook.Sheets[workbook.SheetNames[0]]
-    const rows = XLSX.utils.sheet_to_json<ExcelRow>(sheet, { defval: '' })
+    const sheetName = workbook.SheetNames[0]
+    const sheet = workbook.Sheets[sheetName]
+    const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: '' })
 
-    if (rows.length === 0) {
+    if (!matrix || matrix.length === 0) {
       return NextResponse.json({ error: 'File Excel kosong atau tidak ada data' }, { status: 400 })
     }
 
-    // Normalize header keys (lowercase, trim, replace spaces with underscores)
-    const normalized = rows.map((row) => {
-      const obj: Record<string, unknown> = {}
-      for (const key of Object.keys(row)) {
-        obj[key.toLowerCase().trim().replace(/\s+/g, '_')] = row[key]
+    // Find header row dynamically
+    let headerRowIndex = -1
+    const nameKeywords = ['nama', 'name', 'nama_jasa', 'nama_servis', 'jasa', 'servis', 'service', 'service_name']
+    const priceKeywords = ['harga', 'price', 'harga_jasa', 'harga_servis', 'tarif', 'biaya', 'rate']
+
+    for (let r = 0; r < Math.min(matrix.length, 25); r++) {
+      const rowCells = (matrix[r] || []).map((cell) =>
+        String(cell || '').replace(/\*/g, '').trim().toLowerCase().replace(/\s+/g, '_')
+      )
+      const hasName = rowCells.some((c) => nameKeywords.includes(c))
+      const hasPrice = rowCells.some((c) => priceKeywords.includes(c))
+
+      if (hasName && hasPrice) {
+        headerRowIndex = r
+        break
       }
-      return obj
-    })
+    }
+
+    if (headerRowIndex === -1) {
+      headerRowIndex = 0
+    }
+
+    const rawHeaders = (matrix[headerRowIndex] || []).map((cell) =>
+      String(cell || '').replace(/\*/g, '').trim().toLowerCase().replace(/\s+/g, '_')
+    )
+
+    // Convert matrix rows after header into objects
+    const normalized: Record<string, unknown>[] = []
+    for (let r = headerRowIndex + 1; r < matrix.length; r++) {
+      const rowArr = matrix[r] || []
+      if (!rowArr.some((cell) => String(cell || '').trim() !== '')) continue
+
+      // Skip template hint / note rows
+      const rowText = rowArr.map((c) => String(c || '').toLowerCase()).join(' ')
+      if (
+        rowText.includes('angka saja') ||
+        rowText.includes('wajib diisi') ||
+        rowText.includes('opsional') ||
+        rowText.includes('nama jasa /') ||
+        rowText.includes('nama lengkap') ||
+        rowText.includes('petunjuk:')
+      ) {
+        continue
+      }
+
+      const obj: Record<string, unknown> = {}
+      rawHeaders.forEach((hKey, colIdx) => {
+        if (hKey) {
+          obj[hKey] = rowArr[colIdx] ?? ''
+        }
+      })
+      normalized.push(obj)
+    }
 
     // Validate & parse rows
     const errors: string[] = []
@@ -88,7 +134,7 @@ export async function POST(request: NextRequest) {
 
     for (let i = 0; i < normalized.length; i++) {
       const row = normalized[i]
-      const rowNum = i + 2
+      const rowNum = headerRowIndex + 2 + i
 
       const name = String(
         row['nama'] ||
