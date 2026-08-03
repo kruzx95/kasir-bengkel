@@ -34,7 +34,8 @@ export default async function TransaksiBaruPage() {
           name: sp.name, 
           sellPrice: sp.sellPrice, 
           stock: sp.stock,
-          sku: sp.sku
+          sku: sp.sku,
+          etalase: sp.etalase
         }))}
         mechanics={mechanics.filter(m => m.isActive).map(m => ({ id: m.id, name: m.name }))}
         corporates={corporates.map(c => ({ id: c.id, name: c.name }))}

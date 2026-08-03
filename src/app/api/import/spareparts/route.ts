@@ -52,6 +52,7 @@ export async function POST(request: NextRequest) {
       sparepartType: string | null
       sparepartBrand: string | null
       sparepartSize: string | null
+      etalase: string | null
       buyPrice: number
       sellPrice: number
       stock: number
@@ -87,6 +88,7 @@ export async function POST(request: NextRequest) {
         sparepartType: String(row['jenis'] || row['sparepart_type'] || '').trim() || null,
         sparepartBrand: String(row['merk'] || row['brand'] || '').trim() || null,
         sparepartSize: String(row['ukuran'] || row['size'] || '').trim() || null,
+        etalase: String(row['etalase'] || row['rak'] || row['shelf'] || '').trim() || null,
         buyPrice: isNaN(buyPrice) ? 0 : buyPrice,
         sellPrice,
         stock: isNaN(stock) ? 0 : stock,
@@ -134,6 +136,7 @@ export async function POST(request: NextRequest) {
               sparepartType: sp.sparepartType,
               sparepartBrand: sp.sparepartBrand,
               sparepartSize: sp.sparepartSize,
+              etalase: sp.etalase,
               buyPrice: sp.buyPrice,
               sellPrice: sp.sellPrice,
               stock: sp.stock,

@@ -51,15 +51,16 @@ export default function ImportSparepartModal({ open, onClose, branches }: Import
         { header: 'jenis',       key: 'jenis',       width: 16, required: false, note: 'Contoh: Oli, Busi, Rem' },
         { header: 'merk',        key: 'merk',        width: 16, required: false, note: 'Merek produk' },
         { header: 'ukuran',      key: 'ukuran',      width: 14, required: false, note: 'Ukuran/tipe' },
+        { header: 'etalase',     key: 'etalase',     width: 16, required: false, note: 'Rak / Penempatan barang' },
         { header: 'harga_beli',  key: 'harga_beli',  width: 16, required: true,  note: 'Angka saja (Rp)', numFmt: '#,##0', align: 'right' },
         { header: 'harga_jual',  key: 'harga_jual',  width: 16, required: true,  note: 'Angka saja (Rp)', numFmt: '#,##0', align: 'right' },
         { header: 'stok',        key: 'stok',        width: 10, required: false, note: 'Jumlah stok awal', align: 'right' },
         { header: 'satuan',      key: 'satuan',      width: 12, required: false, note: 'pcs / botol / set / dll' },
       ],
       exampleRows: [
-        { nama: 'Oli Mesin AHM 20W-50', sku: 'OLI-AHM-20W50', jenis: 'Oli', merk: 'AHM', ukuran: '20W-50', harga_beli: 35000, harga_jual: 45000, stok: 20, satuan: 'botol' },
-        { nama: 'Busi NGK CR7HSA', sku: 'BUSI-NGK-CR7', jenis: 'Busi', merk: 'NGK', ukuran: 'CR7HSA', harga_beli: 18000, harga_jual: 25000, stok: 15, satuan: 'pcs' },
-        { nama: 'Kampas Rem Depan Vario', sku: '', jenis: 'Kampas Rem', merk: 'Honda', ukuran: '', harga_beli: 40000, harga_jual: 55000, stok: 10, satuan: 'set' },
+        { nama: 'Oli Mesin AHM 20W-50', sku: 'OLI-AHM-20W50', jenis: 'Oli', merk: 'AHM', ukuran: '20W-50', etalase: 'Rak A-1', harga_beli: 35000, harga_jual: 45000, stok: 20, satuan: 'botol' },
+        { nama: 'Busi NGK CR7HSA', sku: 'BUSI-NGK-CR7', jenis: 'Busi', merk: 'NGK', ukuran: 'CR7HSA', etalase: 'Rak B-2', harga_beli: 18000, harga_jual: 25000, stok: 15, satuan: 'pcs' },
+        { nama: 'Kampas Rem Depan Vario', sku: '', jenis: 'Kampas Rem', merk: 'Honda', ukuran: '', etalase: 'Rak C-1', harga_beli: 40000, harga_jual: 55000, stok: 10, satuan: 'set' },
       ],
     })
   }
@@ -131,6 +132,7 @@ export default function ImportSparepartModal({ open, onClose, branches }: Import
               { col: 'jenis', req: false },
               { col: 'merk', req: false },
               { col: 'ukuran', req: false },
+              { col: 'etalase', req: false },
               { col: 'harga_beli', req: false },
               { col: 'harga_jual', req: true },
               { col: 'stok', req: false },

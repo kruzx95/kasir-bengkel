@@ -22,6 +22,7 @@ interface Sparepart {
   sparepartBrand: string | null
   sparepartType: string | null
   sparepartSize: string | null
+  etalase?: string | null
   branch: {
     name: string
   }
@@ -50,7 +51,8 @@ export default function StockGudangClient({ initialSpareparts }: StockGudangClie
           sp.name.toLowerCase().includes(term) ||
           sp.sku?.toLowerCase().includes(term) ||
           sp.sparepartBrand?.toLowerCase().includes(term) ||
-          sp.sparepartType?.toLowerCase().includes(term)
+          sp.sparepartType?.toLowerCase().includes(term) ||
+          sp.etalase?.toLowerCase().includes(term)
       )
     }
     
@@ -120,6 +122,11 @@ export default function StockGudangClient({ initialSpareparts }: StockGudangClie
         <div className="text-sm text-slate-600">
           {row.sparepartType && <p>{row.sparepartType}</p>}
           {row.sparepartBrand && <p className="text-xs text-slate-500">{row.sparepartBrand}</p>}
+          {row.etalase && (
+            <span className="inline-block mt-1 px-1.5 py-0.5 text-[10px] font-medium bg-slate-100 text-slate-600 rounded border border-slate-200">
+              {row.etalase}
+            </span>
+          )}
         </div>
       ),
     },

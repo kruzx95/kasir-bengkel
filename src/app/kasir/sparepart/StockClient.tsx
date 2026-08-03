@@ -23,6 +23,7 @@ interface SparepartRow {
   sparepartType?: string | null
   sparepartBrand?: string | null
   sparepartSize?: string | null
+  etalase?: string | null
   buyPrice?: number
   sellPrice: number
   stock: number
@@ -121,6 +122,19 @@ export default function StockClient({ initialSpareparts, branches, totalCount }:
       ),
     },
     {
+      key: 'etalase',
+      header: 'Etalase / Rak',
+      render: (row: SparepartRow) => (
+        row.etalase ? (
+          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+            {row.etalase}
+          </span>
+        ) : (
+          <span className="text-xs text-slate-300">—</span>
+        )
+      ),
+    },
+    {
       key: 'sellPrice',
       header: 'Harga Jual',
       render: (row: SparepartRow) => (
@@ -182,7 +196,7 @@ export default function StockClient({ initialSpareparts, branches, totalCount }:
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
               type="text"
-              placeholder="Cari nama atau SKU..."
+              placeholder="Cari nama, SKU, jenis, merk, etalase..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 transition-all duration-200 hover:border-slate-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none"

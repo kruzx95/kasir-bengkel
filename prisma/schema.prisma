@@ -138,6 +138,7 @@ model Sparepart {
   sparepartBrand    String?           @map("sparepart_brand")
   sparepartSize     String?           @map("sparepart_size")
   sparepartType     String?           @map("sparepart_type")
+  etalase           String?           @map("etalase")
   indentOrderItems  IndentOrderItem[]
   restockItems      RestockItem[]
   stockTransfers    StockTransfer[]

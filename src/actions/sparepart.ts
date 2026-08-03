@@ -11,6 +11,7 @@ const SparepartSchema = z.object({
   sparepartType: z.string().optional(),
   sparepartBrand: z.string().optional(),
   sparepartSize: z.string().optional(),
+  etalase: z.string().optional(),
   buyPrice: z.coerce.number().min(0, 'Harga beli tidak boleh negatif'),
   sellPrice: z.coerce.number().min(0, 'Harga jual tidak boleh negatif'),
   stock: z.coerce.number().int().min(0, 'Stok tidak boleh negatif'),
@@ -68,6 +69,7 @@ export async function getPaginatedSpareparts(
         { sku: { contains: search } },
         { sparepartType: { contains: search } },
         { sparepartBrand: { contains: search } },
+        { etalase: { contains: search } },
       ]
     }
 
@@ -133,6 +135,7 @@ export async function createSparepart(
     sparepartType: formData.get('sparepartType') || undefined,
     sparepartBrand: formData.get('sparepartBrand') || undefined,
     sparepartSize: formData.get('sparepartSize') || undefined,
+    etalase: formData.get('etalase') || undefined,
     buyPrice: formData.get('buyPrice'),
     sellPrice: formData.get('sellPrice'),
     stock: formData.get('stock'),
@@ -159,6 +162,7 @@ export async function createSparepart(
         sparepartType: validatedFields.data.sparepartType || null,
         sparepartBrand: validatedFields.data.sparepartBrand || null,
         sparepartSize: validatedFields.data.sparepartSize || null,
+        etalase: validatedFields.data.etalase || null,
         buyPrice: validatedFields.data.buyPrice,
         sellPrice: validatedFields.data.sellPrice,
         stock: validatedFields.data.stock,
@@ -191,6 +195,7 @@ export async function updateSparepart(
     sparepartType: formData.get('sparepartType') || undefined,
     sparepartBrand: formData.get('sparepartBrand') || undefined,
     sparepartSize: formData.get('sparepartSize') || undefined,
+    etalase: formData.get('etalase') || undefined,
     buyPrice: formData.get('buyPrice'),
     sellPrice: formData.get('sellPrice'),
     stock: formData.get('stock'),
@@ -212,6 +217,7 @@ export async function updateSparepart(
         sparepartType: validatedFields.data.sparepartType || null,
         sparepartBrand: validatedFields.data.sparepartBrand || null,
         sparepartSize: validatedFields.data.sparepartSize || null,
+        etalase: validatedFields.data.etalase || null,
         buyPrice: validatedFields.data.buyPrice,
         sellPrice: validatedFields.data.sellPrice,
         stock: validatedFields.data.stock,

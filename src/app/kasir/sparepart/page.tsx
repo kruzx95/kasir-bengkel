@@ -39,6 +39,7 @@ export default async function SparepartStockPage(
             sparepartType: sp.sparepartType,
             sparepartBrand: sp.sparepartBrand,
             sparepartSize: sp.sparepartSize,
+            etalase: sp.etalase,
             buyPrice: sp.buyPrice,
             sellPrice: sp.sellPrice,
             stock: sp.stock,

@@ -21,6 +21,7 @@ interface SparepartData {
   sparepartType: string | null
   sparepartBrand: string | null
   sparepartSize: string | null
+  etalase?: string | null
   buyPrice: number
   sellPrice: number
   stock: number
@@ -120,7 +121,7 @@ export default function SparepartFormModal({
                 defaultValue={editData?.sku || ''}
               />
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <Input
                 id="sparepartType"
                 name="sparepartType"
@@ -132,7 +133,7 @@ export default function SparepartFormModal({
                 id="sparepartBrand"
                 name="sparepartBrand"
                 label="Merk"
-                placeholder="contoh: AHM, NGK, Yamalube"
+                placeholder="contoh: AHM, NGK"
                 defaultValue={editData?.sparepartBrand || ''}
               />
               <Input
@@ -141,6 +142,13 @@ export default function SparepartFormModal({
                 label="Ukuran"
                 placeholder="contoh: 20W-50, 17 inch"
                 defaultValue={editData?.sparepartSize || ''}
+              />
+              <Input
+                id="etalase"
+                name="etalase"
+                label="Etalase / Rak"
+                placeholder="contoh: Rak A-1"
+                defaultValue={editData?.etalase || ''}
               />
             </div>
           </div>

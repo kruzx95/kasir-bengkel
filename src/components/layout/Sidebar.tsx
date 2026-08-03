@@ -23,6 +23,7 @@ import {
   BellRing,
   Store,
   Warehouse,
+  Database,
 } from 'lucide-react'
 import { useEffect } from 'react'
 import { logout } from '@/actions/auth'
@@ -71,6 +72,7 @@ const adminMenuItems = [
   { href: '/admin/cabang', label: 'Cabang', icon: Building2 },
   { href: '/admin/users', label: 'Pengguna', icon: UserCog },
   { href: '/admin/pengaturan', label: 'Pengaturan', icon: Settings },
+  { href: '/admin/database', label: 'Database', icon: Database },
 ]
 
 export default function Sidebar({ role, userName, branchName, shopName, mobileOpen = false, onMobileClose, collapsed = false, onCollapseChange }: SidebarProps) {
@@ -78,7 +80,7 @@ export default function Sidebar({ role, userName, branchName, shopName, mobileOp
   const isSuperAdmin = role === 'ADMIN' && !branchName
   const menuItems = role === 'ADMIN'
     ? adminMenuItems.filter(item => {
-        if (['Cabang', 'Pengguna', 'Pengaturan'].includes(item.label)) {
+        if (['Cabang', 'Pengguna', 'Pengaturan', 'Database'].includes(item.label)) {
           return isSuperAdmin
         }
         return true

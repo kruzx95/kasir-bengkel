@@ -64,12 +64,13 @@ interface ItemData {
   price: number
   type: 'SERVICE' | 'SPAREPART'
   stock?: number
+  etalase?: string | null
 }
 
 interface NewTransactionClientProps {
   customers: { id: string; name: string; plateNumber: string | null; corporateCustomerId: string | null; odometer: number | null }[]
   services: { id: string; name: string; price: number }[]
-  spareparts: { id: string; name: string; sellPrice: number; stock: number; sku: string | null }[]
+  spareparts: { id: string; name: string; sellPrice: number; stock: number; sku: string | null; etalase?: string | null }[]
   mechanics?: { id: string; name: string }[]
   corporates?: { id: string; name: string }[]
   basePath?: string
@@ -144,7 +145,8 @@ export default function NewTransactionClient({
       name: `${sp.name} ${sp.sku ? `(${sp.sku})` : ''}`, 
       price: sp.sellPrice, 
       type: 'SPAREPART',
-      stock: sp.stock
+      stock: sp.stock,
+      etalase: sp.etalase
     }))
     return [...s, ...sp]
   }, [services, spareparts])
@@ -155,7 +157,7 @@ export default function NewTransactionClient({
     
     const scored = catalog
       .map(item => {
-        const name = item.name.toLowerCase()
+        const name = `${item.name} ${item.etalase ?? ''}`.toLowerCase()
         // Every token must match somewhere in the name
         const allMatch = tokens.every(t => name.includes(t))
         if (!allMatch) return null
@@ -349,7 +351,7 @@ export default function NewTransactionClient({
                               </p>
                               {item.type === 'SPAREPART' && (
                                 <p className={`text-xs ${item.stock === 0 ? 'text-red-500 font-semibold' : 'text-slate-400'}`}>
-                                  Stok: {item.stock}
+                                  Stok: {item.stock} {item.etalase && <span className="ml-1 text-slate-500 font-medium">· Rak: {item.etalase}</span>}
                                 </p>
                               )}
                             </div>
