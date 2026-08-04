@@ -16,17 +16,13 @@ RUN apk add --no-cache python3 make g++ openssl
 # Set working directory
 WORKDIR /app
 
-# Copy package files
+# Copy package files and prisma schema
 COPY package.json package-lock.json ./
+COPY prisma ./prisma/
+COPY prisma.config.ts ./
 
 # Install dependencies
 RUN npm install
-
-# Copy generated prisma client
-COPY prisma ./prisma/
-
-# Regenerate prisma client dengan adapter yang benar
-RUN npx prisma generate
 
 # Copy all files
 COPY . .
