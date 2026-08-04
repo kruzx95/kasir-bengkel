@@ -33,7 +33,7 @@ services:
       - /app/node_modules
     networks:
       - irian-motor-network
-    command: npm run dev
+    command: sh -c "npx prisma generate && npm run dev"
 
 volumes:
   mysql_data:
