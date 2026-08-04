@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useTransition, useEffect, useState, useRef, useMemo } from 'react'
+import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Package, AlertTriangle, Store } from 'lucide-react'
 import Button from '@/components/ui/Button'
@@ -30,44 +31,52 @@ interface Sparepart {
 
 interface StockTokoClientProps {
   initialSpareparts: Sparepart[]
+  totalCount?: number
 }
 
-export default function StockTokoClient({ initialSpareparts }: StockTokoClientProps) {
-  const [spareparts] = useState(initialSpareparts)
-  const [searchTerm, setSearchTerm] = useState('')
+export default function StockTokoClient({ initialSpareparts, totalCount }: StockTokoClientProps) {
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const [isPending, startTransition] = useTransition()
+
+  const initialSearch = searchParams.get('search') || ''
+  const [searchTerm, setSearchTerm] = useState(initialSearch)
   const [sortBy, setSortBy] = useState<'name' | 'stock'>('name')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
 
-  // Filter and sort spareparts
-  const filteredSpareparts = useMemo(() => {
-    let result = spareparts
-    
-    // Filter
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase()
-      result = result.filter(
-        (sp) =>
-          sp.name.toLowerCase().includes(term) ||
-          sp.sku?.toLowerCase().includes(term) ||
-          sp.sparepartBrand?.toLowerCase().includes(term) ||
-          sp.sparepartType?.toLowerCase().includes(term) ||
-          sp.etalase?.toLowerCase().includes(term)
-      )
-    }
-    
-    // Sort
-    return [...result].sort((a, b) => {
+  const searchParamsRef = useRef(searchParams)
+  useEffect(() => {
+    searchParamsRef.current = searchParams
+  }, [searchParams])
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      startTransition(() => {
+        const params = new URLSearchParams(searchParamsRef.current.toString())
+        if (searchTerm) {
+          params.set('search', searchTerm)
+        } else {
+          params.delete('search')
+        }
+        params.set('page', '1')
+        router.replace(`${pathname}?${params.toString()}`)
+      })
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [searchTerm, pathname, router])
+
+  const displayedSpareparts = useMemo(() => {
+    return [...initialSpareparts].sort((a, b) => {
       let compareValue = 0
-      
       if (sortBy === 'name') {
         compareValue = a.name.localeCompare(b.name)
       } else if (sortBy === 'stock') {
         compareValue = a.stock - b.stock
       }
-      
       return sortOrder === 'asc' ? compareValue : -compareValue
     })
-  }, [spareparts, searchTerm, sortBy, sortOrder])
+  }, [initialSpareparts, sortBy, sortOrder])
   
   const handleSort = (field: 'name' | 'stock') => {
     if (sortBy === field) {
@@ -80,19 +89,19 @@ export default function StockTokoClient({ initialSpareparts }: StockTokoClientPr
 
   // Statistics
   const stats = useMemo(() => {
-    const totalStoreUnits = spareparts.reduce((sum, sp) => sum + sp.stock, 0)
-    const totalWarehouseUnits = spareparts.reduce((sum, sp) => sum + sp.warehouseStock, 0)
-    const lowStoreStock = spareparts.filter(
+    const totalStoreUnits = initialSpareparts.reduce((sum, sp) => sum + sp.stock, 0)
+    const totalWarehouseUnits = initialSpareparts.reduce((sum, sp) => sum + sp.warehouseStock, 0)
+    const lowStoreStock = initialSpareparts.filter(
       (sp) => sp.stock < sp.minStock
     ).length
 
     return {
-      totalItems: spareparts.length,
+      totalItems: totalCount ?? initialSpareparts.length,
       totalStoreUnits,
       totalWarehouseUnits,
       lowStoreStock,
     }
-  }, [spareparts])
+  }, [initialSpareparts, totalCount])
 
   const columns = [
     {
@@ -291,7 +300,7 @@ export default function StockTokoClient({ initialSpareparts }: StockTokoClientPr
       </div>
 
       {/* Search */}
-      <Card className="p-4">
+      <Card className="p-4 flex items-center justify-between gap-4">
         <input
           type="text"
           placeholder="Cari sparepart (nama, SKU, brand, tipe)..."
@@ -299,13 +308,14 @@ export default function StockTokoClient({ initialSpareparts }: StockTokoClientPr
           onChange={(e) => setSearchTerm(e.target.value)}
           className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
+        {isPending && <span className="text-blue-600 animate-pulse text-xs shrink-0">Memuat...</span>}
       </Card>
 
       {/* Table */}
-      <Card>
+      <Card className={`transition-opacity ${isPending ? 'opacity-50' : 'opacity-100'}`}>
         <Table
           columns={columns}
-          data={filteredSpareparts}
+          data={displayedSpareparts}
           keyExtractor={(row) => row.id}
           emptyMessage="Tidak ada data stock toko."
         />

@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { getSession, getBranchFilter } from '@/lib/session'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
+import { createActivityLog } from '@/lib/logger'
 
 const stockTransferSchema = z.object({
   sparepartId: z.string().min(1, 'Sparepart harus dipilih'),
@@ -115,6 +116,23 @@ export async function createStockTransfer(payload: StockTransferPayload): Promis
           notes: data.notes || null
         }
       })
+    })
+
+    const actionText = data.type === 'WAREHOUSE_TO_STORE' ? 'Gudang -> Toko' : 'Toko -> Gudang'
+    createActivityLog({
+      action: 'STOCK_TRANSFER',
+      category: 'STOCK',
+      description: `Transfer stok (${actionText}): ${data.quantity} unit`,
+      details: {
+        sparepartId: data.sparepartId,
+        quantity: data.quantity,
+        type: data.type,
+        notes: data.notes || null,
+      },
+      branchId,
+      userId: session.userId,
+      userName: session.name,
+      userRole: session.role,
     })
 
     revalidatePath('/admin/stock-transfer')
@@ -285,6 +303,74 @@ export async function getStockTransfers(branchId?: string, dateStr?: string) {
   } catch (error) {
     console.error('Get Stock Transfers Error:', error)
     return []
+  }
+}
+
+export async function getPaginatedStockTransfers(
+  page = 1,
+  limit = 20,
+  branchId?: string | null,
+  dateStr?: string
+) {
+  try {
+    const session = await getSession()
+    if (!session) return { data: [], totalCount: 0, totalPages: 0, currentPage: page }
+
+    const where: Record<string, unknown> = {
+      ...getBranchFilter(session, branchId)
+    }
+
+    if (dateStr) {
+      const targetDate = new Date(dateStr)
+      const startOfDay = new Date(targetDate)
+      startOfDay.setHours(0, 0, 0, 0)
+      const endOfDay = new Date(targetDate)
+      endOfDay.setHours(23, 59, 59, 999)
+      where.transferDate = { gte: startOfDay, lte: endOfDay }
+    }
+
+    const [totalCount, data] = await prisma.$transaction([
+      prisma.stockTransfer.count({ where }),
+      prisma.stockTransfer.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        select: {
+          id: true,
+          type: true,
+          quantity: true,
+          notes: true,
+          transferDate: true,
+          sparepart: {
+            select: {
+              name: true,
+              unit: true
+            }
+          },
+          user: {
+            select: {
+              name: true
+            }
+          },
+          branch: {
+            select: {
+              name: true
+            }
+          }
+        },
+        orderBy: { transferDate: 'desc' }
+      })
+    ])
+
+    return {
+      data,
+      totalCount,
+      totalPages: Math.ceil(totalCount / limit),
+      currentPage: page
+    }
+  } catch (error) {
+    console.error('Get Paginated Stock Transfers Error:', error)
+    return { data: [], totalCount: 0, totalPages: 0, currentPage: page }
   }
 }
 

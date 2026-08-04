@@ -4,6 +4,8 @@ import { prisma } from '@/lib/prisma'
 import { getSession } from '@/lib/session'
 import { revalidatePath } from 'next/cache'
 import bcrypt from 'bcryptjs'
+import { createActivityLog } from '@/lib/logger'
+import { getShopName } from '@/actions/settings'
 
 export async function exportDatabaseBackup() {
   try {
@@ -42,11 +44,12 @@ export async function exportDatabaseBackup() {
       prisma.corporatePaymentTransaction.findMany(),
     ])
 
+    const shopNameValue = await getShopName()
     const backupData = {
       version: '1.0',
       exportedAt: new Date().toISOString(),
       exportedBy: session.name,
-      shopName: 'Irian Motor',
+      shopName: shopNameValue,
       data: {
         branches,
         users,
@@ -64,9 +67,16 @@ export async function exportDatabaseBackup() {
       },
     }
 
+    await createActivityLog({
+      action: 'EXPORT_BACKUP',
+      category: 'SYSTEM',
+      description: `Mengekspor backup lengkap database sistem`,
+      details: JSON.stringify({ exportedBy: session.name, exportedAt: new Date().toISOString() }),
+    })
+
     return {
       success: true,
-      filename: `backup_irianmotor_${new Date().toISOString().slice(0, 10)}.json`,
+      filename: `backup_mulyalestari_${new Date().toISOString().slice(0, 10)}.json`,
       jsonString: JSON.stringify(backupData, null, 2),
       summary: {
         branches: branches.length,
@@ -152,6 +162,17 @@ export async function cleanDatabase(
       },
       { timeout: 60000 }
     )
+
+    createActivityLog({
+      action: 'DATABASE_RESET',
+      category: 'SYSTEM',
+      description: `Reset Database (Mode: ${mode})`,
+      details: { mode },
+      branchId: session.branchId || null,
+      userId: session.userId,
+      userName: session.name,
+      userRole: session.role,
+    })
 
     revalidatePath('/', 'layout')
     return {

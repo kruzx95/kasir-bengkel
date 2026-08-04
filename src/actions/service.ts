@@ -17,6 +17,13 @@ export type ServiceState = {
   success?: boolean
 } | undefined
 
+export type PaginatedResult<T> = {
+  data: T[]
+  totalCount: number
+  totalPages: number
+  currentPage: number
+}
+
 export async function getServices(branchId?: string | null) {
   const session = await getSession()
   if (!session) return []
@@ -31,6 +38,52 @@ export async function getServices(branchId?: string | null) {
     include: { branch: true },
     orderBy: { name: 'asc' },
   })
+}
+
+export async function getPaginatedServices(
+  page = 1,
+  limit = 50,
+  branchId?: string | null,
+  search?: string
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): Promise<PaginatedResult<any>> {
+  try {
+    const session = await getSession()
+    if (!session) return { data: [], totalCount: 0, totalPages: 0, currentPage: page }
+
+    const where: Record<string, unknown> = {
+      isActive: true,
+      ...getBranchFilter(session, branchId)
+    }
+
+    if (search) {
+      where.OR = [
+        { name: { contains: search } },
+        { category: { contains: search } },
+      ]
+    }
+
+    const [totalCount, data] = await prisma.$transaction([
+      prisma.service.count({ where }),
+      prisma.service.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        include: { branch: true },
+        orderBy: { name: 'asc' },
+      })
+    ])
+
+    return {
+      data,
+      totalCount,
+      totalPages: Math.ceil(totalCount / limit),
+      currentPage: page
+    }
+  } catch (error) {
+    console.error('Get Paginated Services Error:', error)
+    return { data: [], totalCount: 0, totalPages: 0, currentPage: page }
+  }
 }
 
 export async function getServiceById(id: string) {

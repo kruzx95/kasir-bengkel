@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import * as XLSX from 'xlsx'
+import { createActivityLog } from '@/lib/logger'
 
 type ExcelRow = Record<string, unknown>
 
@@ -201,6 +202,22 @@ export async function POST(request: NextRequest) {
         }
       }
     }
+
+    createActivityLog({
+      action: 'IMPORT_SPAREPARTS',
+      category: 'MASTER',
+      description: `Import Excel Sparepart: ${inserted} ditambahkan, ${updated} diperbarui (${branches.length} cabang)`,
+      details: {
+        fileName: file.name,
+        inserted,
+        updated,
+        branchesCount: branches.length,
+      },
+      branchId: session.branchId || null,
+      userId: session.userId,
+      userName: session.name,
+      userRole: session.role,
+    })
 
     return NextResponse.json({
       success: true,

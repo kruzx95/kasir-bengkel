@@ -24,6 +24,7 @@ import {
   Store,
   Warehouse,
   Database,
+  ScrollText,
 } from 'lucide-react'
 import { useEffect } from 'react'
 import { logout } from '@/actions/auth'
@@ -73,6 +74,7 @@ const adminMenuItems = [
   { href: '/admin/users', label: 'Pengguna', icon: UserCog },
   { href: '/admin/pengaturan', label: 'Pengaturan', icon: Settings },
   { href: '/admin/database', label: 'Database', icon: Database },
+  { href: '/admin/logs', label: 'Log Aktivitas', icon: ScrollText },
 ]
 
 export default function Sidebar({ role, userName, branchName, shopName, mobileOpen = false, onMobileClose, collapsed = false, onCollapseChange }: SidebarProps) {
@@ -80,7 +82,7 @@ export default function Sidebar({ role, userName, branchName, shopName, mobileOp
   const isSuperAdmin = role === 'ADMIN' && !branchName
   const menuItems = role === 'ADMIN'
     ? adminMenuItems.filter(item => {
-        if (['Cabang', 'Pengguna', 'Pengaturan', 'Database'].includes(item.label)) {
+        if (['Cabang', 'Pengguna', 'Pengaturan', 'Database', 'Log Aktivitas'].includes(item.label)) {
           return isSuperAdmin
         }
         return true

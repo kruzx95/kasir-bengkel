@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
+import CustomerAutocomplete from '@/components/ui/CustomerAutocomplete'
 import Badge from '@/components/ui/Badge'
 import { createTransaction, type TransactionPayload } from '@/actions/transaction'
 import { formatCurrency } from '@/lib/utils'
@@ -470,31 +471,18 @@ export default function NewTransactionClient({
               <User className="w-5 h-5 text-primary-500" /> Informasi Pelanggan
             </h2>
             
-            <Select
-              id="customer"
-              name="customer"
-              label="Pelanggan (Opsional)"
-              options={[
-                { label: 'Pelanggan Umum (Tanpa Nama)', value: '' },
-                ...customers.map(c => ({
-                  label: `${c.name} ${c.plateNumber ? `- ${c.plateNumber}` : ''}`,
-                  value: c.id
-                }))
-              ]}
-              value={customerId}
-              onChange={(e) => {
-                const selectedId = e.target.value
-                setCustomerId(selectedId)
-                const customer = customers.find(c => c.id === selectedId)
-                setIsCorporate(!!customer?.corporateCustomerId)
-                // Auto-fill odometer from selected customer's registered odometer
-                if (selectedId) {
-                  if (customer?.odometer != null) {
-                    setOdometer(customer.odometer)
-                  } else {
-                    setOdometer('')
-                  }
+            <CustomerAutocomplete
+              initialCustomers={customers}
+              selectedId={customerId}
+              branchId={txBranchId}
+              onSelect={(customer) => {
+                if (customer) {
+                  setCustomerId(customer.id)
+                  setIsCorporate(!!customer.corporateCustomerId)
+                  setOdometer(customer.odometer ?? '')
                 } else {
+                  setCustomerId('')
+                  setIsCorporate(false)
                   setOdometer('')
                 }
               }}

@@ -108,7 +108,7 @@ export async function createRestock(payload: RestockPayload) {
   }
 }
 
-export async function getRestocks(branchId?: string) {
+export async function getRestocks(branchId?: string | null) {
   try {
     const session = await getSession()
     if (!session) return []

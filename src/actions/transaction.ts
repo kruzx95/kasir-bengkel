@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { getSession, getBranchFilter } from '@/lib/session'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
+import { createActivityLog } from '@/lib/logger'
 
 const transactionItemSchema = z.object({
   itemType: z.enum(['SERVICE', 'SPAREPART']),
@@ -194,6 +195,22 @@ export async function createTransaction(payload: TransactionPayload): Promise<Tr
       }
 
       return transaction
+    })
+
+    createActivityLog({
+      action: 'TRANSACTION_CREATE',
+      category: 'TRANSACTION',
+      description: `Membuat transaksi ${result.invoiceNumber} senilai Rp ${result.total.toLocaleString('id-ID')}`,
+      details: {
+        invoiceNumber: result.invoiceNumber,
+        total: result.total,
+        paymentMethod: result.paymentMethod,
+        itemCount: data.items.length,
+      },
+      branchId,
+      userId: session.userId,
+      userName: session.name,
+      userRole: session.role,
     })
 
     revalidatePath('/kasir/transaksi')
@@ -439,7 +456,7 @@ export async function cancelTransaction(id: string) {
     const session = await getSession()
     if (!session || session.role !== 'ADMIN') return { success: false, message: 'Unauthorized. Hanya admin yang bisa membatalkan transaksi.' }
 
-    await prisma.$transaction(async (tx) => {
+    const cancelledTx = await prisma.$transaction(async (tx) => {
       const transaction = await tx.transaction.findUnique({
         where: { id },
         include: { items: true }
@@ -462,6 +479,20 @@ export async function cancelTransaction(id: string) {
         }
       }
       return transaction
+    })
+
+    createActivityLog({
+      action: 'TRANSACTION_CANCEL',
+      category: 'TRANSACTION',
+      description: `Membatalkan nota transaksi ${cancelledTx.invoiceNumber} (Rp ${cancelledTx.total.toLocaleString('id-ID')})`,
+      details: {
+        invoiceNumber: cancelledTx.invoiceNumber,
+        total: cancelledTx.total,
+      },
+      branchId: cancelledTx.branchId,
+      userId: session.userId,
+      userName: session.name,
+      userRole: session.role,
     })
 
     revalidatePath('/kasir/transaksi')

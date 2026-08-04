@@ -1,19 +1,26 @@
 import Header from '@/components/layout/Header'
 import IndentClient from '@/app/admin/indent/IndentClient'
-import { getIndentOrders } from '@/actions/indent'
+import { getPaginatedIndentOrders } from '@/actions/indent'
 import { getSession } from '@/lib/session'
 import { redirect } from 'next/navigation'
+import Pagination from '@/components/ui/Pagination'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
   title: 'Barang Indent',
 }
 
-export default async function KasirIndentPage() {
+export default async function KasirIndentPage(
+  props: { searchParams?: Promise<{ [key: string]: string | string[] | undefined }> }
+) {
   const session = await getSession()
   if (!session || session.role !== 'KASIR') redirect('/login')
 
-  const indentOrders = await getIndentOrders()
+  const searchParams = await props.searchParams
+  const page = Number(searchParams?.page) || 1
+  const limit = 20
+
+  const result = await getPaginatedIndentOrders(page, limit, session.branchId, 'CUSTOMER')
 
   return (
     <>
@@ -22,7 +29,12 @@ export default async function KasirIndentPage() {
         subtitle="Kelola pemesanan sparepart yang belum diterima dari supplier"
       />
       <div className="p-4 sm:p-6 animate-fade-in">
-        <IndentClient initialData={indentOrders} />
+        <IndentClient initialData={result.data as any} />
+        <Pagination 
+          currentPage={result.currentPage}
+          totalPages={result.totalPages}
+          totalCount={result.totalCount}
+        />
       </div>
     </>
   )

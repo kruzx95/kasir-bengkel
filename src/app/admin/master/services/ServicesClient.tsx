@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useTransition, useEffect, useState, useRef } from 'react'
+import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import Table from '@/components/ui/Table'
 import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
@@ -30,26 +30,60 @@ interface ServiceRow {
 interface ServicesClientProps {
   services: ServiceRow[]
   branches: Branch[]
+  totalCount?: number
 }
 
-export default function ServicesClient({ services, branches }: ServicesClientProps) {
+export default function ServicesClient({ services, branches, totalCount }: ServicesClientProps) {
   const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const [isPending, startTransition] = useTransition()
+
   const [modalOpen, setModalOpen] = useState(false)
   const [importModalOpen, setImportModalOpen] = useState(false)
   const [editData, setEditData] = useState<ServiceRow | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [filterBranch, setFilterBranch] = useState('')
 
-  const filtered = services.filter((svc) => {
-    const q = searchQuery.toLowerCase()
-    const matchSearch =
-      !q ||
-      svc.name.toLowerCase().includes(q) ||
-      (svc.category?.toLowerCase().includes(q) ?? false)
-    const matchBranch = !filterBranch || svc.branchId === filterBranch
-    return matchSearch && matchBranch
-  })
+  const initialSearch = searchParams.get('search') || ''
+  const initialBranch = searchParams.get('branch') || ''
+
+  const [searchQuery, setSearchQuery] = useState(initialSearch)
+  const [filterBranch, setFilterBranch] = useState(initialBranch)
+
+  const searchParamsRef = useRef(searchParams)
+  useEffect(() => {
+    searchParamsRef.current = searchParams
+  }, [searchParams])
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      startTransition(() => {
+        const params = new URLSearchParams(searchParamsRef.current.toString())
+        if (searchQuery) {
+          params.set('search', searchQuery)
+        } else {
+          params.delete('search')
+        }
+        params.set('page', '1')
+        router.replace(`${pathname}?${params.toString()}`)
+      })
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [searchQuery, pathname, router])
+
+  const handleBranchChange = (branchId: string) => {
+    setFilterBranch(branchId)
+    startTransition(() => {
+      const params = new URLSearchParams(searchParamsRef.current.toString())
+      if (branchId) {
+        params.set('branch', branchId)
+      } else {
+        params.delete('branch')
+      }
+      params.set('page', '1')
+      router.replace(`${pathname}?${params.toString()}`)
+    })
+  }
 
   const handleEdit = (service: ServiceRow) => {
     setEditData(service)
@@ -150,12 +184,13 @@ export default function ServicesClient({ services, branches }: ServicesClientPro
               ...branches.map(b => ({ label: b.name, value: b.id })),
             ]}
             value={filterBranch}
-            onChange={(e) => setFilterBranch(e.target.value)}
+            onChange={(e) => handleBranchChange(e.target.value)}
           />
         </div>
-        <p className="text-sm text-slate-400 shrink-0">
-          {filtered.length} dari {services.length} jasa
-        </p>
+        <div className="text-sm text-slate-400 shrink-0 flex items-center gap-2">
+          <span>{totalCount ?? services.length} total data</span>
+          {isPending && <span className="text-primary-500 animate-pulse text-xs">Memuat...</span>}
+        </div>
       </div>
 
       {/* Action Bar */}
@@ -182,10 +217,10 @@ export default function ServicesClient({ services, branches }: ServicesClientPro
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 overflow-hidden">
+      <div className={`bg-white rounded-2xl border border-slate-200/80 overflow-hidden transition-opacity ${isPending ? 'opacity-50' : 'opacity-100'}`}>
         <Table
           columns={columns}
-          data={filtered}
+          data={services}
           keyExtractor={(row) => row.id}
           emptyMessage="Belum ada jasa servis. Klik tombol di atas untuk menambahkan."
         />

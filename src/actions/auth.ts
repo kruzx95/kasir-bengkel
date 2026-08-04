@@ -5,6 +5,7 @@ import { createSession, deleteSession } from '@/lib/session'
 import { redirect } from 'next/navigation'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
+import { createActivityLog } from '@/lib/logger'
 
 const LoginSchema = z.object({
   email: z.string().email('Email tidak valid'),
@@ -59,6 +60,17 @@ export async function login(state: LoginState, formData: FormData): Promise<Logi
   }
 
   await createSession(user)
+
+  createActivityLog({
+    action: 'USER_LOGIN',
+    category: 'USER',
+    description: `User ${user.name} (${user.role}) berhasil login`,
+    details: { email: user.email, branchName: user.branch?.name || 'Semua Cabang' },
+    branchId: user.branchId,
+    userId: user.id,
+    userName: user.name,
+    userRole: user.role,
+  })
 
   if (user.role === 'ADMIN') {
     redirect('/admin')

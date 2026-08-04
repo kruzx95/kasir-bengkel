@@ -45,8 +45,39 @@ export async function getCustomers(branchId?: string | null, search?: string) {
   return prisma.customer.findMany({
     where,
     include: { branch: true },
-    orderBy: { name: 'asc' },
+    orderBy: { createdAt: 'desc' },
     take: 50,
+  })
+}
+
+export async function searchCustomers(query: string, branchId?: string | null) {
+  const session = await getSession()
+  if (!session) return []
+
+  const q = query.trim()
+  if (!q) return []
+
+  const where: Record<string, unknown> = {
+    ...getBranchFilter(session, branchId),
+    OR: [
+      { name: { contains: q } },
+      { plateNumber: { contains: q } },
+      { phone: { contains: q } },
+    ]
+  }
+
+  return prisma.customer.findMany({
+    where,
+    select: {
+      id: true,
+      name: true,
+      phone: true,
+      plateNumber: true,
+      corporateCustomerId: true,
+      odometer: true,
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 20,
   })
 }
 

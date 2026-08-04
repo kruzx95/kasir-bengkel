@@ -30,6 +30,7 @@ model Branch {
   stockTransfers     StockTransfer[]
   transactions       Transaction[]
   users              User[]
+  activityLogs       ActivityLog[]
 
   @@map("branches")
 }
@@ -51,6 +52,7 @@ model User {
   corporatePaymentsCreated CorporatePayment[] @relation("CorporatePaymentCreatedBy")
   corporatePaymentsVoided  CorporatePayment[] @relation("CorporatePaymentVoidedBy")
   branch                   Branch?            @relation(fields: [branchId], references: [id])
+  activityLogs             ActivityLog[]
 
   @@index([branchId], map: "users_branch_id_fkey")
   @@map("users")
@@ -101,6 +103,9 @@ model Customer {
 
   @@index([branchId], map: "customers_branch_id_fkey")
   @@index([corporateCustomerId], map: "customers_corporate_customer_id_fkey")
+  @@index([plateNumber])
+  @@index([phone])
+  @@index([name])
   @@map("customers")
 }
 
@@ -117,6 +122,7 @@ model Service {
   transactionItems TransactionItem[]
 
   @@index([branchId], map: "services_branch_id_fkey")
+  @@index([name])
   @@map("services")
 }
 
@@ -146,6 +152,8 @@ model Sparepart {
   transactionItems  TransactionItem[]
 
   @@index([branchId], map: "spareparts_branch_id_fkey")
+  @@index([sku])
+  @@index([name])
   @@map("spareparts")
 }
 
@@ -432,3 +440,32 @@ model CorporatePaymentTransaction {
   @@index([transactionId], map: "corporate_payment_transactions_transaction_id_fkey")
   @@map("corporate_payment_transactions")
 }
+
+// ============================================
+// ACTIVITY / AUDIT LOG (Phase 6)
+// Log Aktivitas Pengguna & Sistem untuk Admin
+// ============================================
+
+model ActivityLog {
+  id          String   @id @default(cuid())
+  branchId    String?  @map("branch_id")
+  userId      String?  @map("user_id")
+  userName    String   @map("user_name")
+  userRole    Role     @map("user_role")
+  action      String
+  category    String
+  description String   @db.Text
+  details     String?  @db.Text
+  ipAddress   String?  @map("ip_address")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  branch      Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([branchId])
+  @@index([userId])
+  @@index([category])
+  @@index([createdAt])
+  @@map("activity_logs")
+}
+

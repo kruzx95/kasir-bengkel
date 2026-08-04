@@ -3,6 +3,7 @@ import { getSession } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import * as XLSX from 'xlsx'
+import { createActivityLog } from '@/lib/logger'
 
 type ExcelRow = Record<string, unknown>
 
@@ -229,6 +230,22 @@ export async function POST(request: NextRequest) {
         }
       }
     }
+
+    createActivityLog({
+      action: 'IMPORT_SERVICES',
+      category: 'MASTER',
+      description: `Import Excel Jasa Servis: ${inserted} ditambahkan, ${updated} diperbarui (${branches.length} cabang)`,
+      details: {
+        fileName: file.name,
+        inserted,
+        updated,
+        branchesCount: branches.length,
+      },
+      branchId: session.branchId || null,
+      userId: session.userId,
+      userName: session.name,
+      userRole: session.role,
+    })
 
     revalidatePath('/admin/master/services')
     revalidatePath('/kasir/jasa-servis')
