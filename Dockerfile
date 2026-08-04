@@ -27,14 +27,16 @@ RUN npm install
 # Copy all files
 COPY . .
 
+# Set build-time default environment variables
+ENV DATABASE_URL="mysql://irianmotor:irianmotor_pass@mysql:3306/irian_motor"
+ENV SESSION_SECRET="dev-session-secret-change-in-production-min32chars"
+ENV NODE_ENV=production
+
 # Build Next.js application
 RUN npm run build
 
 # Expose port
 EXPOSE 3000
-
-# Set environment to production
-ENV NODE_ENV=production
 
 # Start the application
 CMD ["npm", "start"]
