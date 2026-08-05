@@ -163,45 +163,81 @@ export async function POST(request: NextRequest) {
       branches = [branch]
     }
 
-    // Bulk upsert — update jika nama+cabang sudah ada, insert jika belum
+    // Optimized bulk upsert — batch strategy per branch
+    // Sebelumnya: N+1 query (1 findFirst + 1 create/update per item) → sangat lambat
+    // Sekarang: 1 findMany (fetch semua existing), lalu createMany + Promise.all update
+    const importLabel = `[IMPORT] ${parsed.length} item, ${branches.length} cabang`
+    console.time(importLabel)
+    console.log(`[IMPORT] Mulai proses: ${parsed.length} item → ${branches.length} cabang`)
     let inserted = 0
     let updated = 0
 
     for (const branch of branches) {
-      for (const sp of parsed) {
-        const existing = await prisma.sparepart.findFirst({
-          where: {
-            branchId: branch.id,
-            name: sp.name,
-            isActive: true,
-          },
-          select: { id: true },
-        })
+      // Langkah 1: Ambil semua sparepart aktif di cabang ini sekaligus (1 query)
+      const existingNames = new Set(
+        (
+          await prisma.sparepart.findMany({
+            where: { branchId: branch.id, isActive: true },
+            select: { id: true, name: true },
+          })
+        ).map((s) => s.name)
+      )
 
-        if (existing) {
-          await prisma.sparepart.update({
-            where: { id: existing.id },
-            data: {
-              sku: sp.sku,
-              sparepartType: sp.sparepartType,
-              sparepartBrand: sp.sparepartBrand,
-              sparepartSize: sp.sparepartSize,
-              etalase: sp.etalase,
-              buyPrice: sp.buyPrice,
-              sellPrice: sp.sellPrice,
-              stock: sp.stock,
-              unit: sp.unit,
+      // Langkah 2: Ambil detail existing yang perlu di-update (id + name)
+      const existingMap = new Map(
+        (
+          await prisma.sparepart.findMany({
+            where: {
+              branchId: branch.id,
+              isActive: true,
+              name: { in: parsed.map((sp) => sp.name) },
             },
+            select: { id: true, name: true },
           })
-          updated++
-        } else {
-          await prisma.sparepart.create({
-            data: { ...sp, branchId: branch.id },
+        ).map((s) => [s.name, s.id])
+      )
+
+      // Langkah 3: Pisahkan data menjadi toCreate dan toUpdate
+      const toCreate = parsed.filter((sp) => !existingNames.has(sp.name))
+      const toUpdate = parsed.filter((sp) => existingNames.has(sp.name))
+
+      // Langkah 4: Batch insert semua item baru sekaligus (1 query)
+      if (toCreate.length > 0) {
+        await prisma.sparepart.createMany({
+          data: toCreate.map((sp) => ({ ...sp, branchId: branch.id })),
+          skipDuplicates: true,
+        })
+        inserted += toCreate.length
+      }
+
+      // Langkah 5: Update semua item existing secara paralel (bukan sequential await)
+      if (toUpdate.length > 0) {
+        await Promise.all(
+          toUpdate.map((sp) => {
+            const id = existingMap.get(sp.name)
+            if (!id) return Promise.resolve()
+            return prisma.sparepart.update({
+              where: { id },
+              data: {
+                sku: sp.sku,
+                sparepartType: sp.sparepartType,
+                sparepartBrand: sp.sparepartBrand,
+                sparepartSize: sp.sparepartSize,
+                etalase: sp.etalase,
+                buyPrice: sp.buyPrice,
+                sellPrice: sp.sellPrice,
+                stock: sp.stock,
+                unit: sp.unit,
+              },
+            })
           })
-          inserted++
-        }
+        )
+        updated += toUpdate.length
       }
     }
+
+    console.timeEnd(importLabel)
+    console.log(`[IMPORT] Selesai: ${inserted} inserted, ${updated} updated`)
 
     createActivityLog({
       action: 'IMPORT_SPAREPARTS',
