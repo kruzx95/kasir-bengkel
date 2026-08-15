@@ -3,6 +3,7 @@ import { getSession } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import * as XLSX from 'xlsx'
 import { createActivityLog } from '@/lib/logger'
+import { parsePrice } from '@/lib/utils'
 
 type ExcelRow = Record<string, unknown>
 
@@ -30,6 +31,9 @@ export async function POST(request: NextRequest) {
     const buffer = await file.arrayBuffer()
     const workbook = XLSX.read(buffer, { type: 'array' })
     const sheetName = workbook.SheetNames[0]
+    if (!sheetName || !workbook.Sheets[sheetName]) {
+      return NextResponse.json({ error: 'File Excel tidak memiliki lembar kerja (worksheet)' }, { status: 400 })
+    }
     const sheet = workbook.Sheets[sheetName]
     const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: '' })
 
@@ -39,8 +43,17 @@ export async function POST(request: NextRequest) {
 
     // Find header row dynamically
     let headerRowIndex = -1
-    const nameKeywords = ['nama', 'name', 'nama_barang', 'nama_sparepart', 'sparepart', 'item']
-    const priceKeywords = ['harga_jual', 'sell_price', 'harga', 'price', 'harga_beli', 'buy_price']
+    const nameKeywords = ['nama', 'name', 'nama_barang', 'nama_sparepart', 'sparepart', 'item', 'deskripsi']
+    const priceKeywords = [
+      'harga_jual',
+      'sell_price',
+      'harga',
+      'price',
+      'harga_beli',
+      'buy_price',
+      'harga_eceran',
+      'harga_konsumen',
+    ]
 
     for (let r = 0; r < Math.min(matrix.length, 25); r++) {
       const rowCells = (matrix[r] || []).map((cell) =>
@@ -56,7 +69,28 @@ export async function POST(request: NextRequest) {
     }
 
     if (headerRowIndex === -1) {
-      headerRowIndex = 0
+      const allText = matrix
+        .slice(0, 15)
+        .map((row) => (row || []).map((c) => String(c || '').toLowerCase()).join(' '))
+        .join(' ')
+
+      if (allText.includes('template import jasa servis') || (allText.includes('jasa') && !allText.includes('sku'))) {
+        return NextResponse.json(
+          {
+            error:
+              'File yang diunggah tampaknya adalah template/data Jasa Servis. Silakan gunakan template Sparepart yang tersedia.',
+          },
+          { status: 400 }
+        )
+      }
+
+      return NextResponse.json(
+        {
+          error:
+            'Kolom header tidak ditemukan. Pastikan file Excel memiliki kolom "nama" dan "harga_jual" / "harga" (atau unduh template Excel yang tersedia).',
+        },
+        { status: 400 }
+      )
     }
 
     const rawHeaders = (matrix[headerRowIndex] || []).map((cell) =>
@@ -76,7 +110,8 @@ export async function POST(request: NextRequest) {
         rowText.includes('wajib diisi') ||
         rowText.includes('opsional') ||
         rowText.includes('nama lengkap') ||
-        rowText.includes('petunjuk:')
+        rowText.includes('petunjuk:') ||
+        rowText.includes('hapus baris contoh')
       ) {
         continue
       }
@@ -109,32 +144,54 @@ export async function POST(request: NextRequest) {
       const row = normalized[i]
       const rowNum = headerRowIndex + 2 + i
 
-      const name = String(row['nama'] || row['name'] || '').trim()
+      const name = String(
+        row['nama'] ||
+          row['name'] ||
+          row['nama_barang'] ||
+          row['nama_sparepart'] ||
+          row['sparepart'] ||
+          row['item'] ||
+          row['deskripsi'] ||
+          ''
+      ).trim()
+
+      const buyPriceRaw = row['harga_beli'] ?? row['buy_price'] ?? row['harga_modal'] ?? row['harga_pokok']
+      const sellPriceRaw =
+        row['harga_jual'] ??
+        row['sell_price'] ??
+        row['harga'] ??
+        row['price'] ??
+        row['harga_eceran'] ??
+        row['harga_konsumen']
+
+      const stockRaw = row['stok'] ?? row['stock'] ?? row['stok_awal'] ?? row['qty'] ?? row['jumlah']
+
+      // Skip completely empty rows
+      if (!name && !buyPriceRaw && !sellPriceRaw && !stockRaw) {
+        continue
+      }
+
       if (!name) {
         errors.push(`Baris ${rowNum}: kolom "nama" wajib diisi`)
         continue
       }
 
-      const buyPrice = parseFloat(String(row['harga_beli'] || row['buy_price'] || '0').replace(/[^0-9.]/g, ''))
-      const sellPrice = parseFloat(String(row['harga_jual'] || row['sell_price'] || '0').replace(/[^0-9.]/g, ''))
-      const stock = parseInt(String(row['stok'] || row['stock'] || '0').replace(/[^0-9]/g, ''), 10)
+      const buyPrice = parsePrice(buyPriceRaw)
+      const sellPrice = parsePrice(sellPriceRaw)
+      const stock = parseInt(String(stockRaw || '0').replace(/[^0-9-]/g, ''), 10)
 
-      if (isNaN(buyPrice) || buyPrice < 0) {
-        errors.push(`Baris ${rowNum}: harga_beli tidak valid`)
-        continue
-      }
-      if (isNaN(sellPrice) || sellPrice <= 0) {
-        errors.push(`Baris ${rowNum}: harga_jual wajib diisi dan lebih dari 0`)
+      if (sellPrice <= 0) {
+        errors.push(`Baris ${rowNum} (${name}): kolom "harga_jual" / "harga" wajib diisi dan lebih dari 0`)
         continue
       }
 
       parsed.push({
         name,
-        sku: String(row['sku'] || '').trim() || null,
-        sparepartType: String(row['jenis'] || row['sparepart_type'] || '').trim() || null,
-        sparepartBrand: String(row['merk'] || row['brand'] || '').trim() || null,
+        sku: String(row['sku'] || row['barcode'] || row['kode'] || '').trim() || null,
+        sparepartType: String(row['jenis'] || row['sparepart_type'] || row['kategori'] || '').trim() || null,
+        sparepartBrand: String(row['merk'] || row['brand'] || row['merek'] || '').trim() || null,
         sparepartSize: String(row['ukuran'] || row['size'] || '').trim() || null,
-        etalase: String(row['etalase'] || row['rak'] || row['shelf'] || '').trim() || null,
+        etalase: String(row['etalase'] || row['rak'] || row['shelf'] || row['lokasi'] || '').trim() || null,
         buyPrice: isNaN(buyPrice) ? 0 : buyPrice,
         sellPrice,
         stock: isNaN(stock) ? 0 : stock,
@@ -143,12 +200,19 @@ export async function POST(request: NextRequest) {
     }
 
     if (parsed.length === 0 && errors.length === 0) {
-      return NextResponse.json({ error: 'Tidak ada data valid yang dapat diimpor' }, { status: 400 })
+      return NextResponse.json(
+        {
+          error:
+            'Tidak ada data valid yang dapat diimpor. Pastikan data sparepart telah diisi di bawah baris header.',
+        },
+        { status: 400 }
+      )
     }
 
     if (errors.length > 0) {
-      return NextResponse.json({ error: 'Terdapat kesalahan data', details: errors }, { status: 422 })
+      return NextResponse.json({ error: 'Terdapat kesalahan data pada file Excel', details: errors }, { status: 422 })
     }
+
 
     // Determine target branches
     let branches: { id: string }[]

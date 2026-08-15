@@ -23,6 +23,7 @@ export default function ImportServiceModal({ open, onClose, branches, onSuccess 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [file, setFile] = useState<File | null>(null)
   const [branchMode, setBranchMode] = useState('all')
+  const effectiveBranchMode = branches.length === 1 ? branches[0].id : branchMode
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<{ success: boolean; message: string; details?: string[] } | null>(null)
 
@@ -67,7 +68,7 @@ export default function ImportServiceModal({ open, onClose, branches, onSuccess 
 
     const formData = new FormData()
     formData.append('file', file)
-    formData.append('branchMode', branchMode)
+    formData.append('branchMode', effectiveBranchMode)
 
     try {
       const res = await fetch('/api/import/services', { method: 'POST', body: formData })
@@ -78,7 +79,9 @@ export default function ImportServiceModal({ open, onClose, branches, onSuccess 
       } else {
         setResult({ success: true, message: data.message })
         if (onSuccess) {
-          onSuccess()
+          setTimeout(() => {
+            onSuccess()
+          }, 1200)
         } else {
           setTimeout(() => window.location.reload(), 1500)
         }
@@ -98,6 +101,8 @@ export default function ImportServiceModal({ open, onClose, branches, onSuccess 
     onClose()
   }
 
+  const isSparepartFileName = file?.name.toLowerCase().includes('sparepart')
+
   return (
     <Modal open={open} onClose={handleClose} title="Import Jasa Servis dari Excel">
       <div className="p-6 space-y-5">
@@ -109,7 +114,7 @@ export default function ImportServiceModal({ open, onClose, branches, onSuccess 
             Gunakan template ini agar format kolom sesuai. Isi daftar jasa servis di baris berikutnya.
           </p>
           <Button size="sm" variant="outline" icon={Download} onClick={handleDownloadTemplate}>
-            Unduh Template Excel
+            Unduh Template Excel (Jasa Servis)
           </Button>
         </div>
 
@@ -134,21 +139,25 @@ export default function ImportServiceModal({ open, onClose, branches, onSuccess 
         </div>
 
         {/* Step 2: Pilih Cabang */}
-        <div>
-          <p className="text-sm font-semibold text-slate-700 mb-2">Langkah 2 — Pilih Cabang Tujuan</p>
-          <Select
-            options={[
-              { label: 'Semua Cabang (import ke semua)', value: 'all' },
-              ...branches.map(b => ({ label: b.name, value: b.id })),
-            ]}
-            value={branchMode}
-            onChange={(e) => setBranchMode(e.target.value)}
-          />
-        </div>
+        {branches.length > 1 && (
+          <div>
+            <p className="text-sm font-semibold text-slate-700 mb-2">Langkah 2 — Pilih Cabang Tujuan</p>
+            <Select
+              options={[
+                { label: 'Semua Cabang (import ke semua)', value: 'all' },
+                ...branches.map(b => ({ label: b.name, value: b.id })),
+              ]}
+              value={effectiveBranchMode}
+              onChange={(e) => setBranchMode(e.target.value)}
+            />
+          </div>
+        )}
 
         {/* Step 3: Upload File */}
         <div>
-          <p className="text-sm font-semibold text-slate-700 mb-2">Langkah 3 — Upload File Excel</p>
+          <p className="text-sm font-semibold text-slate-700 mb-2">
+            {branches.length > 1 ? 'Langkah 3 — Upload File Excel' : 'Langkah 2 — Upload File Excel'}
+          </p>
 
           {!file ? (
             <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-slate-200 rounded-xl cursor-pointer bg-slate-50 hover:bg-slate-100 hover:border-primary-300 transition-all">
@@ -164,15 +173,24 @@ export default function ImportServiceModal({ open, onClose, branches, onSuccess 
               />
             </label>
           ) : (
-            <div className="flex items-center gap-3 p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
-              <FileSpreadsheet className="w-8 h-8 text-emerald-600 shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-slate-900 truncate">{file.name}</p>
-                <p className="text-xs text-slate-500">{(file.size / 1024).toFixed(1)} KB</p>
+            <div className="space-y-2">
+              <div className="flex items-center gap-3 p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+                <FileSpreadsheet className="w-8 h-8 text-emerald-600 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-slate-900 truncate">{file.name}</p>
+                  <p className="text-xs text-slate-500">{(file.size / 1024).toFixed(1)} KB</p>
+                </div>
+                <button onClick={handleRemoveFile} className="p-1 text-slate-400 hover:text-red-500 transition-colors">
+                  <X className="w-4 h-4" />
+                </button>
               </div>
-              <button onClick={handleRemoveFile} className="p-1 text-slate-400 hover:text-red-500 transition-colors">
-                <X className="w-4 h-4" />
-              </button>
+
+              {isSparepartFileName && (
+                <div className="flex items-center gap-2 p-2.5 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-xs">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>Perhatian: Nama file mengandung &apos;sparepart&apos;. Pastikan file ini berisi data <strong>Jasa Servis</strong> (kolom nama & harga).</span>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -216,3 +234,4 @@ export default function ImportServiceModal({ open, onClose, branches, onSuccess 
     </Modal>
   )
 }
+

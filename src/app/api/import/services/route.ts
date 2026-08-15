@@ -4,45 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import * as XLSX from 'xlsx'
 import { createActivityLog } from '@/lib/logger'
-
-type ExcelRow = Record<string, unknown>
-
-function parsePrice(value: unknown): number {
-  if (typeof value === 'number') {
-    return isNaN(value) ? 0 : value
-  }
-  if (!value) return 0
-
-  let str = String(value).trim()
-  // Remove currency prefix/suffix like "Rp", "RP", "rp", spaces
-  str = str.replace(/rp/gi, '').trim()
-
-  if (str.includes('.') && str.includes(',')) {
-    if (str.indexOf('.') < str.indexOf(',')) {
-      // Indonesian format 25.000,00 -> 25000.00
-      str = str.replace(/\./g, '').replace(',', '.')
-    } else {
-      // US format 25,000.00 -> 25000.00
-      str = str.replace(/,/g, '')
-    }
-  } else if (str.includes('.')) {
-    const parts = str.split('.')
-    if (parts.length > 2 || (parts.length === 2 && parts[1].length === 3)) {
-      str = str.replace(/\./g, '')
-    }
-  } else if (str.includes(',')) {
-    const parts = str.split(',')
-    if (parts.length > 2 || (parts.length === 2 && parts[1].length === 3)) {
-      str = str.replace(/,/g, '')
-    } else {
-      str = str.replace(',', '.')
-    }
-  }
-
-  const cleaned = str.replace(/[^0-9.]/g, '')
-  const num = parseFloat(cleaned)
-  return isNaN(num) ? 0 : num
-}
+import { parsePrice } from '@/lib/utils'
 
 export async function POST(request: NextRequest) {
   try {
@@ -68,6 +30,9 @@ export async function POST(request: NextRequest) {
     const buffer = await file.arrayBuffer()
     const workbook = XLSX.read(buffer, { type: 'array' })
     const sheetName = workbook.SheetNames[0]
+    if (!sheetName || !workbook.Sheets[sheetName]) {
+      return NextResponse.json({ error: 'File Excel tidak memiliki lembar kerja (worksheet)' }, { status: 400 })
+    }
     const sheet = workbook.Sheets[sheetName]
     const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: '' })
 
@@ -77,8 +42,41 @@ export async function POST(request: NextRequest) {
 
     // Find header row dynamically
     let headerRowIndex = -1
-    const nameKeywords = ['nama', 'name', 'nama_jasa', 'nama_servis', 'jasa', 'servis', 'service', 'service_name']
-    const priceKeywords = ['harga', 'price', 'harga_jasa', 'harga_servis', 'tarif', 'biaya', 'rate']
+    const nameKeywords = [
+      'nama',
+      'name',
+      'nama_jasa',
+      'nama_servis',
+      'nama_layanan',
+      'jasa',
+      'servis',
+      'service',
+      'service_name',
+      'layanan',
+      'pekerjaan',
+      'uraian',
+      'uraian_pekerjaan',
+      'deskripsi',
+      'item',
+      'nama_barang',
+    ]
+    const priceKeywords = [
+      'harga',
+      'price',
+      'harga_jasa',
+      'harga_servis',
+      'tarif',
+      'biaya',
+      'rate',
+      'harga_jual',
+      'sell_price',
+      'ongkos',
+      'ongkos_kerja',
+      'upah',
+      'fee',
+      'nominal',
+      'biaya_jasa',
+    ]
 
     for (let r = 0; r < Math.min(matrix.length, 25); r++) {
       const rowCells = (matrix[r] || []).map((cell) =>
@@ -94,7 +92,34 @@ export async function POST(request: NextRequest) {
     }
 
     if (headerRowIndex === -1) {
-      headerRowIndex = 0
+      // Check if file seems to be a sparepart template/file
+      const allText = matrix
+        .slice(0, 15)
+        .map((row) => (row || []).map((c) => String(c || '').toLowerCase()).join(' '))
+        .join(' ')
+
+      if (
+        allText.includes('template import sparepart') ||
+        allText.includes('harga_beli') ||
+        allText.includes('sku') ||
+        allText.includes('etalase')
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              'File yang diunggah tampaknya adalah template/data Sparepart. Silakan unduh dan gunakan template Jasa Servis yang tersedia.',
+          },
+          { status: 400 }
+        )
+      }
+
+      return NextResponse.json(
+        {
+          error:
+            'Kolom header tidak ditemukan. Pastikan file Excel memiliki kolom "nama" dan "harga" (atau unduh template Excel yang tersedia).',
+        },
+        { status: 400 }
+      )
     }
 
     const rawHeaders = (matrix[headerRowIndex] || []).map((cell) =>
@@ -115,7 +140,9 @@ export async function POST(request: NextRequest) {
         rowText.includes('opsional') ||
         rowText.includes('nama jasa /') ||
         rowText.includes('nama lengkap') ||
-        rowText.includes('petunjuk:')
+        rowText.includes('petunjuk:') ||
+        rowText.includes('hapus baris contoh') ||
+        rowText.includes('contoh: oli')
       ) {
         continue
       }
@@ -142,24 +169,49 @@ export async function POST(request: NextRequest) {
           row['name'] ||
           row['nama_jasa'] ||
           row['nama_servis'] ||
+          row['nama_layanan'] ||
           row['jasa'] ||
           row['servis'] ||
           row['service'] ||
           row['service_name'] ||
+          row['layanan'] ||
+          row['pekerjaan'] ||
+          row['uraian'] ||
+          row['uraian_pekerjaan'] ||
+          row['deskripsi'] ||
+          row['item'] ||
+          row['nama_barang'] ||
           ''
       ).trim()
 
       const priceRaw =
         row['harga'] ??
-        row['price'] ??
         row['harga_jasa'] ??
         row['harga_servis'] ??
         row['tarif'] ??
         row['biaya'] ??
-        row['rate']
+        row['ongkos'] ??
+        row['ongkos_kerja'] ??
+        row['harga_jual'] ??
+        row['price'] ??
+        row['sell_price'] ??
+        row['rate'] ??
+        row['fee'] ??
+        row['nominal'] ??
+        row['biaya_jasa']
 
       const category =
-        String(row['kategori'] || row['category'] || row['kelompok'] || row['jenis'] || '').trim() || null
+        String(
+          row['kategori'] ||
+            row['category'] ||
+            row['kelompok'] ||
+            row['jenis'] ||
+            row['group'] ||
+            row['tipe'] ||
+            row['type'] ||
+            row['klasifikasi'] ||
+            ''
+        ).trim() || null
 
       // Skip completely empty rows
       if (!name && (!priceRaw || priceRaw === '') && !category) {
@@ -173,7 +225,7 @@ export async function POST(request: NextRequest) {
 
       const price = parsePrice(priceRaw)
       if (price <= 0) {
-        errors.push(`Baris ${rowNum}: "harga" wajib diisi dan lebih dari 0`)
+        errors.push(`Baris ${rowNum} (${name}): kolom "harga" wajib diisi dan lebih dari 0`)
         continue
       }
 
@@ -185,11 +237,17 @@ export async function POST(request: NextRequest) {
     }
 
     if (parsed.length === 0 && errors.length === 0) {
-      return NextResponse.json({ error: 'Tidak ada data valid yang dapat diimpor' }, { status: 400 })
+      return NextResponse.json(
+        {
+          error:
+            'Tidak ada data valid yang dapat diimpor. Pastikan data jasa servis telah diisi di bawah baris header.',
+        },
+        { status: 400 }
+      )
     }
 
     if (errors.length > 0) {
-      return NextResponse.json({ error: 'Terdapat kesalahan data', details: errors }, { status: 422 })
+      return NextResponse.json({ error: 'Terdapat kesalahan data pada file Excel', details: errors }, { status: 422 })
     }
 
     // Determine target branches
@@ -205,29 +263,59 @@ export async function POST(request: NextRequest) {
       branches = [branch]
     }
 
-    // Upsert — update jika nama+cabang sudah ada, insert jika belum
+    // Deduplicate parsed rows by lowercase name (last occurrence wins)
+    const uniqueMap = new Map<string, (typeof parsed)[0]>()
+    for (const item of parsed) {
+      uniqueMap.set(item.name.toLowerCase().trim(), item)
+    }
+    const deduplicatedParsed = Array.from(uniqueMap.values())
+
+    // High-performance bulk upsert
     let inserted = 0
     let updated = 0
 
     for (const branch of branches) {
-      for (const svc of parsed) {
-        const existing = await prisma.service.findFirst({
-          where: { branchId: branch.id, name: svc.name, isActive: true },
-          select: { id: true },
-        })
+      const existingServices = await prisma.service.findMany({
+        where: {
+          branchId: branch.id,
+          isActive: true,
+          name: { in: deduplicatedParsed.map((s) => s.name) },
+        },
+        select: { id: true, name: true },
+      })
+      const existingMap = new Map(existingServices.map((s) => [s.name.toLowerCase(), s.id]))
 
-        if (existing) {
-          await prisma.service.update({
-            where: { id: existing.id },
-            data: { price: svc.price, category: svc.category },
+      const toCreate = deduplicatedParsed.filter((s) => !existingMap.has(s.name.toLowerCase()))
+      const toUpdate = deduplicatedParsed.filter((s) => existingMap.has(s.name.toLowerCase()))
+
+      if (toCreate.length > 0) {
+        await prisma.service.createMany({
+          data: toCreate.map((s) => ({
+            name: s.name,
+            price: s.price,
+            category: s.category,
+            branchId: branch.id,
+            isActive: true,
+          })),
+        })
+        inserted += toCreate.length
+      }
+
+      if (toUpdate.length > 0) {
+        await Promise.all(
+          toUpdate.map((s) => {
+            const id = existingMap.get(s.name.toLowerCase())
+            if (!id) return Promise.resolve()
+            return prisma.service.update({
+              where: { id },
+              data: {
+                price: s.price,
+                category: s.category,
+              },
+            })
           })
-          updated++
-        } else {
-          await prisma.service.create({
-            data: { ...svc, branchId: branch.id },
-          })
-          inserted++
-        }
+        )
+        updated += toUpdate.length
       }
     }
 
@@ -263,3 +351,4 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }
+
