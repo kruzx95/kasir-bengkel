@@ -1,0 +1,49 @@
+#!/bin/bash
+# ============================================
+# DEPLOY SCRIPT — Irian Motor (PRODUCTION)
+# ============================================
+# Jalankan di VPS setiap kali ingin update Production:
+#   chmod +x deploy-prod.sh && ./deploy-prod.sh
+# ============================================
+
+set -e
+
+APP_DIR="/var/www/irian-motor-prod"
+BRANCH="master"
+
+echo "========================================"
+echo "  🚀 Deploying Irian Motor [PRODUCTION]..."
+echo "========================================"
+echo "  Waktu: $(date '+%Y-%m-%d %H:%M:%S')"
+echo "========================================"
+
+cd ${APP_DIR}
+
+echo "[1/5] Pulling latest changes from branch '${BRANCH}'..."
+git fetch origin
+git reset --hard origin/${BRANCH}
+
+echo ""
+echo "[2/5] Installing dependencies..."
+npm ci --production=false
+
+echo ""
+echo "[3/5] Running Prisma migrations..."
+npx prisma generate
+npx prisma migrate deploy
+
+echo ""
+echo "[4/5] Building Next.js application..."
+npm run build
+
+echo ""
+echo "[5/5] Restarting PM2 process 'irian-motor-prod'..."
+pm2 reload irian-motor-prod --update-env || pm2 start /var/www/ecosystem.config.js --only irian-motor-prod
+pm2 save
+
+echo ""
+echo "========================================"
+echo "  ✅ DEPLOY PRODUCTION BERHASIL!"
+echo "========================================"
+echo "  Port: 3000"
+echo "========================================"
