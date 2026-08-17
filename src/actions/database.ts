@@ -95,7 +95,7 @@ export async function exportDatabaseBackup() {
 }
 
 export async function cleanDatabase(
-  mode: 'TRANSACTIONS_ONLY' | 'CATALOG_ONLY' | 'FULL_RESET',
+  mode: 'ALL_TESTING_DATA' | 'TRANSACTIONS_ONLY' | 'CATALOG_ONLY' | 'FULL_RESET',
   password: string
 ) {
   try {
@@ -126,7 +126,16 @@ export async function cleanDatabase(
         await tx.restock.deleteMany()
         await tx.stockTransfer.deleteMany()
 
-        if (mode === 'TRANSACTIONS_ONLY') {
+        if (mode === 'ALL_TESTING_DATA') {
+          // Clean all testing master data: Spareparts, Services, Customers, Mechanics, Corporate Customers, Activity Logs
+          // ALL USERS AND BRANCHES ARE 100% PRESERVED
+          await tx.mechanic.deleteMany()
+          await tx.service.deleteMany()
+          await tx.sparepart.deleteMany()
+          await tx.customer.deleteMany()
+          await tx.corporateCustomer.deleteMany()
+          await tx.activityLog.deleteMany()
+        } else if (mode === 'TRANSACTIONS_ONLY') {
           // Reset sparepart stock counters to 0
           await tx.sparepart.updateMany({
             data: {
@@ -178,7 +187,9 @@ export async function cleanDatabase(
     return {
       success: true,
       message:
-        mode === 'TRANSACTIONS_ONLY'
+        mode === 'ALL_TESTING_DATA'
+          ? 'Seluruh data testing (transaksi, sparepart, jasa, pelanggan & mekanik) berhasil dibersihkan! Seluruh akun Login Pengguna & Cabang 100% tersimpan aman.'
+          : mode === 'TRANSACTIONS_ONLY'
           ? 'Data riwayat transaksi, indent, restock & mutasi berhasil dibersihkan!'
           : mode === 'CATALOG_ONLY'
           ? 'Katalog Sparepart & Jasa Servis berhasil dikosongkan! Seluruh akun User (Admin & Kasir) serta Cabang tetap utuh.'
