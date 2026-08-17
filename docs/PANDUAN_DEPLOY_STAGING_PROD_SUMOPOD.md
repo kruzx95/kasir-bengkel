@@ -72,7 +72,7 @@ git push origin staging
 
 2. Download repository untuk mengambil script setup:
    ```bash
-   git clone https://github.com/kruzx95/irian-motor.git /tmp/setup-irian
+   git clone https://github.com/kruzx95/kasir-bengkel.git /tmp/setup-irian
    cd /tmp/setup-irian/deploy
    ```
 
@@ -106,7 +106,7 @@ Masih di dalam terminal SSH VPS:
 ```bash
 # 1. Masuk ke folder staging & clone branch staging
 cd /var/www/irian-motor-staging
-git clone -b staging https://github.com/kruzx95/irian-motor.git .
+git clone -b staging https://github.com/kruzx95/kasir-bengkel.git .
 
 # 2. Buat file .env dari template
 cp .env.staging.example .env
@@ -138,7 +138,7 @@ Masih di dalam terminal SSH VPS:
 ```bash
 # 1. Masuk ke folder production & clone branch master
 cd /var/www/irian-motor-prod
-git clone -b master https://github.com/kruzx95/irian-motor.git .
+git clone -b master https://github.com/kruzx95/kasir-bengkel.git .
 
 # 2. Buat file .env dari template
 cp .env.production.example .env
