@@ -79,6 +79,7 @@ Thumbs.db
 .DS_Store
 
 # docs directory
-/docs/
-docs/
+/docs/*
+!docs/PANDUAN_*.md
+
 
