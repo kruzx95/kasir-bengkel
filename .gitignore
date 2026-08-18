@@ -82,5 +82,6 @@ Thumbs.db
 /docs/*
 !docs/PANDUAN_*.md
 !docs/PANDUAN_*.html
+!docs/PERENCANAAN_*.md
 
 
