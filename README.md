@@ -1,56 +1,26 @@
 # Mulya Lestari — Sistem Kasir & Manajemen Bengkel
 
-Aplikasi web modern untuk operasional bengkel motor multi-cabang (POS Kasir, Stok Toko & Gudang, Restock, Indent, Korporat, dan Reminder WhatsApp).
+Aplikasi berbasis web modern yang dirancang untuk mengelola seluruh operasional bengkel motor secara terintegrasi dan multi-cabang.
 
 ---
 
-## 🚀 Quick Start (Menjalankan di Lokal)
+## ✨ Fitur Utama
 
-### 1. Install Dependensi
-```bash
-npm install
-```
-
-### 2. Konfigurasi `.env`
-Salin file `.env.example` ke `.env`:
-```bash
-cp .env.example .env
-```
-Sesuaikan koneksi database MySQL/MariaDB Anda di file `.env`.
-
-### 3. Migrasi Database & Buat Akun Admin
-```bash
-npx prisma migrate deploy
-npm run db:seed
-```
-> **Akun Default Super Admin:**  
-> Email: `admin@irianmotor.com` | Password: `Mallikrs08!`
-
-### 4. Jalankan Aplikasi
-```bash
-npm run dev
-```
-Buka browser di: **[http://localhost:3000](http://localhost:3000)**
+* 🧾 **Point of Sale (Kasir):** Transaksi cepat jasa servis & penjualan suku cadang dengan cetak struk thermal (58mm / 80mm).
+* 🏪 **Dual-Layer Inventory:** Pemisahan stok etalase toko dan stok cadangan gudang dengan fitur mutasi barang.
+* 📥 **Barang Masuk (Restock):** Pencatatan penerimaan suku cadang dari supplier beserta arsip foto faktur digital.
+* 📋 **Barang Indent (Pre-Order):** Penanganan pesanan sparepart langka lengkap dengan pencatatan uang muka (DP).
+* 🏢 **Armada Korporat:** Pengelolaan tagihan servis tempo untuk instansi & perusahaan rekanan.
+* 💬 **Reminder Servis WhatsApp:** Pengingat servis berkala dan ganti oli otomatis ke nomor WhatsApp pelanggan.
+* 👨‍🔧 **Mekanik & Komisi:** Pencatatan mekanik bertugas dan rekapitulasi komisi kerja.
+* 📊 **Laporan & Rekap Kas:** Laporan harian, omzet, laba/rugi, dan rekonsiliasi kas laci kasir.
+* 🗄️ **Manajemen Database:** Fitur backup snapshot JSON, restore, dan reset data testing.
 
 ---
 
-## 📜 Perintah Utama
+## 🛠️ Teknologi yang Digunakan
 
-| Perintah | Keterangan |
-| :--- | :--- |
-| `npm run dev` | Menjalankan server development (Port 3000) |
-| `npm run build` | Melakukan compile & build production |
-| `npm run start` | Menjalankan build production |
-| `npm run db:seed` | Mengisi data awal akun Super Admin |
-| `npx prisma migrate deploy` | Menjalankan migrasi struktur database |
-
----
-
-## 📚 Dokumentasi Terkait
-
-* 📘 **Panduan Kasir:** [`docs/PANDUAN_KASIR.md`](docs/PANDUAN_KASIR.md) / [`docs/PANDUAN_KASIR.html`](docs/PANDUAN_KASIR.html)
-* 🚀 **Panduan Deploy VPS:** [`docs/PANDUAN_DEPLOY_STAGING_PROD_SUMOPOD.md`](docs/PANDUAN_DEPLOY_STAGING_PROD_SUMOPOD.md)
-
----
-
-**Tech Stack:** Next.js 16 (App Router) • Prisma ORM • MariaDB/MySQL • Tailwind CSS
+* **Frontend & Backend:** Next.js 16 (App Router) & React 19
+* **Database & ORM:** MySQL / MariaDB & Prisma ORM
+* **Styling & UI:** Tailwind CSS & Lucide Icons
+* **Deployment & Process Manager:** Nginx Reverse Proxy, Let's Encrypt SSL, dan PM2
