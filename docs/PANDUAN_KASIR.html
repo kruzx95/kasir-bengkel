@@ -1,0 +1,1124 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Buku Panduan Operasional Kasir — Mulya Lestari</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --primary-light: #eff6ff;
+      --accent: #4f46e5;
+      --success: #10b981;
+      --success-bg: #ecfdf5;
+      --warning: #f59e0b;
+      --warning-bg: #fffbeb;
+      --danger: #ef4444;
+      --danger-bg: #fef2f2;
+      --slate-900: #0f172a;
+      --slate-800: #1e293b;
+      --slate-700: #334155;
+      --slate-600: #475569;
+      --slate-500: #64748b;
+      --slate-200: #e2e8f0;
+      --slate-100: #f1f5f9;
+      --slate-50: #f8fafc;
+      --border-color: #e2e8f0;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      color: var(--slate-800);
+      background-color: #f8fafc;
+      line-height: 1.65;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Layout */
+    .app-container {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* Sidebar Navigation */
+    .sidebar {
+      width: 300px;
+      background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+      color: #fff;
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      overflow-y: auto;
+      padding: 24px 16px;
+      z-index: 100;
+      box-shadow: 4px 0 24px rgba(0,0,0,0.15);
+    }
+
+    .sidebar-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding-bottom: 20px;
+      margin-bottom: 20px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .sidebar-brand-icon {
+      width: 42px;
+      height: 42px;
+      background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      box-shadow: 0 4px 12px rgba(37,99,235,0.35);
+    }
+
+    .sidebar-brand h1 {
+      font-size: 16px;
+      font-weight: 800;
+      color: #fff;
+      letter-spacing: -0.5px;
+    }
+
+    .sidebar-brand p {
+      font-size: 11px;
+      color: #94a3b8;
+      font-weight: 500;
+    }
+
+    .sidebar-nav {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .sidebar-nav a {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: 10px;
+      color: #cbd5e1;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 600;
+      transition: all 0.2s ease;
+    }
+
+    .sidebar-nav a:hover,
+    .sidebar-nav a.active {
+      background: rgba(59, 130, 246, 0.18);
+      color: #60a5fa;
+      transform: translateX(3px);
+    }
+
+    .sidebar-nav .nav-icon {
+      font-size: 16px;
+      width: 20px;
+      text-align: center;
+    }
+
+    .sidebar-footer {
+      margin-top: 24px;
+      padding-top: 16px;
+      border-top: 1px solid rgba(255,255,255,0.1);
+      font-size: 11px;
+      color: #64748b;
+      text-align: center;
+    }
+
+    /* Print Button */
+    .print-btn {
+      width: 100%;
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      color: white;
+      border: none;
+      padding: 12px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 16px;
+      box-shadow: 0 4px 12px rgba(37,99,235,0.3);
+      transition: all 0.2s;
+    }
+
+    .print-btn:hover {
+      background: #1d4ed8;
+      transform: translateY(-1px);
+    }
+
+    /* Main Content */
+    .main-content {
+      margin-left: 300px;
+      flex: 1;
+      padding: 40px 60px;
+      max-width: 1150px;
+    }
+
+    /* Header Banner */
+    .hero-banner {
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #172554 100%);
+      color: white;
+      border-radius: 24px;
+      padding: 40px;
+      margin-bottom: 40px;
+      box-shadow: 0 12px 32px rgba(15,23,42,0.15);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-banner::after {
+      content: "🔧";
+      position: absolute;
+      right: 30px;
+      bottom: -20px;
+      font-size: 120px;
+      opacity: 0.08;
+      pointer-events: none;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(59, 130, 246, 0.2);
+      border: 1px solid rgba(96, 165, 250, 0.3);
+      color: #93c5fd;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .hero-banner h1 {
+      font-size: 32px;
+      font-weight: 800;
+      letter-spacing: -0.8px;
+      margin-bottom: 8px;
+      line-height: 1.25;
+    }
+
+    .hero-banner p {
+      font-size: 15px;
+      color: #94a3b8;
+      max-width: 700px;
+    }
+
+    /* Chapter Section */
+    .chapter-section {
+      background: white;
+      border-radius: 20px;
+      border: 1px solid var(--border-color);
+      padding: 36px;
+      margin-bottom: 32px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.03);
+    }
+
+    .chapter-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 2px solid var(--slate-100);
+    }
+
+    .chapter-number {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: var(--primary-light);
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 18px;
+      flex-shrink: 0;
+      border: 1px solid #bfdbfe;
+    }
+
+    .chapter-header h2 {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--slate-900);
+      letter-spacing: -0.5px;
+    }
+
+    .chapter-header p {
+      font-size: 13px;
+      color: var(--slate-500);
+      margin-top: 2px;
+    }
+
+    /* Step Cards */
+    .step-list {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      margin: 24px 0;
+    }
+
+    .step-card {
+      display: flex;
+      gap: 16px;
+      background: var(--slate-50);
+      border: 1px solid var(--slate-200);
+      border-radius: 16px;
+      padding: 20px;
+      transition: all 0.2s;
+    }
+
+    .step-card:hover {
+      border-color: #93c5fd;
+      background: #fbfdff;
+    }
+
+    .step-badge {
+      width: 32px;
+      height: 32px;
+      background: var(--primary);
+      color: white;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 14px;
+      flex-shrink: 0;
+      box-shadow: 0 2px 8px rgba(37,99,235,0.25);
+    }
+
+    .step-content {
+      flex: 1;
+    }
+
+    .step-content h3 {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--slate-900);
+      margin-bottom: 6px;
+    }
+
+    .step-content p {
+      font-size: 13.5px;
+      color: var(--slate-600);
+    }
+
+    /* UI Mockup Card */
+    .ui-mockup {
+      background: #0f172a;
+      border-radius: 16px;
+      padding: 20px;
+      color: #e2e8f0;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12.5px;
+      margin: 20px 0;
+      border: 1px solid #334155;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+    }
+
+    .ui-mockup-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #334155;
+      padding-bottom: 10px;
+      margin-bottom: 14px;
+      color: #94a3b8;
+      font-size: 11px;
+    }
+
+    .ui-dots {
+      display: flex;
+      gap: 6px;
+    }
+
+    .ui-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+    .dot-red { background: #ef4444; }
+    .dot-yellow { background: #f59e0b; }
+    .dot-green { background: #10b981; }
+
+    /* Visual Receipt Simulator */
+    .receipt-box {
+      background: #ffffff;
+      color: #1e293b;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      padding: 24px;
+      border-radius: 12px;
+      border: 2px dashed #cbd5e1;
+      max-width: 380px;
+      margin: 20px auto;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+    }
+
+    .receipt-header {
+      text-align: center;
+      border-bottom: 1px dashed #94a3b8;
+      padding-bottom: 12px;
+      margin-bottom: 12px;
+    }
+
+    .receipt-store {
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+    }
+
+    .receipt-divider {
+      border-top: 1px dashed #cbd5e1;
+      margin: 10px 0;
+    }
+
+    .receipt-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+
+    .receipt-total {
+      font-size: 14px;
+      font-weight: 800;
+      color: #0f172a;
+      border-top: 1px solid #1e293b;
+      border-bottom: 1px solid #1e293b;
+      padding: 6px 0;
+      margin: 8px 0;
+    }
+
+    /* Callout Alerts */
+    .callout {
+      padding: 16px 20px;
+      border-radius: 14px;
+      margin: 18px 0;
+      display: flex;
+      gap: 12px;
+      font-size: 13.5px;
+    }
+
+    .callout-icon {
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+
+    .callout-info {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      color: #1e40af;
+    }
+
+    .callout-tip {
+      background: #ecfdf5;
+      border: 1px solid #a7f3d0;
+      color: #065f46;
+    }
+
+    .callout-warning {
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      color: #92400e;
+    }
+
+    /* Comparison Table */
+    .custom-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      font-size: 13px;
+    }
+
+    .custom-table th {
+      background: var(--slate-100);
+      color: var(--slate-900);
+      text-align: left;
+      padding: 12px 16px;
+      font-weight: 700;
+      border-bottom: 2px solid var(--slate-200);
+    }
+
+    .custom-table td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--slate-200);
+      color: var(--slate-700);
+    }
+
+    .custom-table tr:hover td {
+      background: var(--slate-50);
+    }
+
+    .badge-pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .badge-blue { background: #dbeafe; color: #1e40af; }
+    .badge-green { background: #d1fae5; color: #065f46; }
+    .badge-amber { background: #fef3c7; color: #92400e; }
+    .badge-purple { background: #f3e8ff; color: #6b21a8; }
+
+    /* Grid 2 Column */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin: 20px 0;
+    }
+
+    @media (max-width: 900px) {
+      .sidebar { display: none; }
+      .main-content { margin-left: 0; padding: 20px; }
+      .grid-2 { grid-template-columns: 1fr; }
+    }
+
+    /* Print Styles */
+    @media print {
+      body { background: white; color: black; }
+      .sidebar, .print-btn { display: none !important; }
+      .main-content { margin: 0 !important; padding: 0 !important; width: 100% !important; }
+      .chapter-section { break-inside: avoid; border: 1px solid #ccc; box-shadow: none; margin-bottom: 24px; padding: 20px; }
+      .hero-banner { background: #0f172a !important; color: white !important; -webkit-print-color-adjust: exact; }
+      .ui-mockup { background: #1e293b !important; color: white !important; -webkit-print-color-adjust: exact; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="app-container">
+  <!-- SIDEBAR NAVIGATION -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="sidebar-brand-icon">🔧</div>
+      <div>
+        <h1>MULYA LESTARI</h1>
+        <p>Buku Panduan Kasir v1.0</p>
+      </div>
+    </div>
+
+    <button onclick="window.print()" class="print-btn">
+      <span>🖨️ Cetak / Simpan PDF</span>
+    </button>
+
+    <ul class="sidebar-nav">
+      <li><a href="#pengantar"><span class="nav-icon">📖</span> Pengantar & Peran Kasir</a></li>
+      <li><a href="#login"><span class="nav-icon">🔑</span> Login & Memulai Shift</a></li>
+      <li><a href="#dashboard"><span class="nav-icon">📊</span> Mengenal Dashboard</a></li>
+      <li><a href="#transaksi"><span class="nav-icon">🧾</span> Transaksi Kasir (POS)</a></li>
+      <li><a href="#restock"><span class="nav-icon">📥</span> Input Barang Masuk</a></li>
+      <li><a href="#stok"><span class="nav-icon">🏪</span> Stok Toko vs Gudang</a></li>
+      <li><a href="#indent"><span class="nav-icon">📋</span> Barang Indent / Pre-Order</a></li>
+      <li><a href="#korporat"><span class="nav-icon">🏢</span> Transaksi Korporat (Tempo)</a></li>
+      <li><a href="#reminder"><span class="nav-icon">💬</span> Reminder Servis WA</a></li>
+      <li><a href="#closing"><span class="nav-icon">💰</span> Tutup Shift & Rekap Kas</a></li>
+      <li><a href="#faq"><span class="nav-icon">❓</span> Tanya Jawab & Kendala</a></li>
+    </ul>
+
+    <div class="sidebar-footer">
+      Mulya Lestari POS System<br>
+      © 2026 Hak Cipta Dilindungi
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT AREA -->
+  <main class="main-content">
+    
+    <!-- HERO HEADER -->
+    <div class="hero-banner" id="pengantar">
+      <div class="hero-badge">📘 PANDUAN RESMI OPERASIONAL</div>
+      <h1>Buku Panduan Kasir Bengkel</h1>
+      <p>Panduan praktis langkah-demi-langkah bagi Kasir Bengkel Mulya Lestari untuk melayani transaksi servis, penjualan sparepart, pengelolaan stok, barang indent, dan penutupan kas harian.</p>
+    </div>
+
+    <!-- BAB 1: PENGANTAR -->
+    <section class="chapter-section">
+      <div class="chapter-header">
+        <div class="chapter-number">01</div>
+        <div>
+          <h2>Pengantar & 4 Tanggung Jawab Utama Kasir</h2>
+          <p>Mengenal peran kunci kasir dalam kelancaran operasional bengkel</p>
+        </div>
+      </div>
+
+      <p>Sebagai Kasir di Bengkel Mulya Lestari, Anda adalah garda depan pelayanan pelanggan sekaligus penjaga ketertiban arus kas dan barang. Terdapat 4 tanggung jawab utama yang wajib dipahami:</p>
+
+      <div class="grid-2">
+        <div class="step-card">
+          <div class="step-badge">1</div>
+          <div class="step-content">
+            <h3>Pelayanan Cepat & Akurat</h3>
+            <p>Mencatat setiap pengerjaan servis dan sparepart dengan teliti, menerima pembayaran, dan mencetak nota resmi untuk pelanggan.</p>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-badge">2</div>
+          <div class="step-content">
+            <h3>Menjaga Akurasi Stok Toko</h3>
+            <p>Memastikan setiap barang yang diambil di etalase toko selalu tercatat melalui sistem transaksi kasir.</p>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-badge">3</div>
+          <div class="step-content">
+            <h3>Mencatat Restock Supplier</h3>
+            <p>Menginput barang masuk dari faktur distributor/sales supplier begitu barang fisik tiba di bengkel.</p>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-badge">4</div>
+          <div class="step-content">
+            <h3>Rekap Kas Akhir Shift (Closing)</h3>
+            <p>Menghitung uang tunai fisik di laci kasir dan mencocokkannya dengan laporan penerimaan di sistem sebelum tutup.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- BAB 2: LOGIN -->
+    <section class="chapter-section" id="login">
+      <div class="chapter-header">
+        <div class="chapter-number">02</div>
+        <div>
+          <h2>Login & Memulai Shift Kerja</h2>
+          <p>Langkah membuka aplikasi dan mengakses sistem kasir</p>
+        </div>
+      </div>
+
+      <div class="step-list">
+        <div class="step-card">
+          <div class="step-badge">1</div>
+          <div class="step-content">
+            <h3>Buka Browser di Komputer / Tablet Kasir</h3>
+            <p>Buka Google Chrome dan ketik alamat: <b>https://mulyalestari.my.id/login</b></p>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-badge">2</div>
+          <div class="step-content">
+            <h3>Masukkan Akun Kasir Cabang</h3>
+            <p>Gunakan email & password kasir yang telah didaftarkan untuk cabang Anda:</p>
+            <table class="custom-table" style="margin-top: 10px;">
+              <thead>
+                <tr>
+                  <th>Cabang</th>
+                  <th>Email Login</th>
+                  <th>Hak Akses</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><b>Majalengka</b></td>
+                  <td><code>kasir@mjl.com</code></td>
+                  <td><span class="badge-pill badge-blue">Kasir Cabang MJL</span></td>
+                </tr>
+                <tr>
+                  <td><b>Pekanbaru</b></td>
+                  <td><code>kasir@pku.com</code></td>
+                  <td><span class="badge-pill badge-blue">Kasir Cabang PKU</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-badge">3</div>
+          <div class="step-content">
+            <h3>Klik Tombol "Masuk ke Sistem"</h3>
+            <p>Setelah login sukses, Anda akan langsung diarahkan ke halaman <b>Dashboard Kasir</b>.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout callout-tip">
+        <div class="callout-icon">💡</div>
+        <div>
+          <b>Tips Pintar:</b> Tekan <code>Ctrl + D</code> di keyboard untuk menyimpan halaman login ke bookmark browser agar mudah dibuka setiap pagi saat menyalakan komputer kasir.
+        </div>
+      </div>
+    </section>
+
+    <!-- BAB 3: TRANSAKSI POS -->
+    <section class="chapter-section" id="transaksi">
+      <div class="chapter-header">
+        <div class="chapter-number">03</div>
+        <div>
+          <h2>Transaksi Penjualan & Servis (Menu Kasir Utama)</h2>
+          <p>Alur lengkap melayani pelanggan dari input hingga cetak struk nota</p>
+        </div>
+      </div>
+
+      <div class="step-list">
+        <div class="step-card">
+          <div class="step-badge">1</div>
+          <div class="step-content">
+            <h3>Buka Menu Transaksi & Klik "+ Transaksi Baru"</h3>
+            <p>Pilih tipe transaksi yang sesuai:
+              <span class="badge-pill badge-green">Jasa Servis Saja</span>, 
+              <span class="badge-pill badge-blue">Sparepart Saja</span>, atau 
+              <span class="badge-pill badge-purple">Campuran (Jasa + Sparepart)</span>.
+            </p>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-badge">2</div>
+          <div class="step-content">
+            <h3>Pilih / Daftarkan Pelanggan & Kendaraan</h3>
+            <p>Ketik <b>Nomor Plat Kendaraan</b> (contoh: <code>D 1234 ABC</code>) atau nama pelanggan. Jika pelanggan baru, klik <b>"+ Tambah Pelanggan"</b> lalu isi nama, nomor WhatsApp, merk kendaraan, dan kilometer odometer.</p>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-badge">3</div>
+          <div class="step-content">
+            <h3>Pilih Mekanik yang Menangani</h3>
+            <p>Pilih nama mekanik dari daftar dropdown. Ini penting agar komisi kerja mekanik terhitung otomatis oleh sistem.</p>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-badge">4</div>
+          <div class="step-content">
+            <h3>Pilih Jasa Servis & Sparepart</h3>
+            <p>Ketik nama jasa (misal: <i>Tune Up, Ganti Oli</i>) dan sparepart (misal: <i>Oli MPX2, Kampas Rem</i>). Sistem akan menampilkan harga dan stok toko yang tersedia.</p>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-badge">5</div>
+          <div class="step-content">
+            <h3>Pilih Metode Pembayaran</h3>
+            <div class="grid-2" style="margin-top: 10px;">
+              <div style="background: white; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1;">
+                <b>💵 Tunai (CASH):</b><br>
+                <span style="font-size: 12px; color: #64748b;">Ketik jumlah uang diterima. Sistem otomatis menghitung kembalian uang pelanggan.</span>
+              </div>
+              <div style="background: white; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1;">
+                <b>📱 QRIS / Transfer:</b><br>
+                <span style="font-size: 12px; color: #64748b;">Tunjukkan barcode QRIS atau nomor rekening resmi toko ke pelanggan.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-badge">6</div>
+          <div class="step-content">
+            <h3>Klik "Simpan & Cetak Nota"</h3>
+            <p>Struk thermal akan otomatis tercetak. Sobek struk dan serahkan ke pelanggan dengan sopan beserta uang kembalian.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- SIMULASI STRUK NOTA -->
+      <div class="receipt-box">
+        <div class="receipt-header">
+          <div class="receipt-store">BENGKEL MULYA LESTARI</div>
+          <div>Cabang Majalengka</div>
+          <div>Telp/WA: 0812-3456-7890</div>
+        </div>
+        <div class="receipt-row">
+          <span>No. Nota :</span>
+          <span>INV/20260818/001</span>
+        </div>
+        <div class="receipt-row">
+          <span>Tanggal  :</span>
+          <span>18/08/2026 10:15</span>
+        </div>
+        <div class="receipt-row">
+          <span>Pelanggan:</span>
+          <span>Budi Santoso</span>
+        </div>
+        <div class="receipt-row">
+          <span>Plat No  :</span>
+          <span>D 1234 ABC (Vario 160)</span>
+        </div>
+        <div class="receipt-row">
+          <span>Mekanik  :</span>
+          <span>Agus</span>
+        </div>
+        <div class="receipt-divider"></div>
+        <div class="receipt-row">
+          <span>Jasa Servis Lengkap</span>
+          <span>Rp 45.000</span>
+        </div>
+        <div class="receipt-row">
+          <span>Oli MPX2 0.8L (1x)</span>
+          <span>Rp 55.000</span>
+        </div>
+        <div class="receipt-row">
+          <span>Busi NGK CPR9 (1x)</span>
+          <span>Rp 25.000</span>
+        </div>
+        <div class="receipt-total">
+          <div class="receipt-row" style="margin:0;">
+            <span>TOTAL TAGIHAN</span>
+            <span>Rp 125.000</span>
+          </div>
+        </div>
+        <div class="receipt-row">
+          <span>Bayar (CASH)</span>
+          <span>Rp 150.000</span>
+        </div>
+        <div class="receipt-row">
+          <span>Kembalian</span>
+          <span>Rp  25.000</span>
+        </div>
+        <div class="receipt-divider"></div>
+        <div style="text-align:center; font-size:11px; color:#64748b; margin-top:8px;">
+          Terima kasih atas kunjungan Anda 🙏<br>
+          Garansi Servis 7 Hari
+        </div>
+      </div>
+    </section>
+
+    <!-- BAB 4: RESTOCK SUPPLIER -->
+    <section class="chapter-section" id="restock">
+      <div class="chapter-header">
+        <div class="chapter-number">04</div>
+        <div>
+          <h2>Input Barang Masuk dari Supplier (Restock)</h2>
+          <p>Mencatat kiriman suku cadang yang baru tiba dari distributor</p>
+        </div>
+      </div>
+
+      <p>Setiap kali ada pengiriman sparepart dari sales distributor atau supplier, kasir wajib langsung mencatatnya di menu <b>Barang Masuk</b>:</p>
+
+      <div class="step-list">
+        <div class="step-card">
+          <div class="step-badge">1</div>
+          <div class="step-content">
+            <h3>Buka Menu "Barang Masuk"</h3>
+            <p>Klik tombol biru <b>"+ Tambah Barang Masuk"</b>.</p>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-badge">2</div>
+          <div class="step-content">
+            <h3>Isi Data Surat Jalan / Faktur Supplier</h3>
+            <p>Masukkan <b>Nama Supplier</b> (contoh: <code>PT Astra Otoparts</code>), <b>Tanggal Masuk</b>, dan <b>No. Faktur</b>.</p>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-badge">3</div>
+          <div class="step-content">
+            <h3>Tambahkan Daftar Sparepart yang Diterima</h3>
+            <p>Pilih nama sparepart, masukkan <b>Jumlah Barang (Qty)</b> dan <b>Harga Beli Satuan (Modal)</b> sesuai faktur kertas dari supplier.</p>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-badge">4</div>
+          <div class="step-content">
+            <h3>Upload Foto Nota Kertas (Opsional tapi Sangat Disarankan)</h3>
+            <p>Foto bukti fisik nota supplier menggunakan kamera HP / webcam laptop agar tersimpan aman di sistem.</p>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-badge">5</div>
+          <div class="step-content">
+            <h3>Klik "Simpan Barang Masuk"</h3>
+            <p>Stok barang akan otomatis bertambah detik itu juga dan tercatat rapi di laporan mutasi.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- BAB 5: STOK TOKO VS GUDANG -->
+    <section class="chapter-section" id="stok">
+      <div class="chapter-header">
+        <div class="chapter-number">05</div>
+        <div>
+          <h2>Manajemen Stok Toko vs Stok Gudang & Mutasi</h2>
+          <p>Memahami sistem inventaris dua lapis dan cara memindahkan barang</p>
+        </div>
+      </div>
+
+      <table class="custom-table">
+        <thead>
+          <tr>
+            <th>Kategori</th>
+            <th>🏪 Stok Toko (Etalase Depan)</th>
+            <th>🏬 Stok Gudang (Gudang Belakang)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><b>Fungsi</b></td>
+            <td>Barang eceran yang dipajang di rak kasir</td>
+            <td>Stok cadangan / dus besar di ruang penyimpanan</td>
+          </tr>
+          <tr>
+            <td><b>Pengurangan Otomatis</b></td>
+            <td><span class="badge-pill badge-green">Ya, langsung terpotong saat kasir cetak nota</span></td>
+            <td><span class="badge-pill badge-amber">Tidak terpotong saat kasir cetak nota</span></td>
+          </tr>
+          <tr>
+            <td><b>Tujuan Pemisahan</b></td>
+            <td colspan="2">Mencegah selisih fisik antara barang di rak depan dengan barang cadangan di gudang belakang</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3 style="font-size: 16px; font-weight: 700; margin: 24px 0 12px 0;">🔄 Cara Pindah Stok (Gudang ke Toko):</h3>
+      <div class="step-list">
+        <div class="step-card">
+          <div class="step-badge">1</div>
+          <div class="step-content">
+            <h3>Buka Menu "Stock Toko" / "Stock Transfer"</h3>
+            <p>Klik tombol <b>"+ Transfer Stok"</b>.</p>
+          </div>
+        </div>
+        <div class="step-card">
+          <div class="step-badge">2</div>
+          <div class="step-content">
+            <h3>Pilih Jenis: "Gudang ke Toko"</h3>
+            <p>Pilih nama sparepart, masukkan jumlah pcs yang diambil dari gudang untuk dipajang di etalase toko.</p>
+          </div>
+        </div>
+        <div class="step-card">
+          <div class="step-badge">3</div>
+          <div class="step-content">
+            <h3>Klik "Konfirmasi Pindah Stok"</h3>
+            <p>Stok gudang akan berkurang dan stok etalase toko bertambah secara otomatis.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- BAB 6: BARANG INDENT -->
+    <section class="chapter-section" id="indent">
+      <div class="chapter-header">
+        <div class="chapter-number">06</div>
+        <div>
+          <h2>Alur Barang Indent (Pre-Order & Uang Muka DP)</h2>
+          <p>Prosedur saat pelanggan memesan sparepart langka atau stok kosong</p>
+        </div>
+      </div>
+
+      <div class="step-list">
+        <div class="step-card">
+          <div class="step-badge">1</div>
+          <div class="step-content">
+            <h3>Catat Pesanan Indent & Terima Uang DP</h3>
+            <p>Buka menu <b>Barang Indent</b> $\rightarrow$ klik <b>+ Tambah Pesanan Indent</b>. Masukkan nama pelanggan, nama barang yang dipesan, estimasi harga, dan nominal <b>DP (Uang Muka)</b> yang diserahkan pelanggan. Cetak bukti tanda terima DP.</p>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-badge">2</div>
+          <div class="step-content">
+            <h3>Barang Tiba di Bengkel $\rightarrow$ Klik "Terima Barang"</h3>
+            <p>Saat kiriman pesanan dari distributor sampai di bengkel, buka menu <b>Barang Indent</b> $\rightarrow$ klik tombol <b>"Terima Barang"</b> pada nama pelanggan terkait.</p>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-badge">3</div>
+          <div class="step-content">
+            <h3>Hubungi Pelanggan & Lakukan Pelunasan</h3>
+            <p>Hubungi nomor WhatsApp pelanggan bahwa barang sudah siap diambil. Saat pelanggan datang, buat transaksi kasir dan potong tagihan dengan DP yang sudah dibayar sebelumnya.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- BAB 7: TRANSAKSI KORPORAT -->
+    <section class="chapter-section" id="korporat">
+      <div class="chapter-header">
+        <div class="chapter-number">07</div>
+        <div>
+          <h2>Pelayanan Armada Korporat / Instansi (Tempo)</h2>
+          <p>Melayani servis kendaraan operasional kantor rekanan</p>
+        </div>
+      </div>
+
+      <div class="step-list">
+        <div class="step-card">
+          <div class="step-badge">1</div>
+          <div class="step-content">
+            <h3>Buat Transaksi dengan Memilih Nama Korporat</h3>
+            <p>Di halaman transaksi, pilih nama perusahaan rekanan (contoh: <code>PT Telkom</code>, <code>J&T Express</code>), masukkan plat nomor mobil/motor dinas, dan nama driver yang membawa kendaraan.</p>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-badge">2</div>
+          <div class="step-content">
+            <h3>Pilih Metode: PENDING_CORPORATE</h3>
+            <p>Driver tidak membayar di kasir. Sistem mencatatnya sebagai <b>Tagihan Korporat</b>. Cetak bukti pengerjaan untuk ditandatangani driver.</p>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-badge">3</div>
+          <div class="step-content">
+            <h3>Penerimaan Pembayaran Tagihan</h3>
+            <p>Saat kantor korporat mentransfer tagihan bulanan, buka menu <b>Korporat</b> $\rightarrow$ klik <b>"Catat Pembayaran"</b> $\rightarrow$ masukkan nominal yang ditransfer.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- BAB 8: REMINDER WA -->
+    <section class="chapter-section" id="reminder">
+      <div class="chapter-header">
+        <div class="chapter-number">08</div>
+        <div>
+          <h2>Reminder Servis Berkala via WhatsApp</h2>
+          <p>Mengingatkan pelanggan setia untuk servis berkala dengan 1 klik</p>
+        </div>
+      </div>
+
+      <div class="step-list">
+        <div class="step-card">
+          <div class="step-badge">1</div>
+          <div class="step-content">
+            <h3>Buka Menu "Reminder"</h3>
+            <p>Sistem otomatis menampilkan daftar pelanggan yang sudah 30, 60, atau 90 hari belum kembali servis sejak servis terakhirnya.</p>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-badge">2</div>
+          <div class="step-content">
+            <h3>Klik Tombol Hijau "💬 Kirim WhatsApp"</h3>
+            <p>Browser otomatis membuka WhatsApp Web / Aplikasi WhatsApp dengan isi pesan ramah yang sudah terisi otomatis (nama pelanggan, plat kendaraan, dan jadwal servis).</p>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-badge">3</div>
+          <div class="step-content">
+            <h3>Tekan Kirim</h3>
+            <p>Pesan langsung terkirim ke pelanggan, membantu meningkatkan omzet servis bengkel!</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- BAB 9: CLOSING KASIR -->
+    <section class="chapter-section" id="closing">
+      <div class="chapter-header">
+        <div class="chapter-number">09</div>
+        <div>
+          <h2>Tutup Shift & Rekap Kas Harian (Closing)</h2>
+          <p>Prosedur pencocokan kas fisik dan serah terima akhir hari</p>
+        </div>
+      </div>
+
+      <div class="step-list">
+        <div class="step-card">
+          <div class="step-badge">1</div>
+          <div class="step-content">
+            <h3>Buka Menu "Laporan"</h3>
+            <p>Pilih filter tanggal <b>Hari Ini</b>.</p>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-badge">2</div>
+          <div class="step-content">
+            <h3>Hitung Fisik Uang Tunai di Laci Kasir</h3>
+            <p>Hitung seluruh uang lembaran kertas & koin yang ada di laci kasir. Angka fisik uang <b>WAJIB SAMA</b> dengan nilai <b>Total Kas Tunai (CASH)</b> di sistem.</p>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-badge">3</div>
+          <div class="step-content">
+            <h3>Cek Mutasi Transfer & QRIS</h3>
+            <p>Pastikan seluruh bukti transfer bank dan transaksi QRIS sudah sesuai dengan total non-tunai di laporan.</p>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-badge">4</div>
+          <div class="step-content">
+            <h3>Serah Terima Kasir</h3>
+            <p>Serahkan uang tunai fisik beserta laporan closing kepada Kepala Cabang atau kasir shift berikutnya.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- BAB 10: FAQ -->
+    <section class="chapter-section" id="faq">
+      <div class="chapter-header">
+        <div class="chapter-number">10</div>
+        <div>
+          <h2>Tanya Jawab (FAQ) & Panduan Mengatasi Kendala</h2>
+          <p>Solusi cepat untuk kendala yang sering ditemui di meja kasir</p>
+        </div>
+      </div>
+
+      <div class="step-list">
+        <div class="step-card">
+          <div class="step-badge">❓</div>
+          <div class="step-content">
+            <h3>Bagaimana jika salah ketik jumlah barang dan nota sudah terlanjur disimpan?</h3>
+            <p>Hubungi Super Admin cabang Anda untuk membatalkan/mengedit nota tersebut, lalu buat transaksi baru yang sudah diperbaiki.</p>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-badge">❓</div>
+          <div class="step-content">
+            <h3>Printer thermal kasir macet / tidak mau mencetak?</h3>
+            <p>1. Cek kabel USB printer ke komputer.<br>
+            2. Cek apakah kertas roll habis atau posisi kertas terbalik.<br>
+            3. Buka menu <b>Transaksi</b> $\rightarrow$ cari nomor nota terkait $\rightarrow$ klik ikon printer 🖨️ untuk cetak ulang kapan saja.</p>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-badge">❓</div>
+          <div class="step-content">
+            <h3>Stok sparepart di kasir tertulis 0 padahal barang fisiknya ada di bengkel?</h3>
+            <p>Artinya barang tersebut baru datang dan belum di-input di menu <b>Barang Masuk</b>, atau barang masih berada di <b>Stok Gudang</b>. Silakan lakukan <b>Transfer Stok (Gudang ke Toko)</b> terlebih dahulu.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+</body>
+</html>

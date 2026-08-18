@@ -81,5 +81,6 @@ Thumbs.db
 # docs directory
 /docs/*
 !docs/PANDUAN_*.md
+!docs/PANDUAN_*.html
 
 
