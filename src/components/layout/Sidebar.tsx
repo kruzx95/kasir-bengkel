@@ -25,6 +25,7 @@ import {
   Warehouse,
   Database,
   ScrollText,
+  BookOpen,
 } from 'lucide-react'
 import { useEffect } from 'react'
 import { logout } from '@/actions/auth'
@@ -54,6 +55,7 @@ const kasirMenuItems = [
   { href: '/kasir/indent', label: 'Barang Indent', icon: ClipboardList },
   { href: '/kasir/korporat', label: 'Korporat', icon: Briefcase },
   { href: '/kasir/mekanik', label: 'Mekanik', icon: Users },
+  { href: '/kasir/panduan', label: 'Panduan Kasir', icon: BookOpen },
 ]
 
 const adminMenuItems = [
@@ -75,6 +77,7 @@ const adminMenuItems = [
   { href: '/admin/pengaturan', label: 'Pengaturan', icon: Settings },
   { href: '/admin/database', label: 'Database', icon: Database },
   { href: '/admin/logs', label: 'Log Aktivitas', icon: ScrollText },
+  { href: '/admin/panduan', label: 'Panduan Kasir', icon: BookOpen },
 ]
 
 export default function Sidebar({ role, userName, branchName, shopName, mobileOpen = false, onMobileClose, collapsed = false, onCollapseChange }: SidebarProps) {
