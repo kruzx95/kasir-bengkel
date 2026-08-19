@@ -202,6 +202,15 @@ textarea {
     size: auto;
   }
 
+  *,
+  *::before,
+  *::after {
+    box-shadow: none !important;
+    text-shadow: none !important;
+    animation: none !important;
+    transition: none !important;
+  }
+
   html,
   body {
     height: auto !important;
@@ -210,15 +219,35 @@ textarea {
     padding: 0 !important;
     background: #fff !important;
     overflow: visible !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
-  /* Force monochrome & transparent backgrounds for crisp ink ribbon */
-  * {
-    color: #000 !important;
-    box-shadow: none !important;
-    text-shadow: none !important;
-    animation: none !important;
-    transition: none !important;
+  /* Reset all layout wrappers and containers to prevent trailing empty pages */
+  #__next,
+  .min-h-screen,
+  .h-screen,
+  .flex-1,
+  main,
+  aside,
+  header {
+    min-height: 0 !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    background: transparent !important;
+  }
+
+  /* Hide navigation, sidebar, and print action buttons */
+  .print\:hidden,
+  aside,
+  header,
+  nav {
+    display: none !important;
+    height: 0 !important;
+    width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
 
   /* Use monospace font for perfect column alignment & compact printing */
@@ -228,14 +257,7 @@ textarea {
       "Courier New", monospace !important;
     font-size: 10pt !important;
     line-height: 1.25 !important;
-  }
-
-  /* Reset screen container heights to prevent trailing empty pages */
-  .min-h-screen,
-  .h-screen,
-  main,
-  div {
-    min-height: 0 !important;
+    color: #000 !important;
   }
 
   /* Prevent awkward page break splitting inside rows and cards */
@@ -264,10 +286,5 @@ textarea {
   td,
   th {
     border-color: #000 !important;
-  }
-
-  /* Hide print controls */
-  .print\:hidden {
-    display: none !important;
   }
 }
