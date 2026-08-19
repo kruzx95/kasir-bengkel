@@ -199,24 +199,43 @@ textarea {
 @media print {
   @page {
     margin: 5mm; /* Clean compact margin for printer */
+    size: auto;
+  }
+
+  html,
+  body {
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    overflow: visible !important;
   }
 
   /* Force monochrome & transparent backgrounds for crisp ink ribbon */
   * {
     color: #000 !important;
-    background: transparent !important;
     box-shadow: none !important;
     text-shadow: none !important;
+    animation: none !important;
+    transition: none !important;
   }
 
   /* Use monospace font for perfect column alignment & compact printing */
   body {
-    padding: 4mm !important;
     font-family:
       ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
       "Courier New", monospace !important;
     font-size: 10pt !important;
     line-height: 1.25 !important;
+  }
+
+  /* Reset screen container heights to prevent trailing empty pages */
+  .min-h-screen,
+  .h-screen,
+  main,
+  div {
+    min-height: 0 !important;
   }
 
   /* Prevent awkward page break splitting inside rows and cards */
@@ -230,7 +249,8 @@ textarea {
 
   /* Reset layout constraints to use full continuous paper width */
   .max-w-4xl,
-  .max-w-6xl {
+  .max-w-6xl,
+  .max-w-7xl {
     max-width: none !important;
     width: 100% !important;
   }

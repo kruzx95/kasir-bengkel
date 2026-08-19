@@ -43,7 +43,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
   if (!tx) notFound()
 
   return (
-    <div className="p-4 sm:p-6 max-w-4xl mx-auto animate-fade-in">
+    <div className="p-4 sm:p-6 max-w-4xl mx-auto animate-fade-in print:p-0 print:m-0 print:max-w-none print:animate-none">
       {/* Top Actions - Hide when printing */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 sm:mb-8 print:hidden">
         <Link href="/kasir/transaksi">
@@ -58,7 +58,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
       </div>
 
       {/* Invoice Document */}
-      <div className="bg-white p-5 sm:p-10 rounded-2xl border border-slate-200/80 shadow-sm print:shadow-none print:border-none print:p-0 print:break-inside-avoid">
+      <div className="bg-white p-5 sm:p-10 rounded-2xl border border-slate-200/80 shadow-sm print:shadow-none print:border-none print:p-0 print:m-0 print:break-inside-avoid">
         
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start border-b border-slate-200 pb-6 sm:pb-8 mb-6 sm:mb-8 gap-4 print:pb-3 print:mb-3 print:gap-2">
