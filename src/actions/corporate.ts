@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { getSession, getBranchFilter, canAccessCorporate, isAdmin, type SessionPayload } from '@/lib/session'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
+import { createActivityLog, createDiffLog } from '@/lib/logger'
 
 // ============================================
 // CORPORATE CUSTOMER CRUD (Phase 5)
@@ -146,9 +147,27 @@ export async function createCorporateCustomer(
   }
 
   try {
-    await prisma.corporateCustomer.create({
+    const newCorp = await prisma.corporateCustomer.create({
       data: { ...validated.data, branchId: targetBranchId }
     })
+
+    await createActivityLog({
+      action: 'CORPORATE_CUSTOMER_CREATE',
+      category: 'MASTER',
+      level: 'INFO',
+      description: `Pelanggan korporat "${newCorp.name}" ditambahkan oleh ${safeSession.name}`,
+      details: {
+        id: newCorp.id,
+        name: newCorp.name,
+        contactPerson: newCorp.contactPerson,
+        billingCycle: newCorp.billingCycle,
+      },
+      branchId: newCorp.branchId,
+      userId: safeSession.userId,
+      userName: safeSession.name,
+      userRole: safeSession.role,
+    })
+
     revalidatePath('/admin/korporat')
     revalidatePath('/kasir/korporat')
     return { success: true, message: 'Pelanggan korporat berhasil ditambahkan' }
@@ -187,10 +206,37 @@ export async function updateCorporateCustomer(
   }
 
   try {
-    await prisma.corporateCustomer.update({
+    const existing = await prisma.corporateCustomer.findUnique({ where: { id } })
+    if (!existing) return { message: 'Data korporat tidak ditemukan' }
+
+    const updated = await prisma.corporateCustomer.update({
       where: { id },
       data: { ...validated.data, branchId: targetBranchId }
     })
+
+    await createDiffLog({
+      action: 'CORPORATE_CUSTOMER_UPDATE',
+      category: 'MASTER',
+      level: 'INFO',
+      description: `Data pelanggan korporat "${updated.name}" diperbarui`,
+      before: {
+        name: existing.name,
+        contactPerson: existing.contactPerson,
+        contactPhone: existing.contactPhone,
+        billingCycle: existing.billingCycle,
+      },
+      after: {
+        name: updated.name,
+        contactPerson: updated.contactPerson,
+        contactPhone: updated.contactPhone,
+        billingCycle: updated.billingCycle,
+      },
+      branchId: updated.branchId,
+      userId: safeSession.userId,
+      userName: safeSession.name,
+      userRole: safeSession.role,
+    })
+
     revalidatePath('/admin/korporat')
     revalidatePath('/kasir/korporat')
     revalidatePath(`/admin/korporat/${id}/tagihan`)
@@ -206,7 +252,23 @@ export async function deleteCorporateCustomer(id: string) {
   if (!session || !isAdmin(session)) return { success: false, message: 'Hanya admin yang boleh menghapus korporat' }
 
   try {
+    const existing = await prisma.corporateCustomer.findUnique({ where: { id } })
+    if (!existing) return { success: false, message: 'Data korporat tidak ditemukan' }
+
     await prisma.corporateCustomer.update({ where: { id }, data: { isActive: false } })
+
+    await createActivityLog({
+      action: 'CORPORATE_CUSTOMER_DELETE',
+      category: 'MASTER',
+      level: 'WARNING',
+      description: `Pelanggan korporat "${existing.name}" dinonaktifkan oleh ${session.name}`,
+      details: { id: existing.id, name: existing.name },
+      branchId: existing.branchId,
+      userId: session.userId,
+      userName: session.name,
+      userRole: session.role,
+    })
+
     revalidatePath('/admin/korporat')
     revalidatePath('/kasir/korporat')
     return { success: true }
@@ -404,7 +466,7 @@ export async function createCorporatePayment(input: CreatePaymentInput): Promise
   // Determine target branch
   const corporate = await prisma.corporateCustomer.findUnique({
     where: { id: data.corporateCustomerId },
-    select: { branchId: true, isActive: true },
+    select: { name: true, branchId: true, isActive: true },
   })
   if (!corporate || !corporate.isActive) {
     return { success: false, message: 'Korporat tidak ditemukan atau tidak aktif' }
@@ -490,6 +552,24 @@ export async function createCorporatePayment(input: CreatePaymentInput): Promise
       }
 
       return payment
+    })
+
+    await createActivityLog({
+      action: 'CORPORATE_PAYMENT_CREATE',
+      category: 'FINANCE',
+      level: 'INFO',
+      description: `Pelunasan piutang korporat "${corporate.name}" sebesar Rp ${data.amount.toLocaleString('id-ID')} via ${data.paymentMethod}`,
+      details: {
+        paymentId: result.id,
+        corporateCustomerId: data.corporateCustomerId,
+        amount: data.amount,
+        paymentMethod: data.paymentMethod,
+        transactionCount: data.allocations.length,
+      },
+      branchId: corporate.branchId,
+      userId: safeSession.userId,
+      userName: safeSession.name,
+      userRole: safeSession.role,
     })
 
     revalidatePath('/admin/korporat')
@@ -628,6 +708,20 @@ export async function voidCorporatePayment(
           voidReason: reason,
         },
       })
+    })
+
+    await createActivityLog({
+      action: 'CORPORATE_PAYMENT_VOID',
+      category: 'FINANCE',
+      level: 'CRITICAL',
+      description: `Pembatalan (Void) pembayaran korporat #${paymentId.slice(-6)} oleh ${safeSession.name}. Alasan: ${reason}`,
+      details: {
+        paymentId,
+        voidReason: reason,
+      },
+      userId: safeSession.userId,
+      userName: safeSession.name,
+      userRole: safeSession.role,
     })
 
     revalidatePath('/admin/korporat')

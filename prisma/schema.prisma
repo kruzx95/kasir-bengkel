@@ -454,9 +454,11 @@ model ActivityLog {
   userRole    Role     @map("user_role")
   action      String
   category    String
+  level       String   @default("INFO")
   description String   @db.Text
   details     String?  @db.Text
   ipAddress   String?  @map("ip_address")
+  userAgent   String?  @map("user_agent") @db.Text
   createdAt   DateTime @default(now()) @map("created_at")
 
   branch      Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
@@ -465,6 +467,7 @@ model ActivityLog {
   @@index([branchId])
   @@index([userId])
   @@index([category])
+  @@index([level])
   @@index([createdAt])
   @@map("activity_logs")
 }

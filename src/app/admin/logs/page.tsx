@@ -1,6 +1,6 @@
 import Header from '@/components/layout/Header'
 import LogsClient from './LogsClient'
-import { getActivityLogs } from '@/actions/log'
+import { getActivityLogs, getLogUsers } from '@/actions/log'
 import { getBranches } from '@/actions/branch'
 import { getSession } from '@/lib/session'
 import { getShopName } from '@/actions/settings'
@@ -20,9 +20,11 @@ interface LogItem {
   userRole: 'ADMIN' | 'KASIR'
   action: string
   category: string
+  level: 'INFO' | 'WARNING' | 'CRITICAL'
   description: string
   details: string | null
   ipAddress: string | null
+  userAgent: string | null
   createdAt: string
   branch: { name: string; code: string } | null
 }
@@ -33,6 +35,13 @@ interface BranchItem {
   code: string
 }
 
+interface UserOption {
+  id: string
+  name: string
+  email: string
+  role: 'ADMIN' | 'KASIR'
+}
+
 export default async function AuditLogsPage() {
   const session = await getSession()
   if (!session || session.role !== 'ADMIN') {
@@ -41,9 +50,10 @@ export default async function AuditLogsPage() {
 
   const isSuperAdmin = session.role === 'ADMIN' && !session.branchId
 
-  const [logsRes, branches, shopName] = await Promise.all([
+  const [logsRes, branches, users, shopName] = await Promise.all([
     getActivityLogs({ page: 1, pageSize: 20 }),
     isSuperAdmin ? getBranches() : Promise.resolve([]),
+    getLogUsers(),
     getShopName(),
   ])
 
@@ -58,15 +68,15 @@ export default async function AuditLogsPage() {
     total: 0,
     totalTransactions: 0,
     totalStock: 0,
-    totalMaster: 0,
-    totalSystem: 0,
+    totalCritical: 0,
+    totalWarning: 0,
   }
 
   return (
     <div className="min-h-screen bg-slate-50/50 pb-12">
       <Header
-        title="Log Aktivitas Systems"
-        subtitle="Audit trail aktivitas transaksi, stok, master data, dan aksi sistem"
+        title="Audit Log & Aktivitas Sistem"
+        subtitle="Pantau audit trail transaksi, perubahan harga, otorisasi kasir, dan keamanan sistem"
       />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
         <LogsClient
@@ -74,6 +84,7 @@ export default async function AuditLogsPage() {
           initialPagination={initialPagination}
           initialStats={initialStats}
           branches={branches as unknown as BranchItem[]}
+          users={users as unknown as UserOption[]}
           isSuperAdmin={isSuperAdmin}
           shopName={shopName}
         />

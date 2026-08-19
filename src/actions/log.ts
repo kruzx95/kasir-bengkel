@@ -2,10 +2,14 @@
 
 import { prisma } from '@/lib/prisma'
 import { getSession } from '@/lib/session'
+import { revalidatePath } from 'next/cache'
+import { createActivityLog } from '@/lib/logger'
 
 export interface GetLogsFilter {
   branchId?: string
   category?: string
+  level?: string
+  userId?: string
   search?: string
   startDate?: string
   endDate?: string
@@ -23,6 +27,8 @@ export async function getActivityLogs(filter: GetLogsFilter = {}) {
     const {
       branchId,
       category,
+      level,
+      userId,
       search,
       startDate,
       endDate,
@@ -42,6 +48,14 @@ export async function getActivityLogs(filter: GetLogsFilter = {}) {
 
     if (category && category !== 'all') {
       where.category = category
+    }
+
+    if (level && level !== 'all') {
+      where.level = level
+    }
+
+    if (userId && userId !== 'all') {
+      where.userId = userId
     }
 
     if (search) {
@@ -82,12 +96,12 @@ export async function getActivityLogs(filter: GetLogsFilter = {}) {
       where: { ...where, category: 'STOCK' },
     })
 
-    const totalMaster = await prisma.activityLog.count({
-      where: { ...where, category: 'MASTER' },
+    const totalCritical = await prisma.activityLog.count({
+      where: { ...where, level: 'CRITICAL' },
     })
 
-    const totalSystem = await prisma.activityLog.count({
-      where: { ...where, category: 'SYSTEM' },
+    const totalWarning = await prisma.activityLog.count({
+      where: { ...where, level: 'WARNING' },
     })
 
     return {
@@ -106,12 +120,81 @@ export async function getActivityLogs(filter: GetLogsFilter = {}) {
         total,
         totalTransactions,
         totalStock,
-        totalMaster,
-        totalSystem,
+        totalCritical,
+        totalWarning,
       },
     }
   } catch (error) {
     console.error('Get Activity Logs Error:', error)
     return { success: false, error: 'Gagal mengambil data log' }
+  }
+}
+
+export async function getLogUsers() {
+  try {
+    const session = await getSession()
+    if (!session || session.role !== 'ADMIN') return []
+
+    const users = await prisma.user.findMany({
+      select: { id: true, name: true, email: true, role: true },
+      orderBy: { name: 'asc' },
+    })
+
+    return users
+  } catch {
+    return []
+  }
+}
+
+export async function purgeOldLogs(daysToKeep: number) {
+  try {
+    const session = await getSession()
+    if (!session || session.role !== 'ADMIN') {
+      return { success: false, message: 'Unauthorized' }
+    }
+
+    const isSuperAdmin = session.role === 'ADMIN' && !session.branchId
+    if (!isSuperAdmin) {
+      return { success: false, message: 'Hanya Super Admin yang berhak membersihkan log sistem.' }
+    }
+
+    if (daysToKeep < 7) {
+      return { success: false, message: 'Rentang waktu retensi minimal 7 hari.' }
+    }
+
+    const cutoffDate = new Date(Date.now() - daysToKeep * 24 * 60 * 60 * 1000)
+
+    const deleteResult = await prisma.activityLog.deleteMany({
+      where: {
+        createdAt: {
+          lt: cutoffDate,
+        },
+      },
+    })
+
+    await createActivityLog({
+      action: 'LOG_PURGE',
+      category: 'SYSTEM',
+      level: 'CRITICAL',
+      description: `Pembersihan Audit Log: Sebanyak ${deleteResult.count} catatan log yang berusia lebih dari ${daysToKeep} hari berhasil dibersihkan oleh ${session.name}`,
+      details: {
+        daysToKeep,
+        deletedCount: deleteResult.count,
+        cutoffDate: cutoffDate.toISOString(),
+      },
+      userId: session.userId,
+      userName: session.name,
+      userRole: session.role,
+    })
+
+    revalidatePath('/admin/logs')
+    return {
+      success: true,
+      message: `Berhasil membersihkan ${deleteResult.count} catatan log audit (data sebelum ${cutoffDate.toLocaleDateString('id-ID')}).`,
+      deletedCount: deleteResult.count,
+    }
+  } catch (error) {
+    console.error('Purge Old Logs Error:', error)
+    return { success: false, message: 'Gagal melakukan pembersihan log audit.' }
   }
 }

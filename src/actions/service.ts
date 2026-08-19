@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { getSession, getBranchFilter } from '@/lib/session'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
+import { createActivityLog, createDiffLog } from '@/lib/logger'
 
 const ServiceSchema = z.object({
   name: z.string().min(1, 'Nama servis wajib diisi'),
@@ -130,6 +131,22 @@ export async function createService(
       })),
     })
 
+    await createActivityLog({
+      action: 'SERVICE_CREATE',
+      category: 'MASTER',
+      level: 'INFO',
+      description: `Jasa servis baru "${validatedFields.data.name}" (Rp ${validatedFields.data.price.toLocaleString('id-ID')}) ditambahkan ke ${branches.length} cabang`,
+      details: {
+        name: validatedFields.data.name,
+        price: validatedFields.data.price,
+        category: validatedFields.data.category,
+      },
+      branchId: session.branchId,
+      userId: session.userId,
+      userName: session.name,
+      userRole: session.role,
+    })
+
     revalidatePath('/admin/master/services')
     revalidatePath('/kasir/jasa-servis')
     return { success: true, message: `Jasa servis berhasil ditambahkan ke ${branches.length} cabang` }
@@ -161,7 +178,12 @@ export async function updateService(
   const branchId = formData.get('branchId') as string | null
 
   try {
-    await prisma.service.update({
+    const existing = await prisma.service.findUnique({ where: { id } })
+    if (!existing) {
+      return { message: 'Jasa servis tidak ditemukan' }
+    }
+
+    const updated = await prisma.service.update({
       where: { id },
       data: {
         name: validatedFields.data.name,
@@ -170,6 +192,30 @@ export async function updateService(
         ...(branchId && { branchId }),
       },
     })
+
+    const isPriceChanged = existing.price !== updated.price
+
+    await createDiffLog({
+      action: 'SERVICE_UPDATE',
+      category: 'MASTER',
+      level: isPriceChanged ? 'WARNING' : 'INFO',
+      description: `Data jasa servis "${updated.name}" diperbarui${isPriceChanged ? ' (Perubahan Tarif)' : ''}`,
+      before: {
+        name: existing.name,
+        price: existing.price,
+        category: existing.category,
+      },
+      after: {
+        name: updated.name,
+        price: updated.price,
+        category: updated.category,
+      },
+      branchId: updated.branchId,
+      userId: session.userId,
+      userName: session.name,
+      userRole: session.role,
+    })
+
     revalidatePath('/admin/master/services')
     revalidatePath('/kasir/jasa-servis')
     return { success: true, message: 'Jasa servis berhasil diperbarui' }
@@ -185,11 +231,33 @@ export async function deleteService(id: string) {
   }
 
   try {
+    const existing = await prisma.service.findUnique({ where: { id } })
+    if (!existing) {
+      return { message: 'Jasa servis tidak ditemukan' }
+    }
+
     // Soft delete: nonaktifkan servis agar riwayat transaksi tetap utuh
     await prisma.service.update({
       where: { id },
       data: { isActive: false },
     })
+
+    await createActivityLog({
+      action: 'SERVICE_DELETE',
+      category: 'MASTER',
+      level: 'WARNING',
+      description: `Jasa servis "${existing.name}" dinonaktifkan oleh ${session.name}`,
+      details: {
+        id: existing.id,
+        name: existing.name,
+        price: existing.price,
+      },
+      branchId: existing.branchId,
+      userId: session.userId,
+      userName: session.name,
+      userRole: session.role,
+    })
+
     revalidatePath('/admin/master/services')
     revalidatePath('/kasir/jasa-servis')
     return { success: true, message: 'Jasa servis berhasil dinonaktifkan' }

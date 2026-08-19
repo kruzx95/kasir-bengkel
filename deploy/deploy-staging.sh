@@ -28,9 +28,9 @@ echo "[2/5] Installing dependencies..."
 npm ci --production=false
 
 echo ""
-echo "[3/5] Running Prisma migrations..."
+echo "[3/5] Running Prisma schema sync..."
 npx prisma generate
-npx prisma migrate deploy
+npx prisma db push --accept-data-loss=false || npx prisma migrate deploy
 
 echo ""
 echo "[4/5] Building Next.js application..."

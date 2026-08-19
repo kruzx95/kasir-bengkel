@@ -1,7 +1,7 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
-import { createSession, deleteSession } from '@/lib/session'
+import { createSession, deleteSession, getSession } from '@/lib/session'
 import { redirect } from 'next/navigation'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
@@ -51,19 +51,40 @@ export async function login(state: LoginState, formData: FormData): Promise<Logi
   })
 
   if (!user || !user.isActive) {
+    await createActivityLog({
+      action: 'FAILED_LOGIN_ATTEMPT',
+      category: 'SYSTEM',
+      level: 'WARNING',
+      description: `Percobaan login gagal untuk email: ${email} (Akun tidak ditemukan atau nonaktif)`,
+      details: { email, reason: !user ? 'User not found' : 'User inactive' },
+      userName: email,
+      userRole: 'ADMIN',
+    })
     return { message: 'Email atau password salah' }
   }
 
   const passwordMatch = await bcrypt.compare(password, user.passwordHash)
   if (!passwordMatch) {
+    await createActivityLog({
+      action: 'FAILED_LOGIN_ATTEMPT',
+      category: 'SYSTEM',
+      level: 'WARNING',
+      description: `Percobaan login gagal untuk user: ${user.name} (${user.email}) - Kata sandi salah`,
+      details: { email: user.email, userId: user.id },
+      branchId: user.branchId,
+      userId: user.id,
+      userName: user.name,
+      userRole: user.role,
+    })
     return { message: 'Email atau password salah' }
   }
 
   await createSession(user)
 
-  createActivityLog({
+  await createActivityLog({
     action: 'USER_LOGIN',
     category: 'USER',
+    level: 'INFO',
     description: `User ${user.name} (${user.role}) berhasil login`,
     details: { email: user.email, branchName: user.branch?.name || 'Semua Cabang' },
     branchId: user.branchId,
@@ -80,6 +101,19 @@ export async function login(state: LoginState, formData: FormData): Promise<Logi
 }
 
 export async function logout() {
+  const session = await getSession().catch(() => null)
+  if (session) {
+    await createActivityLog({
+      action: 'USER_LOGOUT',
+      category: 'USER',
+      level: 'INFO',
+      description: `User ${session.name} (${session.role}) keluar (logout)`,
+      branchId: session.branchId,
+      userId: session.userId,
+      userName: session.name,
+      userRole: session.role,
+    })
+  }
   await deleteSession()
   redirect('/login')
 }

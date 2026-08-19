@@ -70,6 +70,7 @@ export async function exportDatabaseBackup() {
     await createActivityLog({
       action: 'EXPORT_BACKUP',
       category: 'SYSTEM',
+      level: 'INFO',
       description: `Mengekspor backup lengkap database sistem`,
       details: JSON.stringify({ exportedBy: session.name, exportedAt: new Date().toISOString() }),
     })
@@ -172,10 +173,11 @@ export async function cleanDatabase(
       { timeout: 60000 }
     )
 
-    createActivityLog({
+    await createActivityLog({
       action: 'DATABASE_RESET',
       category: 'SYSTEM',
-      description: `Reset Database (Mode: ${mode})`,
+      level: 'CRITICAL',
+      description: `Reset Database (Mode: ${mode}) oleh ${session.name}`,
       details: { mode },
       branchId: session.branchId || null,
       userId: session.userId,
@@ -555,6 +557,24 @@ export async function restoreDatabase(jsonContent: string, password: string) {
       },
       { timeout: 120000 }
     )
+
+    await createActivityLog({
+      action: 'DATABASE_RESTORE',
+      category: 'SYSTEM',
+      level: 'CRITICAL',
+      description: `Pemulihan (Restore) Database dari file backup oleh ${session.name}`,
+      details: {
+        branches: branches.length,
+        users: users.length,
+        spareparts: spareparts.length,
+        services: services.length,
+        transactions: transactions.length,
+      },
+      branchId: session.branchId || null,
+      userId: session.userId,
+      userName: session.name,
+      userRole: session.role,
+    })
 
     revalidatePath('/', 'layout')
     return { success: true, message: 'Restore database berhasil! Seluruh data dipulihkan.' }

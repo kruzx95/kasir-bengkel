@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { getSession, getBranchFilter } from '@/lib/session'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
+import { createActivityLog } from '@/lib/logger'
 
 const restockItemSchema = z.object({
   sparepartId: z.string().optional().nullable(),
@@ -94,6 +95,23 @@ export async function createRestock(payload: RestockPayload) {
       })
 
       return po
+    })
+
+    await createActivityLog({
+      action: 'RESTOCK_CREATE',
+      category: 'STOCK',
+      level: 'INFO',
+      description: `Pencatatan restock / PO ke supplier "${data.supplierName}" (${data.items.length} item) oleh ${session.name}`,
+      details: {
+        poId: po.id,
+        supplierName: data.supplierName,
+        itemCount: data.items.length,
+        dpAmount: data.paidAmount || 0,
+      },
+      branchId: data.branchId || session.branchId,
+      userId: session.userId,
+      userName: session.name,
+      userRole: session.role,
     })
 
     revalidatePath('/admin/restock')

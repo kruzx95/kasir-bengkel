@@ -2,6 +2,7 @@
 
 import { prisma } from '@/lib/prisma'
 import { getSession } from '@/lib/session'
+import { createActivityLog, createDiffLog } from '@/lib/logger'
 
 export async function getBranches() {
   const session = await getSession()
@@ -39,7 +40,10 @@ export async function updateBranch(
       return { success: false, message: 'Nomor WhatsApp harus berupa angka 10–15 digit' }
     }
 
-    await prisma.branch.update({
+    const existing = await prisma.branch.findUnique({ where: { id } })
+    if (!existing) throw new Error('Cabang tidak ditemukan')
+
+    const updated = await prisma.branch.update({
       where: { id },
       data: {
         name: data.name,
@@ -49,6 +53,29 @@ export async function updateBranch(
         facebookPage: data.facebookPage || null,
         whatsappNumber: data.whatsappNumber || null,
       },
+    })
+
+    await createDiffLog({
+      action: 'BRANCH_UPDATE',
+      category: 'MASTER',
+      level: 'INFO',
+      description: `Data cabang "${updated.name}" (${updated.code}) diperbarui oleh ${session.name}`,
+      before: {
+        name: existing.name,
+        address: existing.address,
+        phone: existing.phone,
+        whatsappNumber: existing.whatsappNumber,
+      },
+      after: {
+        name: updated.name,
+        address: updated.address,
+        phone: updated.phone,
+        whatsappNumber: updated.whatsappNumber,
+      },
+      branchId: updated.id,
+      userId: session.userId,
+      userName: session.name,
+      userRole: session.role,
     })
 
     return { success: true }
@@ -83,7 +110,7 @@ export async function createBranch(data: {
       return { success: false, message: 'Kode cabang sudah digunakan, silakan pilih kode lain' }
     }
 
-    await prisma.branch.create({
+    const newBranch = await prisma.branch.create({
       data: {
         code: data.code.trim().toUpperCase(),
         name: data.name.trim(),
@@ -93,6 +120,24 @@ export async function createBranch(data: {
         facebookPage: data.facebookPage || null,
         whatsappNumber: data.whatsappNumber || null,
       },
+    })
+
+    await createActivityLog({
+      action: 'BRANCH_CREATE',
+      category: 'MASTER',
+      level: 'INFO',
+      description: `Cabang baru "${newBranch.name}" (${newBranch.code}) dibuat oleh ${session.name}`,
+      details: {
+        id: newBranch.id,
+        code: newBranch.code,
+        name: newBranch.name,
+        address: newBranch.address,
+        phone: newBranch.phone,
+      },
+      branchId: newBranch.id,
+      userId: session.userId,
+      userName: session.name,
+      userRole: session.role,
     })
 
     return { success: true, message: 'Cabang berhasil ditambahkan' }
@@ -106,7 +151,6 @@ export async function deleteBranch(id: string) {
     const session = await getSession()
     if (!session || session.role !== 'ADMIN') throw new Error('Unauthorized')
 
-    // Optional: check if branch has users/transactions before deleting to prevent FK constraints
     const branch = await prisma.branch.findUnique({
       where: { id },
       include: {
@@ -119,15 +163,44 @@ export async function deleteBranch(id: string) {
     if (!branch) return { success: false, message: 'Cabang tidak ditemukan' }
 
     if (branch._count.users > 0 || branch._count.transactions > 0 || branch._count.spareparts > 0) {
-      // Soft delete by setting isActive to false instead of hard delete
       await prisma.branch.update({
         where: { id },
         data: { isActive: false }
       })
+
+      await createActivityLog({
+        action: 'BRANCH_DELETE',
+        category: 'MASTER',
+        level: 'CRITICAL',
+        description: `Cabang "${branch.name}" (${branch.code}) dinonaktifkan (memiliki riwayat data)`,
+        details: {
+          id: branch.id,
+          name: branch.name,
+          userCount: branch._count.users,
+          txCount: branch._count.transactions,
+        },
+        branchId: branch.id,
+        userId: session.userId,
+        userName: session.name,
+        userRole: session.role,
+      })
+
       return { success: true, message: 'Cabang memiliki data terkait, sehingga dinonaktifkan (Soft Delete)' }
     }
 
     await prisma.branch.delete({ where: { id } })
+
+    await createActivityLog({
+      action: 'BRANCH_DELETE',
+      category: 'MASTER',
+      level: 'CRITICAL',
+      description: `Cabang "${branch.name}" (${branch.code}) dihapus permanen oleh ${session.name}`,
+      details: { id: branch.id, name: branch.name, code: branch.code },
+      userId: session.userId,
+      userName: session.name,
+      userRole: session.role,
+    })
+
     return { success: true, message: 'Cabang berhasil dihapus' }
   } catch (error: unknown) {
     return { success: false, message: (error as Error).message || 'Gagal menghapus cabang' }

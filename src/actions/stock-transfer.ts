@@ -122,6 +122,7 @@ export async function createStockTransfer(payload: StockTransferPayload): Promis
     createActivityLog({
       action: 'STOCK_TRANSFER',
       category: 'STOCK',
+      level: 'INFO',
       description: `Transfer stok (${actionText}): ${data.quantity} unit`,
       details: {
         sparepartId: data.sparepartId,

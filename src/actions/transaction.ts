@@ -200,6 +200,7 @@ export async function createTransaction(payload: TransactionPayload): Promise<Tr
     createActivityLog({
       action: 'TRANSACTION_CREATE',
       category: 'TRANSACTION',
+      level: 'INFO',
       description: `Membuat transaksi ${result.invoiceNumber} senilai Rp ${result.total.toLocaleString('id-ID')}`,
       details: {
         invoiceNumber: result.invoiceNumber,
@@ -484,6 +485,7 @@ export async function cancelTransaction(id: string) {
     createActivityLog({
       action: 'TRANSACTION_CANCEL',
       category: 'TRANSACTION',
+      level: 'CRITICAL',
       description: `Membatalkan nota transaksi ${cancelledTx.invoiceNumber} (Rp ${cancelledTx.total.toLocaleString('id-ID')})`,
       details: {
         invoiceNumber: cancelledTx.invoiceNumber,

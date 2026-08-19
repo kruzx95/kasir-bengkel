@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { getSession, getBranchFilter } from '@/lib/session'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
+import { createActivityLog, createDiffLog } from '@/lib/logger'
 
 const SparepartSchema = z.object({
   name: z.string().min(1, 'Nama sparepart wajib diisi'),
@@ -171,6 +172,25 @@ export async function createSparepart(
       })),
     })
 
+    await createActivityLog({
+      action: 'SPAREPART_CREATE',
+      category: 'MASTER',
+      level: 'INFO',
+      description: `Sparepart baru "${validatedFields.data.name}" ditambahkan ke ${branches.length} cabang`,
+      details: {
+        name: validatedFields.data.name,
+        sku: validatedFields.data.sku,
+        buyPrice: validatedFields.data.buyPrice,
+        sellPrice: validatedFields.data.sellPrice,
+        stock: validatedFields.data.stock,
+        unit: validatedFields.data.unit,
+      },
+      branchId: session.branchId,
+      userId: session.userId,
+      userName: session.name,
+      userRole: session.role,
+    })
+
     revalidatePath('/admin/master/spareparts')
     revalidatePath('/kasir/sparepart')
     return { success: true, message: `Sparepart berhasil ditambahkan ke ${branches.length} cabang` }
@@ -209,7 +229,16 @@ export async function updateSparepart(
   const branchId = formData.get('branchId') as string | null
 
   try {
-    await prisma.sparepart.update({
+    const existing = await prisma.sparepart.findUnique({
+      where: { id },
+      include: { branch: true }
+    })
+
+    if (!existing) {
+      return { message: 'Sparepart tidak ditemukan' }
+    }
+
+    const updated = await prisma.sparepart.update({
       where: { id },
       data: {
         name: validatedFields.data.name,
@@ -225,6 +254,37 @@ export async function updateSparepart(
         ...(branchId && { branchId }),
       },
     })
+
+    const isPriceOrStockChanged =
+      existing.buyPrice !== updated.buyPrice ||
+      existing.sellPrice !== updated.sellPrice ||
+      existing.stock !== updated.stock
+
+    await createDiffLog({
+      action: 'SPAREPART_UPDATE',
+      category: isPriceOrStockChanged ? 'STOCK' : 'MASTER',
+      level: isPriceOrStockChanged ? 'WARNING' : 'INFO',
+      description: `Data sparepart "${updated.name}" diperbarui${isPriceOrStockChanged ? ' (Perubahan Harga/Stok)' : ''}`,
+      before: {
+        name: existing.name,
+        buyPrice: existing.buyPrice,
+        sellPrice: existing.sellPrice,
+        stock: existing.stock,
+        unit: existing.unit,
+      },
+      after: {
+        name: updated.name,
+        buyPrice: updated.buyPrice,
+        sellPrice: updated.sellPrice,
+        stock: updated.stock,
+        unit: updated.unit,
+      },
+      branchId: updated.branchId,
+      userId: session.userId,
+      userName: session.name,
+      userRole: session.role,
+    })
+
     revalidatePath('/admin/master/spareparts')
     revalidatePath('/kasir/sparepart')
     return { success: true, message: 'Sparepart berhasil diperbarui' }
@@ -240,11 +300,34 @@ export async function deleteSparepart(id: string) {
   }
 
   try {
+    const existing = await prisma.sparepart.findUnique({ where: { id } })
+    if (!existing) {
+      return { message: 'Sparepart tidak ditemukan' }
+    }
+
     // Soft delete: nonaktifkan sparepart agar riwayat transaksi & restock tetap utuh
     await prisma.sparepart.update({
       where: { id },
       data: { isActive: false },
     })
+
+    await createActivityLog({
+      action: 'SPAREPART_DELETE',
+      category: 'MASTER',
+      level: 'WARNING',
+      description: `Sparepart "${existing.name}" dinonaktifkan oleh ${session.name}`,
+      details: {
+        id: existing.id,
+        name: existing.name,
+        sku: existing.sku,
+        stock: existing.stock,
+      },
+      branchId: existing.branchId,
+      userId: session.userId,
+      userName: session.name,
+      userRole: session.role,
+    })
+
     revalidatePath('/admin/master/spareparts')
     revalidatePath('/kasir/sparepart')
     return { success: true, message: 'Sparepart berhasil dinonaktifkan' }

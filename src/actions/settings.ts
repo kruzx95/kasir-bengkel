@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/prisma'
 import { getSession } from '@/lib/session'
 import { revalidatePath } from 'next/cache'
+import { createActivityLog } from '@/lib/logger'
 
 const DEFAULT_SHOP_NAME = 'MULYA LESTARI'
 
@@ -28,10 +29,27 @@ export async function updateShopName(name: string) {
   if (trimmed.length > 60) return { success: false, message: 'Nama toko maksimal 60 karakter' }
 
   try {
+    const existing = await prisma.appSetting.findUnique({ where: { key: 'shop_name' } })
+
     await prisma.appSetting.upsert({
       where: { key: 'shop_name' },
       update: { value: trimmed },
       create: { key: 'shop_name', value: trimmed },
+    })
+
+    await createActivityLog({
+      action: 'SYSTEM_SETTINGS_UPDATE',
+      category: 'SYSTEM',
+      level: 'INFO',
+      description: `Pengaturan nama toko diubah menjadi "${trimmed}" oleh ${session.name}`,
+      details: {
+        settingKey: 'shop_name',
+        previousValue: existing?.value || DEFAULT_SHOP_NAME,
+        newValue: trimmed,
+      },
+      userId: session.userId,
+      userName: session.name,
+      userRole: session.role,
     })
 
     revalidatePath('/', 'layout')

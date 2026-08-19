@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { getSession, getBranchFilter } from '@/lib/session'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
+import { createActivityLog, createDiffLog } from '@/lib/logger'
 
 const CustomerSchema = z.object({
   name: z.string().min(1, 'Nama pelanggan wajib diisi'),
@@ -182,7 +183,7 @@ export async function createCustomer(
   }
 
   try {
-    await prisma.customer.create({
+    const newCust = await prisma.customer.create({
       data: {
         name: validatedFields.data.name,
         phone: validatedFields.data.phone || null,
@@ -198,6 +199,25 @@ export async function createCustomer(
         corporateCustomerId: validatedFields.data.corporateCustomerId || null,
       },
     })
+
+    await createActivityLog({
+      action: 'CUSTOMER_CREATE',
+      category: 'MASTER',
+      level: 'INFO',
+      description: `Pelanggan baru "${newCust.name}" (${newCust.plateNumber || 'Tanpa Plat'}) ditambahkan`,
+      details: {
+        id: newCust.id,
+        name: newCust.name,
+        phone: newCust.phone,
+        plateNumber: newCust.plateNumber,
+        corporateCustomerId: newCust.corporateCustomerId,
+      },
+      branchId: newCust.branchId,
+      userId: session.userId,
+      userName: session.name,
+      userRole: session.role,
+    })
+
     revalidatePath('/kasir/pelanggan')
     revalidatePath('/admin/pelanggan')
     return { success: true, message: 'Pelanggan berhasil ditambahkan' }
@@ -241,7 +261,10 @@ export async function updateCustomer(
   }
 
   try {
-    await prisma.customer.update({
+    const existing = await prisma.customer.findUnique({ where: { id } })
+    if (!existing) return { message: 'Pelanggan tidak ditemukan' }
+
+    const updated = await prisma.customer.update({
       where: { id },
       data: {
         name: validatedFields.data.name,
@@ -257,6 +280,32 @@ export async function updateCustomer(
         corporateCustomerId: validatedFields.data.corporateCustomerId || null,
       },
     })
+
+    await createDiffLog({
+      action: 'CUSTOMER_UPDATE',
+      category: 'MASTER',
+      level: 'INFO',
+      description: `Data pelanggan "${updated.name}" (${updated.plateNumber || 'Tanpa Plat'}) diperbarui`,
+      before: {
+        name: existing.name,
+        phone: existing.phone,
+        plateNumber: existing.plateNumber,
+        address: existing.address,
+        odometer: existing.odometer,
+      },
+      after: {
+        name: updated.name,
+        phone: updated.phone,
+        plateNumber: updated.plateNumber,
+        address: updated.address,
+        odometer: updated.odometer,
+      },
+      branchId: updated.branchId,
+      userId: session.userId,
+      userName: session.name,
+      userRole: session.role,
+    })
+
     revalidatePath('/kasir/pelanggan')
     revalidatePath('/admin/pelanggan')
     return { success: true, message: 'Pelanggan berhasil diperbarui' }
@@ -272,6 +321,11 @@ export async function deleteCustomer(id: string): Promise<{ success: boolean; me
   }
 
   try {
+    const existing = await prisma.customer.findUnique({ where: { id } })
+    if (!existing) {
+      return { success: false, message: 'Pelanggan tidak ditemukan.' }
+    }
+
     // Cek apakah pelanggan punya transaksi
     const txCount = await prisma.transaction.count({ where: { customerId: id } })
     if (txCount > 0) {
@@ -291,6 +345,24 @@ export async function deleteCustomer(id: string): Promise<{ success: boolean; me
     }
 
     await prisma.customer.delete({ where: { id } })
+
+    await createActivityLog({
+      action: 'CUSTOMER_DELETE',
+      category: 'MASTER',
+      level: 'WARNING',
+      description: `Pelanggan "${existing.name}" (${existing.plateNumber || 'Tanpa Plat'}) dihapus oleh ${session.name}`,
+      details: {
+        id: existing.id,
+        name: existing.name,
+        phone: existing.phone,
+        plateNumber: existing.plateNumber,
+      },
+      branchId: existing.branchId,
+      userId: session.userId,
+      userName: session.name,
+      userRole: session.role,
+    })
+
     revalidatePath('/admin/pelanggan')
     revalidatePath('/kasir/pelanggan')
     return { success: true, message: 'Pelanggan berhasil dihapus.' }
