@@ -1,12 +1,34 @@
 'use client'
 
-import { login } from '@/actions/auth'
-import { useActionState, useState } from 'react'
-import { Wrench, Eye, EyeOff, Mail, Lock, ShieldCheck } from 'lucide-react'
+import { login, loginAsDemo } from '@/actions/auth'
+import { useActionState, useState, useTransition } from 'react'
+import {
+  Wrench,
+  Eye,
+  EyeOff,
+  Mail,
+  Lock,
+  ShieldCheck,
+  Sparkles,
+  UserCheck,
+  ShoppingCart,
+  ArrowRight,
+  Loader2,
+  Info,
+} from 'lucide-react'
 
 export default function LoginClient({ shopName }: { shopName: string }) {
   const [state, action, pending] = useActionState(login, undefined)
   const [showPassword, setShowPassword] = useState(false)
+  const [isDemoPending, startDemoTransition] = useTransition()
+  const [activeDemoRole, setActiveDemoRole] = useState<'ADMIN' | 'KASIR' | null>(null)
+
+  const handleDemoLogin = (role: 'ADMIN' | 'KASIR') => {
+    setActiveDemoRole(role)
+    startDemoTransition(async () => {
+      await loginAsDemo(role)
+    })
+  }
 
   return (
     <div className="min-h-screen relative flex flex-col justify-between bg-slate-50 overflow-hidden font-sans selection:bg-primary-500 selection:text-white">
@@ -16,13 +38,13 @@ export default function LoginClient({ shopName }: { shopName: string }) {
         <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[60%] rounded-full bg-gradient-to-br from-primary-200/40 via-blue-100/30 to-transparent blur-3xl" />
         <div className="absolute -bottom-[20%] -right-[10%] w-[50%] h-[60%] rounded-full bg-gradient-to-tl from-accent-200/40 via-emerald-100/30 to-transparent blur-3xl" />
         <div className="absolute top-[30%] right-[15%] w-[35%] h-[35%] rounded-full bg-primary-100/25 blur-3xl" />
-        
+
         {/* Decorative Subtle Grid Pattern */}
-        <div 
-          className="absolute inset-0 opacity-[0.03]" 
+        <div
+          className="absolute inset-0 opacity-[0.03]"
           style={{
             backgroundImage: `radial-gradient(#1e3a8a 1px, transparent 1px)`,
-            backgroundSize: `24px 24px`
+            backgroundSize: `24px 24px`,
           }}
         />
       </div>
@@ -34,28 +56,32 @@ export default function LoginClient({ shopName }: { shopName: string }) {
             <Wrench className="w-5 h-5" />
           </div>
           <div>
-            <span className="font-bold text-slate-900 tracking-tight text-lg block leading-tight">{shopName}</span>
-            <span className="text-[11px] font-medium text-slate-500 uppercase tracking-wider block">Sistem Informasi Bengkel</span>
+            <span className="font-bold text-slate-900 tracking-tight text-lg block leading-tight">
+              {shopName}
+            </span>
+            <span className="text-[11px] font-medium text-slate-500 uppercase tracking-wider block">
+              Sistem Informasi Bengkel
+            </span>
           </div>
         </div>
 
-        <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/80 border border-slate-200/80 shadow-xs text-xs font-medium text-slate-600 backdrop-blur-sm">
-          <ShieldCheck className="w-4 h-4 text-accent-600" />
+        <div className="hidden sm:flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/80 border border-slate-200/80 shadow-xs text-xs font-medium text-slate-600 backdrop-blur-sm">
+          <ShieldCheck className="w-4 h-4 text-emerald-600" />
           <span>Akses Terenkripsi & Aman</span>
         </div>
       </header>
 
       {/* Main Login Section */}
-      <main className="relative z-10 flex-1 flex items-center justify-center px-4 py-8">
-        <div className="w-full max-w-md animate-fade-in">
-          
+      <main className="relative z-10 flex-1 flex items-center justify-center px-4 py-6 sm:py-10">
+        <div className="w-full max-w-lg animate-fade-in space-y-6">
           {/* Card Container */}
-          <div className="bg-white/90 backdrop-blur-md rounded-3xl border border-slate-200/80 shadow-2xl shadow-slate-300/40 p-8 sm:p-10 transition-all duration-300">
-            
+          <div className="bg-white/95 backdrop-blur-md rounded-3xl border border-slate-200/90 shadow-2xl shadow-slate-300/40 p-6 sm:p-9 transition-all duration-300">
             {/* Header Text inside Card */}
-            <div className="text-center mb-8">
+            <div className="text-center mb-6">
               <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Selamat Datang Kembali</h1>
-              <p className="text-sm text-slate-500 mt-1">Masukkan kredensial akun Anda untuk masuk ke sistem</p>
+              <p className="text-sm text-slate-500 mt-1">
+                Masukkan akun Anda atau gunakan akses instan demo
+              </p>
             </div>
 
             {/* Error Message Alert */}
@@ -66,12 +92,14 @@ export default function LoginClient({ shopName }: { shopName: string }) {
               </div>
             )}
 
-            {/* Form */}
-            <form action={action} className="space-y-5">
-              
+            {/* Standard Login Form */}
+            <form action={action} className="space-y-4">
               {/* Email Field */}
               <div>
-                <label htmlFor="email" className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
+                <label
+                  htmlFor="email"
+                  className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5"
+                >
                   Email
                 </label>
                 <div className="relative">
@@ -84,18 +112,21 @@ export default function LoginClient({ shopName }: { shopName: string }) {
                     type="email"
                     placeholder="nama@bengkel.com"
                     autoComplete="email"
-                    className="w-full pl-10 pr-4 py-3 bg-slate-50/60 border border-slate-200 rounded-xl text-slate-900 text-sm placeholder:text-slate-400 transition-all duration-200 hover:bg-slate-50 hover:border-slate-300 focus:border-primary-500 focus:bg-white focus:ring-4 focus:ring-primary-500/15 outline-none font-medium"
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50/70 border border-slate-200 rounded-xl text-slate-900 text-sm placeholder:text-slate-400 transition-all duration-200 hover:bg-slate-50 hover:border-slate-300 focus:border-primary-500 focus:bg-white focus:ring-4 focus:ring-primary-500/15 outline-none font-medium"
                   />
                 </div>
                 {state?.errors?.email && (
-                  <p className="mt-1.5 text-xs text-red-500 font-medium">{state.errors.email[0]}</p>
+                  <p className="mt-1 text-xs text-red-500 font-medium">{state.errors.email[0]}</p>
                 )}
               </div>
 
               {/* Password Field */}
               <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label htmlFor="password" className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                <div className="flex items-center justify-between mb-1.5">
+                  <label
+                    htmlFor="password"
+                    className="block text-xs font-semibold text-slate-700 uppercase tracking-wider"
+                  >
                     Password
                   </label>
                 </div>
@@ -109,34 +140,31 @@ export default function LoginClient({ shopName }: { shopName: string }) {
                     type={showPassword ? 'text' : 'password'}
                     placeholder="••••••••"
                     autoComplete="current-password"
-                    className="w-full pl-10 pr-11 py-3 bg-slate-50/60 border border-slate-200 rounded-xl text-slate-900 text-sm placeholder:text-slate-400 transition-all duration-200 hover:bg-slate-50 hover:border-slate-300 focus:border-primary-500 focus:bg-white focus:ring-4 focus:ring-primary-500/15 outline-none font-medium"
+                    className="w-full pl-10 pr-11 py-2.5 bg-slate-50/70 border border-slate-200 rounded-xl text-slate-900 text-sm placeholder:text-slate-400 transition-all duration-200 hover:bg-slate-50 hover:border-slate-300 focus:border-primary-500 focus:bg-white focus:ring-4 focus:ring-primary-500/15 outline-none font-medium"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors p-1 rounded-lg hover:bg-slate-100"
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors p-1 rounded-lg hover:bg-slate-100 cursor-pointer"
                     aria-label={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}
                   >
                     {showPassword ? <EyeOff className="w-4.5 h-4.5" /> : <Eye className="w-4.5 h-4.5" />}
                   </button>
                 </div>
                 {state?.errors?.password && (
-                  <p className="mt-1.5 text-xs text-red-500 font-medium">{state.errors.password[0]}</p>
+                  <p className="mt-1 text-xs text-red-500 font-medium">{state.errors.password[0]}</p>
                 )}
               </div>
 
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={pending}
-                className="w-full py-3.5 px-4 mt-2 bg-gradient-to-r from-primary-600 via-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white font-semibold text-sm rounded-xl shadow-lg shadow-primary-600/25 hover:shadow-primary-600/35 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer"
+                disabled={pending || isDemoPending}
+                className="w-full py-3 px-4 bg-gradient-to-r from-primary-600 via-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white font-semibold text-sm rounded-xl shadow-md shadow-primary-600/25 hover:shadow-primary-600/35 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer"
               >
                 {pending ? (
                   <span className="inline-flex items-center gap-2">
-                    <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
+                    <Loader2 className="w-4 h-4 animate-spin text-white" />
                     Memproses Masuk...
                   </span>
                 ) : (
@@ -144,12 +172,67 @@ export default function LoginClient({ shopName }: { shopName: string }) {
                 )}
               </button>
             </form>
+
+            {/* Divider */}
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-slate-200" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-white px-3 text-slate-400 font-semibold tracking-wider flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                  Pratinjau Mode Demo
+                </span>
+              </div>
+            </div>
+
+            {/* 1-Click Quick Demo Kasir Access (Read-Only) */}
+            <div>
+              <button
+                type="button"
+                onClick={() => handleDemoLogin('KASIR')}
+                disabled={pending || isDemoPending}
+                className="w-full group relative flex items-center justify-between p-3.5 sm:p-4 rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50/70 via-white to-emerald-50/40 hover:from-emerald-100/60 hover:to-white hover:border-emerald-300 transition-all duration-200 shadow-xs hover:shadow-md text-left disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold text-sm shadow-xs shadow-emerald-600/30 group-hover:scale-105 transition-transform shrink-0">
+                    {isDemoPending ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <ShoppingCart className="w-5 h-5" />
+                    )}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-bold text-sm text-slate-900 group-hover:text-emerald-700 transition-colors">
+                        Coba Demo Kasir POS
+                      </span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                        Read-Only
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Jelajahi antarmuka kasir, transaksi, dan data dummy bengkel
+                    </p>
+                  </div>
+                </div>
+
+                <div className="hidden sm:flex items-center gap-1 text-xs font-semibold text-emerald-700 shrink-0 pl-2">
+                  <span>{isDemoPending ? 'Membuka...' : 'Buka Demo'}</span>
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </button>
+
+              <p className="text-[11px] text-slate-400 text-center mt-2.5">
+                Menggunakan data simulasi <span className="font-medium text-slate-600">Cabang Demo</span> (Hanya Lihat).
+              </p>
+            </div>
           </div>
         </div>
       </main>
 
       {/* Footer */}
-      <footer className="relative z-10 w-full py-5 text-center">
+      <footer className="relative z-10 w-full py-4 text-center">
         <p className="text-xs text-slate-500 font-medium">
           &copy; {new Date().getFullYear()} <span className="font-semibold text-slate-700">{shopName}</span>. Hak Cipta Dilindungi Undang-Undang.
         </p>
@@ -157,3 +240,4 @@ export default function LoginClient({ shopName }: { shopName: string }) {
     </div>
   )
 }
+

@@ -1,7 +1,7 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
-import { getSession, getBranchFilter } from '@/lib/session'
+import { getSession, getBranchFilter, isDemoUser } from '@/lib/session'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
@@ -35,6 +35,10 @@ export async function createIndentOrder(payload: IndentPayload) {
     const session = await getSession()
     if (!session) {
       return { success: false, message: 'Unauthorized' }
+    }
+
+    if (isDemoUser(session)) {
+      return { success: false, message: 'Mode Demo Aktif: Pembuatan pesanan indent dinonaktifkan (Lihat Saja).' }
     }
 
     const validated = indentSchema.safeParse(payload)
@@ -241,6 +245,10 @@ export async function receiveIndentOrder(payload: ReceiveIndentPayload) {
     const session = await getSession()
     if (!session) {
       return { success: false, message: 'Unauthorized' }
+    }
+
+    if (isDemoUser(session)) {
+      return { success: false, message: 'Mode Demo Aktif: Penerimaan barang indent dinonaktifkan.' }
     }
 
     const validated = receiveSchema.safeParse(payload)

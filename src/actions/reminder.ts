@@ -1,7 +1,7 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
-import { getSession, getBranchFilter } from '@/lib/session'
+import { getSession, getBranchFilter, isDemoUser } from '@/lib/session'
 import { revalidatePath } from 'next/cache'
 
 export async function getCustomersDueForService(monthsLimit: number, branchId?: string) {
@@ -62,6 +62,7 @@ export async function getCustomersDueForService(monthsLimit: number, branchId?: 
 export async function markReminderSent(customerId: string) {
   const session = await getSession()
   if (!session) return { success: false, message: 'Unauthorized' }
+  if (isDemoUser(session)) return { success: false, message: 'Mode Demo Aktif: Penandaan reminder dinonaktifkan.' }
 
   try {
     await prisma.customer.update({

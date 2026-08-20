@@ -1,7 +1,7 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
-import { getSession, getBranchFilter } from '@/lib/session'
+import { getSession, getBranchFilter, isDemoUser } from '@/lib/session'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { createActivityLog, createDiffLog } from '@/lib/logger'
@@ -103,6 +103,13 @@ export async function createService(
     return { message: 'Unauthorized' }
   }
 
+  if (isDemoUser(session)) {
+    return {
+      success: false,
+      message: 'Mode Demo Aktif: Penambahan jasa servis baru dinonaktifkan (Lihat Saja).',
+    }
+  }
+
   const validatedFields = ServiceSchema.safeParse({
     name: formData.get('name'),
     price: formData.get('price'),
@@ -163,6 +170,13 @@ export async function updateService(
   const session = await getSession()
   if (!session) {
     return { message: 'Unauthorized' }
+  }
+
+  if (isDemoUser(session)) {
+    return {
+      success: false,
+      message: 'Mode Demo Aktif: Pengubahan data jasa servis dinonaktifkan (Lihat Saja).',
+    }
   }
 
   const validatedFields = ServiceSchema.safeParse({
@@ -228,6 +242,13 @@ export async function deleteService(id: string) {
   const session = await getSession()
   if (!session) {
     return { message: 'Unauthorized' }
+  }
+
+  if (isDemoUser(session)) {
+    return {
+      success: false,
+      message: 'Mode Demo Aktif: Penonaktifan data jasa servis dinonaktifkan.',
+    }
   }
 
   try {

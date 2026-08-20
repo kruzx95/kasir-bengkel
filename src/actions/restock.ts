@@ -1,7 +1,7 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
-import { getSession, getBranchFilter } from '@/lib/session'
+import { getSession, getBranchFilter, isDemoUser } from '@/lib/session'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { createActivityLog } from '@/lib/logger'
@@ -33,6 +33,10 @@ export async function createRestock(payload: RestockPayload) {
   try {
     const session = await getSession()
     if (!session) throw new Error('Unauthorized')
+
+    if (isDemoUser(session)) {
+      return { success: false, message: 'Mode Demo Aktif: Pencatatan barang masuk dinonaktifkan (Lihat Saja).' }
+    }
 
     const validated = restockSchema.safeParse(payload)
     if (!validated.success) {

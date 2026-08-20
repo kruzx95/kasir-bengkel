@@ -11,6 +11,7 @@ export type SessionPayload = {
   branchId: string | null
   branchName: string | null
   expiresAt: Date
+  isDemo?: boolean
 }
 
 const secretKey = process.env.SESSION_SECRET || 'dev-default-session-secret-change-in-production-32-chars'
@@ -40,15 +41,24 @@ export async function decrypt(session: string | undefined = '') {
   }
 }
 
-export async function createSession(user: {
-  id: string
-  name: string
-  email: string
-  role: Role
-  branchId: string | null
-  branch: { name: string } | null
-}) {
+export async function createSession(
+  user: {
+    id: string
+    name: string
+    email: string
+    role: Role
+    branchId: string | null
+    branch: { name: string } | null
+  },
+  isDemo?: boolean
+) {
   const expiresAt = new Date(Date.now() + SESSION_DURATION)
+  const isDemoAccount =
+    isDemo ??
+    (user.email.startsWith('demo.') ||
+      user.email === 'demo.admin@irianmotor.com' ||
+      user.email === 'demo.kasir@irianmotor.com')
+
   const session = await encrypt({
     userId: user.id,
     name: user.name,
@@ -57,6 +67,7 @@ export async function createSession(user: {
     branchId: user.branchId,
     branchName: user.branch?.name ?? null,
     expiresAt,
+    isDemo: isDemoAccount,
   })
 
   const cookieStore = await cookies()
@@ -82,6 +93,9 @@ export async function deleteSession() {
 }
 
 export function getBranchFilter(session: SessionPayload, requestedBranchId?: string | null) {
+  if (isDemoUser(session)) {
+    return { branchId: session.branchId || 'DEMO' }
+  }
   const isSuperAdmin = session.role === 'ADMIN' && !session.branchId
   if (isSuperAdmin) {
     return requestedBranchId ? { branchId: requestedBranchId } : {}
@@ -110,4 +124,17 @@ export function isKasir(session: SessionPayload | null): boolean {
  */
 export function canAccessCorporate(session: SessionPayload | null): boolean {
   return session?.role === 'ADMIN' || session?.role === 'KASIR'
+}
+
+/**
+ * Check if the active session is a Demo user
+ */
+export function isDemoUser(session: SessionPayload | null): boolean {
+  if (!session) return false
+  return (
+    !!session.isDemo ||
+    session.email === 'demo.admin@irianmotor.com' ||
+    session.email === 'demo.kasir@irianmotor.com' ||
+    session.email.startsWith('demo.')
+  )
 }

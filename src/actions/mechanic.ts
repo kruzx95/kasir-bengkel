@@ -1,7 +1,7 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
-import { getSession, getBranchFilter } from '@/lib/session'
+import { getSession, getBranchFilter, isDemoUser } from '@/lib/session'
 import { revalidatePath } from 'next/cache'
 import { createActivityLog, createDiffLog } from '@/lib/logger'
 
@@ -27,6 +27,10 @@ export async function createMechanic(data: { name: string; phone?: string; branc
   try {
     const session = await getSession()
     if (!session) throw new Error('Unauthorized')
+
+    if (isDemoUser(session)) {
+      return { success: false, message: 'Mode Demo Aktif: Penambahan mekanik dinonaktifkan (Lihat Saja).' }
+    }
 
     const isSuperAdmin = session.role === 'ADMIN' && !session.branchId
     const targetBranchId = !isSuperAdmin ? session.branchId : data.branchId
@@ -74,6 +78,10 @@ export async function updateMechanic(id: string, data: { name: string; phone?: s
     const session = await getSession()
     if (!session) throw new Error('Unauthorized')
 
+    if (isDemoUser(session)) {
+      return { success: false, message: 'Mode Demo Aktif: Pengubahan data mekanik dinonaktifkan (Lihat Saja).' }
+    }
+
     const existing = await prisma.mechanic.findUnique({ where: { id } })
     if (!existing) throw new Error('Mekanik tidak ditemukan')
 
@@ -120,6 +128,10 @@ export async function deleteMechanic(id: string) {
   try {
     const session = await getSession()
     if (!session) throw new Error('Unauthorized')
+
+    if (isDemoUser(session)) {
+      return { success: false, message: 'Mode Demo Aktif: Penonaktifan mekanik dinonaktifkan.' }
+    }
 
     const existing = await prisma.mechanic.findUnique({ where: { id } })
     if (!existing) throw new Error('Mekanik tidak ditemukan')

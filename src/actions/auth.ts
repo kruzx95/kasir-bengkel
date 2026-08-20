@@ -100,6 +100,87 @@ export async function login(state: LoginState, formData: FormData): Promise<Logi
   }
 }
 
+export async function loginAsDemo(targetRole: 'ADMIN' | 'KASIR' = 'KASIR') {
+  const targetEmail = 'demo.kasir@irianmotor.com'
+
+  let demoBranch = await prisma.branch.findUnique({ where: { code: 'DEMO' } })
+  if (!demoBranch) {
+    demoBranch = await prisma.branch.create({
+      data: {
+        code: 'DEMO',
+        name: 'Cabang Demo (Showroom)',
+        address: 'Jl. Pameran Otomotif No. 88, Jakarta',
+        phone: '081299887766',
+      },
+    })
+  }
+
+  let user = await prisma.user.findUnique({
+    where: { email: targetEmail },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      isActive: true,
+      branchId: true,
+      branch: {
+        select: { name: true },
+      },
+    },
+  })
+
+  // Fallback: create demo user on-demand if missing
+  if (!user) {
+    const demoPassword = await bcrypt.hash('DemoBengkel123!', 10)
+    const created = await prisma.user.create({
+      data: {
+        name: 'Demo Kasir POS',
+        email: targetEmail,
+        passwordHash: demoPassword,
+        role: 'KASIR',
+        branchId: demoBranch.id,
+      },
+      include: {
+        branch: { select: { name: true } },
+      },
+    })
+
+    user = {
+      id: created.id,
+      name: created.name,
+      email: created.email,
+      role: created.role,
+      isActive: created.isActive,
+      branchId: created.branchId,
+      branch: created.branch,
+    }
+  } else if (!user.branchId) {
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { branchId: demoBranch.id },
+    })
+    user.branchId = demoBranch.id
+    user.branch = { name: demoBranch.name }
+  }
+
+  await createSession(user, true)
+
+  await createActivityLog({
+    action: 'DEMO_USER_LOGIN',
+    category: 'USER',
+    level: 'INFO',
+    description: `Akses Mode Demo Kasir: ${user.name} masuk ke sistem`,
+    details: { email: user.email, branch: user.branch?.name || 'Cabang Demo' },
+    branchId: user.branchId,
+    userId: user.id,
+    userName: user.name,
+    userRole: user.role,
+  })
+
+  redirect('/kasir')
+}
+
 export async function logout() {
   const session = await getSession().catch(() => null)
   if (session) {
@@ -117,3 +198,4 @@ export async function logout() {
   await deleteSession()
   redirect('/login')
 }
+

@@ -1,7 +1,7 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
-import { getSession, getBranchFilter } from '@/lib/session'
+import { getSession, getBranchFilter, isDemoUser } from '@/lib/session'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { createActivityLog, createDiffLog } from '@/lib/logger'
@@ -130,6 +130,13 @@ export async function createSparepart(
     return { message: 'Unauthorized' }
   }
 
+  if (isDemoUser(session)) {
+    return {
+      success: false,
+      message: 'Mode Demo Aktif: Penambahan sparepart baru dinonaktifkan (Lihat Saja).',
+    }
+  }
+
   const validatedFields = SparepartSchema.safeParse({
     name: formData.get('name'),
     sku: formData.get('sku') || undefined,
@@ -207,6 +214,13 @@ export async function updateSparepart(
   const session = await getSession()
   if (!session) {
     return { message: 'Unauthorized' }
+  }
+
+  if (isDemoUser(session)) {
+    return {
+      success: false,
+      message: 'Mode Demo Aktif: Pengubahan data sparepart dinonaktifkan (Lihat Saja).',
+    }
   }
 
   const validatedFields = SparepartSchema.safeParse({
@@ -297,6 +311,13 @@ export async function deleteSparepart(id: string) {
   const session = await getSession()
   if (!session) {
     return { message: 'Unauthorized' }
+  }
+
+  if (isDemoUser(session)) {
+    return {
+      success: false,
+      message: 'Mode Demo Aktif: Penonaktifan data sparepart dinonaktifkan.',
+    }
   }
 
   try {

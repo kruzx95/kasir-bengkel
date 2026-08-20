@@ -1,7 +1,7 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
-import { getSession, getBranchFilter } from '@/lib/session'
+import { getSession, getBranchFilter, isDemoUser } from '@/lib/session'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { createActivityLog } from '@/lib/logger'
@@ -40,6 +40,13 @@ export async function createTransaction(payload: TransactionPayload): Promise<Tr
     const session = await getSession()
     if (!session) {
       return { success: false, message: 'Unauthorized' }
+    }
+
+    if (isDemoUser(session)) {
+      return {
+        success: false,
+        message: 'Mode Demo Aktif: Pembuatan transaksi baru dinonaktifkan (Lihat Saja).',
+      }
     }
 
     const isSuperAdmin = session.role === 'ADMIN' && !session.branchId
@@ -456,6 +463,10 @@ export async function cancelTransaction(id: string) {
   try {
     const session = await getSession()
     if (!session || session.role !== 'ADMIN') return { success: false, message: 'Unauthorized. Hanya admin yang bisa membatalkan transaksi.' }
+
+    if (isDemoUser(session)) {
+      return { success: false, message: 'Mode Demo Aktif: Pembatalan transaksi dinonaktifkan.' }
+    }
 
     const cancelledTx = await prisma.$transaction(async (tx) => {
       const transaction = await tx.transaction.findUnique({

@@ -1,7 +1,7 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
-import { getSession, getBranchFilter } from '@/lib/session'
+import { getSession, getBranchFilter, isDemoUser } from '@/lib/session'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { createActivityLog, createDiffLog } from '@/lib/logger'
@@ -156,6 +156,13 @@ export async function createCustomer(
   const session = await getSession()
   if (!session) return { message: 'Unauthorized' }
 
+  if (isDemoUser(session)) {
+    return {
+      success: false,
+      message: 'Mode Demo Aktif: Penambahan pelanggan baru dinonaktifkan (Lihat Saja).',
+    }
+  }
+
   const isSuperAdmin = session.role === 'ADMIN' && !session.branchId
   const branchId = !isSuperAdmin
     ? (session.branchId || 'UNASSIGNED')
@@ -233,6 +240,13 @@ export async function updateCustomer(
 ): Promise<CustomerState> {
   const session = await getSession()
   if (!session) return { message: 'Unauthorized' }
+
+  if (isDemoUser(session)) {
+    return {
+      success: false,
+      message: 'Mode Demo Aktif: Pengubahan data pelanggan dinonaktifkan (Lihat Saja).',
+    }
+  }
 
   const isSuperAdmin = session.role === 'ADMIN' && !session.branchId
   const branchId = !isSuperAdmin
@@ -318,6 +332,13 @@ export async function deleteCustomer(id: string): Promise<{ success: boolean; me
   const session = await getSession()
   if (!session || session.role !== 'ADMIN') {
     return { success: false, message: 'Hanya Admin yang dapat menghapus pelanggan.' }
+  }
+
+  if (isDemoUser(session)) {
+    return {
+      success: false,
+      message: 'Mode Demo Aktif: Penghapusan data pelanggan dinonaktifkan.',
+    }
   }
 
   try {

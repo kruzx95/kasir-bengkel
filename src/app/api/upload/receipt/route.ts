@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSession } from '@/lib/session'
+import { getSession, isDemoUser } from '@/lib/session'
 import { writeFile, mkdir } from 'fs/promises'
 import { join } from 'path'
 
@@ -12,6 +12,13 @@ export async function POST(request: NextRequest) {
     const session = await getSession()
     if (!session || session.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    if (isDemoUser(session)) {
+      return NextResponse.json(
+        { error: 'Mode Demo (Read-Only): Upload file dinonaktifkan.' },
+        { status: 403 }
+      )
     }
 
     const formData = await request.formData()

@@ -1,4 +1,4 @@
-import { getSession } from '@/lib/session'
+import { getSession, isDemoUser } from '@/lib/session'
 import { redirect } from 'next/navigation'
 import Header from '@/components/layout/Header'
 import { prisma } from '@/lib/prisma'
@@ -12,6 +12,10 @@ export const metadata: Metadata = {
 export default async function UsersPage() {
   const session = await getSession()
   if (!session || session.role !== 'ADMIN') redirect('/kasir')
+
+  if (isDemoUser(session)) {
+    redirect('/admin')
+  }
 
   const [users, branches] = await Promise.all([
     prisma.user.findMany({

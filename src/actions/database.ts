@@ -1,7 +1,7 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
-import { getSession } from '@/lib/session'
+import { getSession, isDemoUser } from '@/lib/session'
 import { revalidatePath } from 'next/cache'
 import bcrypt from 'bcryptjs'
 import { createActivityLog } from '@/lib/logger'
@@ -12,6 +12,10 @@ export async function exportDatabaseBackup() {
     const session = await getSession()
     if (!session || session.role !== 'ADMIN') {
       return { success: false, message: 'Akses ditolak. Hanya Admin yang dapat mengekspor backup.' }
+    }
+
+    if (isDemoUser(session)) {
+      return { success: false, message: 'Aksi ekspor database dinonaktifkan pada Akun Demo demi keamanan.' }
     }
 
     const [
@@ -103,6 +107,13 @@ export async function cleanDatabase(
     const session = await getSession()
     if (!session || session.role !== 'ADMIN') {
       return { success: false, message: 'Akses ditolak.' }
+    }
+
+    if (isDemoUser(session)) {
+      return {
+        success: false,
+        message: 'Aksi pembersihan database dinonaktifkan pada Akun Demo demi keamanan sistem.',
+      }
     }
 
     // Verify admin password
@@ -208,6 +219,13 @@ export async function restoreDatabase(jsonContent: string, password: string) {
     const session = await getSession()
     if (!session || session.role !== 'ADMIN') {
       return { success: false, message: 'Akses ditolak.' }
+    }
+
+    if (isDemoUser(session)) {
+      return {
+        success: false,
+        message: 'Aksi restore database dinonaktifkan pada Akun Demo demi keamanan sistem.',
+      }
     }
 
     // Verify admin password

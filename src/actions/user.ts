@@ -1,7 +1,7 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
-import { getSession } from '@/lib/session'
+import { getSession, isDemoUser } from '@/lib/session'
 import bcrypt from 'bcryptjs'
 import { createActivityLog, createDiffLog } from '@/lib/logger'
 
@@ -15,6 +15,10 @@ export async function updateUser(id: string, data: { name: string; email: string
   try {
     const session = await getSession()
     if (!session || session.role !== 'ADMIN') throw new Error('Unauthorized')
+
+    if (isDemoUser(session)) {
+      return { success: false, message: 'Fitur ubah pengguna dinonaktifkan pada Akun Demo.' }
+    }
 
     const existing = await prisma.user.findUnique({ where: { id } })
     if (!existing) {
@@ -78,6 +82,10 @@ export async function createUser(data: {
     const session = await getSession()
     if (!session || session.role !== 'ADMIN') throw new Error('Unauthorized')
 
+    if (isDemoUser(session)) {
+      return { success: false, message: 'Fitur tambah pengguna dinonaktifkan pada Akun Demo.' }
+    }
+
     if (!data.name.trim() || !data.email.trim() || !data.password) {
       return { success: false, message: 'Semua field wajib diisi' }
     }
@@ -140,6 +148,10 @@ export async function deleteUser(id: string) {
     const session = await getSession()
     if (!session || session.role !== 'ADMIN') throw new Error('Unauthorized')
 
+    if (isDemoUser(session)) {
+      return { success: false, message: 'Fitur hapus pengguna dinonaktifkan pada Akun Demo.' }
+    }
+
     if (session.userId === id) {
       return { success: false, message: 'Tidak dapat menghapus akun sendiri' }
     }
@@ -186,6 +198,10 @@ export async function changeOwnPassword(data: {
     const session = await getSession()
     if (!session) return { success: false, message: 'Tidak terautentikasi' }
 
+    if (isDemoUser(session)) {
+      return { success: false, message: 'Pengubahan kata sandi dinonaktifkan pada Akun Demo.' }
+    }
+
     if (data.newPassword.length < 6) {
       return { success: false, message: 'Password baru minimal 6 karakter' }
     }
@@ -221,6 +237,10 @@ export async function updateOwnProfile(data: { name: string; email: string }) {
   try {
     const session = await getSession()
     if (!session) return { success: false, message: 'Tidak terautentikasi' }
+
+    if (isDemoUser(session)) {
+      return { success: false, message: 'Pengubahan profil dinonaktifkan pada Akun Demo.' }
+    }
 
     if (!data.name.trim()) return { success: false, message: 'Nama tidak boleh kosong' }
 

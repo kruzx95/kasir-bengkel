@@ -2,7 +2,7 @@ import Header from '@/components/layout/Header'
 import LogsClient from './LogsClient'
 import { getActivityLogs, getLogUsers } from '@/actions/log'
 import { getBranches } from '@/actions/branch'
-import { getSession } from '@/lib/session'
+import { getSession, isDemoUser } from '@/lib/session'
 import { getShopName } from '@/actions/settings'
 import { redirect } from 'next/navigation'
 import type { Metadata } from 'next'
@@ -46,6 +46,10 @@ export default async function AuditLogsPage() {
   const session = await getSession()
   if (!session || session.role !== 'ADMIN') {
     redirect('/login')
+  }
+
+  if (isDemoUser(session)) {
+    redirect('/admin')
   }
 
   const isSuperAdmin = session.role === 'ADMIN' && !session.branchId

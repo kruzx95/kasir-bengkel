@@ -1,7 +1,7 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
-import { getSession } from '@/lib/session'
+import { getSession, isDemoUser } from '@/lib/session'
 import { revalidatePath } from 'next/cache'
 import { createActivityLog } from '@/lib/logger'
 
@@ -20,7 +20,7 @@ export interface GetLogsFilter {
 export async function getActivityLogs(filter: GetLogsFilter = {}) {
   try {
     const session = await getSession()
-    if (!session || session.role !== 'ADMIN') {
+    if (!session || session.role !== 'ADMIN' || isDemoUser(session)) {
       return { success: false, error: 'Unauthorized' }
     }
 
@@ -133,7 +133,7 @@ export async function getActivityLogs(filter: GetLogsFilter = {}) {
 export async function getLogUsers() {
   try {
     const session = await getSession()
-    if (!session || session.role !== 'ADMIN') return []
+    if (!session || session.role !== 'ADMIN' || isDemoUser(session)) return []
 
     const users = await prisma.user.findMany({
       select: { id: true, name: true, email: true, role: true },
@@ -149,7 +149,7 @@ export async function getLogUsers() {
 export async function purgeOldLogs(daysToKeep: number) {
   try {
     const session = await getSession()
-    if (!session || session.role !== 'ADMIN') {
+    if (!session || session.role !== 'ADMIN' || isDemoUser(session)) {
       return { success: false, message: 'Unauthorized' }
     }
 

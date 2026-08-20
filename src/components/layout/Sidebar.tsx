@@ -35,6 +35,7 @@ interface SidebarProps {
   userName: string
   branchName: string | null
   shopName: string
+  isDemo?: boolean
   mobileOpen?: boolean
   onMobileClose?: () => void
   collapsed?: boolean
@@ -80,17 +81,32 @@ const adminMenuItems = [
   { href: '/admin/panduan', label: 'Panduan Kasir', icon: BookOpen },
 ]
 
-export default function Sidebar({ role, userName, branchName, shopName, mobileOpen = false, onMobileClose, collapsed = false, onCollapseChange }: SidebarProps) {
+export default function Sidebar({
+  role,
+  userName,
+  branchName,
+  shopName,
+  isDemo = false,
+  mobileOpen = false,
+  onMobileClose,
+  collapsed = false,
+  onCollapseChange,
+}: SidebarProps) {
   const pathname = usePathname()
   const isSuperAdmin = role === 'ADMIN' && !branchName
-  const menuItems = role === 'ADMIN'
-    ? adminMenuItems.filter(item => {
-        if (['Cabang', 'Pengguna', 'Pengaturan', 'Database', 'Log Aktivitas'].includes(item.label)) {
-          return isSuperAdmin
-        }
-        return true
-      })
-    : kasirMenuItems
+  const menuItems =
+    role === 'ADMIN'
+      ? adminMenuItems.filter((item) => {
+          // Sembunyikan 'Log Aktivitas' dan 'Pengguna' untuk akun Demo Admin
+          if (isDemo && ['Log Aktivitas', 'Pengguna'].includes(item.label)) {
+            return false
+          }
+          if (['Cabang', 'Pengguna', 'Pengaturan', 'Database', 'Log Aktivitas'].includes(item.label)) {
+            return isSuperAdmin
+          }
+          return true
+        })
+      : kasirMenuItems
 
   // Close mobile sidebar on route change
   useEffect(() => {

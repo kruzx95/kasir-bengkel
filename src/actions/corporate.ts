@@ -1,7 +1,7 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
-import { getSession, getBranchFilter, canAccessCorporate, isAdmin, type SessionPayload } from '@/lib/session'
+import { getSession, getBranchFilter, canAccessCorporate, isAdmin, isDemoUser, type SessionPayload } from '@/lib/session'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { createActivityLog, createDiffLog } from '@/lib/logger'
@@ -124,6 +124,7 @@ export async function createCorporateCustomer(
 ): Promise<CorporateState> {
   const session = await getSession()
   if (!session || !canAccessCorporate(session)) return { message: 'Unauthorized' }
+  if (isDemoUser(session)) return { success: false, message: 'Mode Demo Aktif: Penambahan pelanggan korporat dinonaktifkan (Lihat Saja).' }
   const safeSession: SessionPayload = session
 
   const hideService = formData.get('hideServiceOnInvoice') === 'on' || formData.get('hideServiceOnInvoice') === 'true'
@@ -183,6 +184,7 @@ export async function updateCorporateCustomer(
 ): Promise<CorporateState> {
   const session = await getSession()
   if (!session || !canAccessCorporate(session)) return { message: 'Unauthorized' }
+  if (isDemoUser(session)) return { success: false, message: 'Mode Demo Aktif: Pengubahan data korporat dinonaktifkan (Lihat Saja).' }
   const safeSession: SessionPayload = session
 
   const hideService = formData.get('hideServiceOnInvoice') === 'on' || formData.get('hideServiceOnInvoice') === 'true'
@@ -250,6 +252,7 @@ export async function updateCorporateCustomer(
 export async function deleteCorporateCustomer(id: string) {
   const session = await getSession()
   if (!session || !isAdmin(session)) return { success: false, message: 'Hanya admin yang boleh menghapus korporat' }
+  if (isDemoUser(session)) return { success: false, message: 'Mode Demo Aktif: Penghapusan korporat dinonaktifkan.' }
 
   try {
     const existing = await prisma.corporateCustomer.findUnique({ where: { id } })
@@ -281,6 +284,7 @@ export async function deleteCorporateCustomer(id: string) {
 export async function assignCustomerToCorporate(customerId: string, corporateCustomerId: string | null) {
   const session = await getSession()
   if (!session || !canAccessCorporate(session)) return { success: false, message: 'Unauthorized' }
+  if (isDemoUser(session)) return { success: false, message: 'Mode Demo Aktif: Pengubahan asosiasi pelanggan dinonaktifkan.' }
 
   try {
     await prisma.customer.update({
@@ -317,6 +321,7 @@ export async function createCorporateVehicle(
 ): Promise<CreateCorporateVehicleState> {
   const session = await getSession()
   if (!session || !canAccessCorporate(session)) return { message: 'Unauthorized' }
+  if (isDemoUser(session)) return { success: false, message: 'Mode Demo Aktif: Penambahan kendaraan korporat dinonaktifkan.' }
 
   const name = formData.get('name') as string
   if (!name?.trim()) return { errors: { name: ['Nama kendaraan/pengemudi wajib diisi'] } }
@@ -444,6 +449,7 @@ export type PaymentResult = {
 export async function createCorporatePayment(input: CreatePaymentInput): Promise<PaymentResult> {
   const session = await getSession()
   if (!session || !canAccessCorporate(session)) return { success: false, message: 'Unauthorized' }
+  if (isDemoUser(session)) return { success: false, message: 'Mode Demo Aktif: Pencatatan pelunasan korporat dinonaktifkan (Lihat Saja).' }
   const safeSession: SessionPayload = session
 
   const validated = CreatePaymentSchema.safeParse(input)
@@ -670,6 +676,7 @@ export async function voidCorporatePayment(
   const session = await getSession()
   if (!session) return { success: false, message: 'Unauthorized' }
   if (!isAdmin(session)) return { success: false, message: 'Hanya admin yang boleh membatalkan pembayaran' }
+  if (isDemoUser(session)) return { success: false, message: 'Mode Demo Aktif: Pembatalan pembayaran dinonaktifkan.' }
   const safeSession: SessionPayload = session
 
   if (!reason || reason.trim().length < 3) {
@@ -830,6 +837,13 @@ export async function createCorporateServiceTransaction(
   const session = await getSession()
   if (!session || !canAccessCorporate(session)) {
     return { success: false, message: 'Unauthorized' }
+  }
+
+  if (isDemoUser(session)) {
+    return {
+      success: false,
+      message: 'Mode Demo Aktif: Pembuatan transaksi korporat dinonaktifkan (Lihat Saja).',
+    }
   }
   const safeSession: SessionPayload = session
 

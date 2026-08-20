@@ -1,7 +1,7 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
-import { getSession } from '@/lib/session'
+import { getSession, isDemoUser } from '@/lib/session'
 import { revalidatePath } from 'next/cache'
 import { createActivityLog } from '@/lib/logger'
 
@@ -22,6 +22,10 @@ export async function updateShopName(name: string) {
   const session = await getSession()
   if (!session || session.role !== 'ADMIN') {
     return { success: false, message: 'Unauthorized' }
+  }
+
+  if (isDemoUser(session)) {
+    return { success: false, message: 'Pengaturan nama toko dinonaktifkan pada Akun Demo.' }
   }
 
   const trimmed = name.trim()

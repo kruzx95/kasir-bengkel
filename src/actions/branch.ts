@@ -1,12 +1,19 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
-import { getSession } from '@/lib/session'
+import { getSession, isDemoUser } from '@/lib/session'
 import { createActivityLog, createDiffLog } from '@/lib/logger'
 
 export async function getBranches() {
   const session = await getSession()
   if (!session) return []
+
+  if (isDemoUser(session)) {
+    return prisma.branch.findMany({
+      where: { code: 'DEMO' },
+      orderBy: { code: 'asc' },
+    })
+  }
 
   return prisma.branch.findMany({
     where: { isActive: true },
@@ -34,6 +41,10 @@ export async function updateBranch(
   try {
     const session = await getSession()
     if (!session || session.role !== 'ADMIN') throw new Error('Unauthorized')
+
+    if (isDemoUser(session)) {
+      return { success: false, message: 'Mode Demo Aktif: Pengubahan data cabang dinonaktifkan.' }
+    }
 
     // Validate whatsappNumber: digits only, 10-15 chars if provided
     if (data.whatsappNumber && !/^\d{10,15}$/.test(data.whatsappNumber)) {
@@ -97,6 +108,10 @@ export async function createBranch(data: {
     const session = await getSession()
     if (!session || session.role !== 'ADMIN') throw new Error('Unauthorized')
 
+    if (isDemoUser(session)) {
+      return { success: false, message: 'Fitur penambahan cabang dinonaktifkan pada Akun Demo.' }
+    }
+
     if (!data.code.trim() || !data.name.trim() || !data.address.trim()) {
       return { success: false, message: 'Kode, Nama, dan Alamat cabang wajib diisi' }
     }
@@ -150,6 +165,10 @@ export async function deleteBranch(id: string) {
   try {
     const session = await getSession()
     if (!session || session.role !== 'ADMIN') throw new Error('Unauthorized')
+
+    if (isDemoUser(session)) {
+      return { success: false, message: 'Fitur hapus cabang dinonaktifkan pada Akun Demo.' }
+    }
 
     const branch = await prisma.branch.findUnique({
       where: { id },

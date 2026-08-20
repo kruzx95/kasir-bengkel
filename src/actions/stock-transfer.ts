@@ -1,7 +1,7 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
-import { getSession, getBranchFilter } from '@/lib/session'
+import { getSession, getBranchFilter, isDemoUser } from '@/lib/session'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { createActivityLog } from '@/lib/logger'
@@ -36,6 +36,10 @@ export async function createStockTransfer(payload: StockTransferPayload): Promis
     const session = await getSession()
     if (!session) {
       return { success: false, message: 'Unauthorized.' }
+    }
+
+    if (isDemoUser(session)) {
+      return { success: false, message: 'Mode Demo Aktif: Transfer stok dinonaktifkan (Lihat Saja).' }
     }
 
     const isSuperAdmin = session.role === 'ADMIN' && !session.branchId
@@ -156,6 +160,10 @@ export async function bulkTransferToStore(payload: BulkTransferPayload): Promise
     const session = await getSession()
     if (!session) {
       return { success: false, message: 'Unauthorized' }
+    }
+
+    if (isDemoUser(session)) {
+      return { success: false, message: 'Mode Demo Aktif: Transfer stok massal dinonaktifkan (Lihat Saja).' }
     }
 
     const isSuperAdmin = session.role === 'ADMIN' && !session.branchId
