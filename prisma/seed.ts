@@ -40,6 +40,12 @@ async function main() {
 
   console.log('✅ Super admin created:', admin.email)
 
+  if (process.env.SEED_DEMO !== 'true') {
+    console.log('ℹ️ SEED_DEMO is not set to "true". Skipping Cabang Demo dummy data creation.')
+    console.log('✨ Selesai. Database production/staging tetap bersih dari data dummy.')
+    return
+  }
+
   // 1. Create or upsert Demo Branch
   const demoBranch = await prisma.branch.upsert({
     where: { code: 'DEMO' },

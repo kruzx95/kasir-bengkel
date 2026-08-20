@@ -602,3 +602,148 @@ export async function restoreDatabase(jsonContent: string, password: string) {
     return { success: false, message: msg }
   }
 }
+
+export async function deleteDemoDataAction() {
+  try {
+    const session = await getSession()
+    if (!session || session.role !== 'ADMIN') {
+      return { success: false, message: 'Akses ditolak. Hanya Admin yang dapat menghapus data demo.' }
+    }
+
+    if (isDemoUser(session)) {
+      return { success: false, message: 'Aksi ini dinonaktifkan pada Akun Demo.' }
+    }
+
+    const demoBranch = await prisma.branch.findUnique({
+      where: { code: 'DEMO' },
+    })
+
+    if (!demoBranch) {
+      return { success: true, message: 'Data demo tidak ditemukan. Database sudah bersih.' }
+    }
+
+    const branchId = demoBranch.id
+
+    await prisma.$transaction(
+      async (tx) => {
+        // 1. Corporate Payments
+        const demoPayments = await tx.corporatePayment.findMany({
+          where: { branchId },
+          select: { id: true },
+        })
+        const paymentIds = demoPayments.map((p) => p.id)
+        if (paymentIds.length > 0) {
+          await tx.corporatePaymentTransaction.deleteMany({
+            where: { paymentId: { in: paymentIds } },
+          })
+          await tx.corporatePayment.deleteMany({
+            where: { id: { in: paymentIds } },
+          })
+        }
+
+        // 2. Transactions & Items
+        const demoTransactions = await tx.transaction.findMany({
+          where: { branchId },
+          select: { id: true },
+        })
+        const txIds = demoTransactions.map((t) => t.id)
+        if (txIds.length > 0) {
+          await tx.corporatePaymentTransaction.deleteMany({
+            where: { transactionId: { in: txIds } },
+          })
+          await tx.transactionItem.deleteMany({
+            where: { transactionId: { in: txIds } },
+          })
+          await tx.transaction.deleteMany({
+            where: { id: { in: txIds } },
+          })
+        }
+
+        // 3. Restocks & Items
+        const demoRestocks = await tx.restock.findMany({
+          where: { branchId },
+          select: { id: true },
+        })
+        const restockIds = demoRestocks.map((r) => r.id)
+        if (restockIds.length > 0) {
+          await tx.restockItem.deleteMany({
+            where: { restockId: { in: restockIds } },
+          })
+          await tx.restock.deleteMany({
+            where: { id: { in: restockIds } },
+          })
+        }
+
+        // 4. Indents & Items
+        const demoIndents = await tx.indentOrder.findMany({
+          where: { branchId },
+          select: { id: true },
+        })
+        const indentIds = demoIndents.map((i) => i.id)
+        if (indentIds.length > 0) {
+          await tx.indentOrderItem.deleteMany({
+            where: { indentOrderId: { in: indentIds } },
+          })
+          await tx.indentOrder.deleteMany({
+            where: { id: { in: indentIds } },
+          })
+        }
+
+        // 5. Stock Transfers
+        await tx.stockTransfer.deleteMany({
+          where: { branchId },
+        })
+
+        // 6. Customers
+        await tx.customer.deleteMany({ where: { branchId } })
+
+        // 7. Corporate Customers
+        await tx.corporateCustomer.deleteMany({ where: { branchId } })
+
+        // 8. Mechanics
+        await tx.mechanic.deleteMany({ where: { branchId } })
+
+        // 9. Spareparts
+        await tx.sparepart.deleteMany({ where: { branchId } })
+
+        // 10. Services
+        await tx.service.deleteMany({ where: { branchId } })
+
+        // 11. Demo Users
+        await tx.user.deleteMany({
+          where: {
+            OR: [
+              { branchId },
+              { email: { in: ['demo.admin@irianmotor.com', 'demo.kasir@irianmotor.com'] } },
+            ],
+          },
+        })
+
+        // 12. Activity Logs
+        await tx.activityLog.deleteMany({ where: { branchId } })
+
+        // 13. Branch
+        await tx.branch.delete({ where: { id: branchId } })
+      },
+      { timeout: 60000 }
+    )
+
+    await createActivityLog({
+      action: 'DATABASE_CLEANUP_DEMO',
+      category: 'SYSTEM',
+      level: 'WARNING',
+      description: `Menghapus seluruh data dummy Cabang Demo oleh ${session.name}`,
+      userId: session.userId,
+      userName: session.name,
+      userRole: session.role,
+    })
+
+    revalidatePath('/', 'layout')
+    return { success: true, message: 'Seluruh data dummy Cabang Demo berhasil dihapus total!' }
+  } catch (error) {
+    console.error('Delete Demo Data Error:', error)
+    const msg = error instanceof Error ? error.message : 'Gagal menghapus data demo.'
+    return { success: false, message: msg }
+  }
+}
+

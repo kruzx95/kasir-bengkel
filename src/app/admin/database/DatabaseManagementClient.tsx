@@ -15,12 +15,34 @@ import {
   FileJson,
   RefreshCw,
   Info,
+  Sparkles,
 } from 'lucide-react'
-import { exportDatabaseBackup, restoreDatabase, cleanDatabase } from '@/actions/database'
+import { exportDatabaseBackup, restoreDatabase, cleanDatabase, deleteDemoDataAction } from '@/actions/database'
 
 export default function DatabaseManagementClient() {
   const [isPending, startTransition] = useTransition()
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [demoCleaning, setDemoCleaning] = useState(false)
+
+  const handleDeleteDemo = async () => {
+    if (!confirm('Apakah Anda yakin ingin menghapus Cabang Demo (Showroom) beserta seluruh mekanik dummy, pelanggan dummy, dan transaksi demo? Cabang asli (Majalengka) dan data asli akan tetap aman 100%.')) {
+      return
+    }
+    setMessage(null)
+    setDemoCleaning(true)
+    try {
+      const res = await deleteDemoDataAction()
+      if (res.success) {
+        setMessage({ type: 'success', text: res.message })
+      } else {
+        setMessage({ type: 'error', text: res.message })
+      }
+    } catch {
+      setMessage({ type: 'error', text: 'Terjadi kesalahan sistem saat menghapus data demo.' })
+    } finally {
+      setDemoCleaning(false)
+    }
+  }
 
   // Backup State
   const [downloading, setDownloading] = useState(false)
@@ -199,6 +221,29 @@ export default function DatabaseManagementClient() {
             <p className="text-lg font-bold text-white mt-0.5">JSON Snapshot</p>
           </div>
         </div>
+      </div>
+
+      {/* Quick Action: Hapus Cabang Demo & Data Dummy */}
+      <div className="bg-amber-50/70 border border-amber-200/80 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 mt-0.5">
+            <Trash2 className="w-5 h-5" />
+          </div>
+          <div>
+            <h4 className="text-sm font-bold text-amber-950">Pembersihan Khusus: Hapus Cabang Demo & Data Dummy</h4>
+            <p className="text-xs text-amber-800/90 mt-0.5 max-w-2xl">
+              Hapus <strong>Cabang Demo (Showroom)</strong> beserta seluruh mekanik dummy, pelanggan demo, dan transaksi dummy bawaan. <strong>Cabang asli (Majalengka) dan data asli Anda tetap 100% aman dan utuh.</strong>
+            </p>
+          </div>
+        </div>
+        <Button
+          onClick={handleDeleteDemo}
+          loading={demoCleaning}
+          variant="outline"
+          className="shrink-0 bg-white border-amber-300 text-amber-900 hover:bg-amber-100/60 font-semibold text-xs self-start sm:self-auto"
+        >
+          {demoCleaning ? 'Menghapus Data Demo...' : 'Hapus Data Demo Sekarang'}
+        </Button>
       </div>
 
       {/* Cards Grid */}
