@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useTransition, useEffect } from 'react'
+import { useState, useMemo, useTransition, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
@@ -9,7 +9,21 @@ import CustomerAutocomplete from '@/components/ui/CustomerAutocomplete'
 import Badge from '@/components/ui/Badge'
 import { createTransaction, type TransactionPayload } from '@/actions/transaction'
 import { formatCurrency } from '@/lib/utils'
-import { Trash2, Search, ArrowLeft, Receipt, Wrench, Package, User, RotateCcw, Plus, Building2 } from 'lucide-react'
+import {
+  Trash2,
+  Search,
+  ArrowLeft,
+  Receipt,
+  Wrench,
+  Package,
+  User,
+  RotateCcw,
+  Plus,
+  Building2,
+  Zap,
+  Keyboard,
+  Check,
+} from 'lucide-react'
 import Link from 'next/link'
 
 const DRAFT_KEY = 'irian_motor_tx_draft'
@@ -132,12 +146,20 @@ export default function NewTransactionClient({
   const [error, setError] = useState<string | null>(null)
   const [manualJasaPrice, setManualJasaPrice] = useState<number | ''>('')
 
+  // Refs for POS Keyboard Shortcuts
+  const customerInputRef = useRef<HTMLInputElement>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+  const manualJasaInputRef = useRef<HTMLInputElement>(null)
+  const mechanicSelectRef = useRef<HTMLSelectElement>(null)
+  const discountInputRef = useRef<HTMLInputElement>(null)
+  const notesInputRef = useRef<HTMLInputElement>(null)
+  const odometerInputRef = useRef<HTMLInputElement>(null)
+
+  const [highlightedSearchIndex, setHighlightedSearchIndex] = useState(0)
+
   // Detect if selected customer is corporate
   const selectedCustomer = customers.find(c => c.id === customerId)
   const isSelectedCorporate = !!selectedCustomer?.corporateCustomerId
-
-  // Auto-set isCorporate when customer is corporate (use useMemo derived value instead of setState)
-  // Note: We skip the effect to avoid cascading renders — isCorporate is derived from isSelectedCorporate
 
   const catalog = useMemo(() => {
     const s: ItemData[] = services.map(s => ({ id: s.id, name: s.name, price: s.price, type: 'SERVICE' }))
@@ -159,11 +181,9 @@ export default function NewTransactionClient({
     const scored = catalog
       .map(item => {
         const name = `${item.name} ${item.etalase ?? ''}`.toLowerCase()
-        // Every token must match somewhere in the name
         const allMatch = tokens.every(t => name.includes(t))
         if (!allMatch) return null
         
-        // Score: bonus for starts-with match, bonus for exact substring of full query
         let score = 0
         if (name.startsWith(tokens[0])) score += 10
         if (name.includes(searchQuery.toLowerCase().trim())) score += 5
@@ -177,6 +197,10 @@ export default function NewTransactionClient({
     
     return scored.map(r => r.item)
   }, [searchQuery, catalog])
+
+  useEffect(() => {
+    setHighlightedSearchIndex(0)
+  }, [searchResults])
 
   // Computed Totals
   const subtotal = items.reduce((acc, curr) => acc + (curr.quantity * curr.unitPrice), 0)
@@ -210,6 +234,26 @@ export default function NewTransactionClient({
       }])
     }
     setSearchQuery('')
+    // Keep focus in search input for rapid consecutive item scanning/typing
+    searchInputRef.current?.focus()
+  }
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setHighlightedSearchIndex(prev => (prev + 1 < searchResults.length ? prev + 1 : prev))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setHighlightedSearchIndex(prev => (prev > 0 ? prev - 1 : 0))
+    } else if (e.key === 'Enter') {
+      e.preventDefault()
+      if (searchResults.length > 0 && searchResults[highlightedSearchIndex]) {
+        handleAddItem(searchResults[highlightedSearchIndex])
+      }
+    } else if (e.key === 'Escape') {
+      e.preventDefault()
+      setSearchQuery('')
+    }
   }
 
   const handleAddManualJasa = () => {
@@ -226,6 +270,7 @@ export default function NewTransactionClient({
       unitPrice: manualJasaPrice
     }])
     setManualJasaPrice('')
+    manualJasaInputRef.current?.focus()
   }
 
   const handleRemoveItem = (index: number) => {
@@ -251,6 +296,7 @@ export default function NewTransactionClient({
   const handleSubmit = async () => {
     if (items.length === 0) {
       setError('Pilih minimal satu item untuk transaksi.')
+      searchInputRef.current?.focus()
       return
     }
 
@@ -278,6 +324,57 @@ export default function NewTransactionClient({
     })
   }
 
+  // Global Keyboard Shortcuts (F1 - F9, Alt+1 - Alt+9, Ctrl+K, Ctrl+Enter, Escape)
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Pelanggan (F1 atau Alt+1)
+      if (e.key === 'F1' || (e.altKey && e.key === '1')) {
+        e.preventDefault()
+        customerInputRef.current?.focus()
+      } 
+      // Cari Item (F2, Alt+2, atau Ctrl+K)
+      else if (e.key === 'F2' || (e.altKey && e.key === '2') || ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K'))) {
+        e.preventDefault()
+        searchInputRef.current?.focus()
+        searchInputRef.current?.select()
+      } 
+      // Jasa Manual (F3 atau Alt+3)
+      else if (e.key === 'F3' || (e.altKey && e.key === '3')) {
+        e.preventDefault()
+        manualJasaInputRef.current?.focus()
+        manualJasaInputRef.current?.select()
+      } 
+      // Mekanik (F4 atau Alt+4)
+      else if (e.key === 'F4' || (e.altKey && e.key === '4')) {
+        e.preventDefault()
+        mechanicSelectRef.current?.focus()
+      } 
+      // Ganti Metode Pembayaran (F7 atau Alt+7)
+      else if (e.key === 'F7' || (e.altKey && e.key === '7')) {
+        e.preventDefault()
+        setPaymentMethod(prev => prev === 'CASH' ? 'QRIS' : prev === 'QRIS' ? 'TRANSFER' : 'CASH')
+      } 
+      // Diskon (F8 atau Alt+8)
+      else if (e.key === 'F8' || (e.altKey && e.key === '8')) {
+        e.preventDefault()
+        discountInputRef.current?.focus()
+        discountInputRef.current?.select()
+      } 
+      // Simpan Transaksi (F9, Alt+9, atau Ctrl+Enter)
+      else if (e.key === 'F9' || (e.altKey && e.key === '9') || ((e.ctrlKey || e.metaKey) && e.key === 'Enter')) {
+        e.preventDefault()
+        handleSubmit()
+      } 
+      // Escape untuk bersihkan pencarian
+      else if (e.key === 'Escape') {
+        setSearchQuery('')
+      }
+    }
+
+    window.addEventListener('keydown', handleGlobalKeyDown)
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown)
+  }, [items, subtotal, discount, paymentMethod, customerId, mechanicId, notes, odometer, isCorporate, isSelectedCorporate, txBranchId, basePath])
+
   return (
     <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6">
       <div className="flex items-center gap-3 sm:gap-4">
@@ -299,6 +396,42 @@ export default function NewTransactionClient({
         )}
       </div>
 
+      {/* Ribbon Pintasan Keyboard (Fast POS Mode) */}
+      <div className="bg-slate-900 text-white rounded-2xl p-3 sm:p-3.5 shadow-md border border-slate-800 flex flex-wrap items-center justify-between gap-2.5">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center">
+            <Zap className="w-4 h-4" />
+          </div>
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-200">
+            Pintasan Keyboard POS Cepat
+          </span>
+        </div>
+
+        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap text-[11px]">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-800 border border-slate-700 text-slate-300">
+            <kbd className="font-mono font-bold text-amber-400">F1 / Alt+1</kbd> Pelanggan
+          </span>
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-800 border border-slate-700 text-slate-300">
+            <kbd className="font-mono font-bold text-emerald-400">F2 / Alt+2 / Ctrl+K</kbd> Cari Item
+          </span>
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-800 border border-slate-700 text-slate-300">
+            <kbd className="font-mono font-bold text-sky-400">F3 / Alt+3</kbd> Jasa Manual
+          </span>
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-800 border border-slate-700 text-slate-300">
+            <kbd className="font-mono font-bold text-purple-400">F4 / Alt+4</kbd> Mekanik
+          </span>
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-800 border border-slate-700 text-slate-300">
+            <kbd className="font-mono font-bold text-pink-400">F7 / Alt+7</kbd> Metode Bayar
+          </span>
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-800 border border-slate-700 text-slate-300">
+            <kbd className="font-mono font-bold text-yellow-400">F8 / Alt+8</kbd> Diskon
+          </span>
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-950 border border-emerald-700 text-emerald-300 font-semibold">
+            <kbd className="font-mono font-bold text-emerald-300">F9 / Alt+9 / Ctrl+Enter</kbd> Simpan
+          </span>
+        </div>
+      </div>
+
       {/* Banner draft tersimpan */}
       {hasDraft && (
         <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
@@ -317,15 +450,22 @@ export default function NewTransactionClient({
         {/* Left Col: Items Selection */}
         <div className="lg:col-span-2 space-y-6">
           <div className="bg-white rounded-2xl border border-slate-200/80 p-6">
-            <h2 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
-              <Search className="w-5 h-5 text-primary-500" /> Cari Servis / Sparepart
-            </h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+                <Search className="w-5 h-5 text-primary-500" /> Cari Servis / Sparepart
+              </h2>
+              <span className="text-[10px] px-2 py-0.5 font-mono font-bold bg-primary-50 text-primary-700 border border-primary-200 rounded-md">
+                Tekan F2
+              </span>
+            </div>
             
             <div className="relative">
               <input
+                ref={searchInputRef}
                 type="text"
-                placeholder="Ketik nama barang atau jasa..."
+                placeholder="Ketik nama barang atau jasa... (Gunakan tombol Panah Atas/Bawah & Enter)"
                 value={searchQuery}
+                onKeyDown={handleSearchKeyDown}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-4 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none transition-all"
               />
@@ -334,34 +474,48 @@ export default function NewTransactionClient({
                 <div className="absolute z-10 top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-slate-200/80 overflow-hidden">
                   {searchResults.length > 0 ? (
                     <div className="divide-y divide-slate-50">
-                      {searchResults.map((item) => (
-                        <button
-                          key={item.id}
-                          onClick={() => handleAddItem(item)}
-                          className="w-full text-left px-4 py-3 hover:bg-slate-50 flex items-center justify-between group transition-colors"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                              item.type === 'SERVICE' ? 'bg-primary-50 text-primary-600' : 'bg-amber-50 text-amber-600'
-                            }`}>
-                              {item.type === 'SERVICE' ? <Wrench className="w-4 h-4" /> : <Package className="w-4 h-4" />}
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium text-slate-900 group-hover:text-primary-700 transition-colors">
-                                {item.name}
-                              </p>
-                              {item.type === 'SPAREPART' && (
-                                <p className={`text-xs ${item.stock === 0 ? 'text-red-500 font-semibold' : 'text-slate-400'}`}>
-                                  Stok: {item.stock} {item.etalase && <span className="ml-1 text-slate-500 font-medium">· Rak: {item.etalase}</span>}
+                      {searchResults.map((item, idx) => {
+                        const isHighlighted = idx === highlightedSearchIndex
+                        return (
+                          <button
+                            key={item.id}
+                            onClick={() => handleAddItem(item)}
+                            className={`w-full text-left px-4 py-3 flex items-center justify-between group transition-colors ${
+                              isHighlighted ? 'bg-primary-50 ring-1 ring-primary-400' : 'hover:bg-slate-50'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                                item.type === 'SERVICE' ? 'bg-primary-50 text-primary-600' : 'bg-amber-50 text-amber-600'
+                              }`}>
+                                {item.type === 'SERVICE' ? <Wrench className="w-4 h-4" /> : <Package className="w-4 h-4" />}
+                              </div>
+                              <div>
+                                <p className={`text-sm font-medium transition-colors ${
+                                  isHighlighted ? 'text-primary-900 font-bold' : 'text-slate-900 group-hover:text-primary-700'
+                                }`}>
+                                  {item.name}
                                 </p>
+                                {item.type === 'SPAREPART' && (
+                                  <p className={`text-xs ${item.stock === 0 ? 'text-red-500 font-semibold' : 'text-slate-400'}`}>
+                                    Stok: {item.stock} {item.etalase && <span className="ml-1 text-slate-500 font-medium">· Rak: {item.etalase}</span>}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-semibold text-slate-700">
+                                {formatCurrency(item.price)}
+                              </span>
+                              {isHighlighted && (
+                                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-primary-200 text-primary-800 font-bold">
+                                  Enter
+                                </span>
                               )}
                             </div>
-                          </div>
-                          <span className="text-sm font-semibold text-slate-700">
-                            {formatCurrency(item.price)}
-                          </span>
-                        </button>
-                      ))}
+                          </button>
+                        )
+                      })}
                     </div>
                   ) : (
                     <div className="p-4 text-center text-sm text-slate-500">
@@ -374,12 +528,27 @@ export default function NewTransactionClient({
 
             <div className="mt-6 pt-6 border-t border-slate-100 flex items-end gap-3">
               <div className="flex-1">
-                <Input
-                  label="Input Jasa Manual"
-                  placeholder="Contoh: 50000"
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-sm font-medium text-slate-700">
+                    Input Jasa Manual
+                  </label>
+                  <span className="text-[10px] px-2 py-0.5 font-mono font-bold bg-slate-100 text-slate-600 border border-slate-200 rounded-md">
+                    Tekan F3
+                  </span>
+                </div>
+                <input
+                  ref={manualJasaInputRef}
+                  placeholder="Nominal jasa (contoh: 50000)... lalu tekan Enter"
                   type="number"
                   value={manualJasaPrice === '' ? '' : manualJasaPrice}
                   onChange={(e) => setManualJasaPrice(e.target.value ? Number(e.target.value) : '')}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      handleAddManualJasa()
+                    }
+                  }}
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 hover:border-slate-300 focus:border-primary-500 focus:bg-white focus:ring-2 focus:ring-primary-500/20 outline-none transition-all"
                 />
               </div>
               <Button 
@@ -407,7 +576,7 @@ export default function NewTransactionClient({
                   <Package className="w-8 h-8 text-slate-300" />
                 </div>
                 <p className="text-slate-500 font-medium">Keranjang masih kosong</p>
-                <p className="text-sm text-slate-400 mt-1">Cari dan tambahkan item di atas</p>
+                <p className="text-sm text-slate-400 mt-1">Tekan <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300 rounded font-mono font-bold text-xs text-slate-700">F2</kbd> untuk cari dan tambahkan item</p>
               </div>
             ) : (
               <div className="divide-y divide-slate-50">
@@ -467,11 +636,17 @@ export default function NewTransactionClient({
         {/* Right Col: Checkout & Customer */}
         <div className="space-y-6">
           <div className="bg-white rounded-2xl border border-slate-200/80 p-6 space-y-4">
-            <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
-              <User className="w-5 h-5 text-primary-500" /> Informasi Pelanggan
-            </h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+                <User className="w-5 h-5 text-primary-500" /> Informasi Pelanggan
+              </h2>
+              <span className="text-[10px] px-2 py-0.5 font-mono font-bold bg-slate-100 text-slate-600 border border-slate-200 rounded-md">
+                Tekan F1
+              </span>
+            </div>
             
             <CustomerAutocomplete
+              inputRef={customerInputRef}
               initialCustomers={customers}
               selectedId={customerId}
               branchId={txBranchId}
@@ -508,6 +683,7 @@ export default function NewTransactionClient({
 
             {customerId && (
               <Input
+                ref={odometerInputRef}
                 id="odometer"
                 name="odometer"
                 label="Odometer / Jarak Tempuh (Km) Terbaru"
@@ -547,20 +723,35 @@ export default function NewTransactionClient({
               </div>
             )}
 
-            <Select
-              id="mechanic"
-              name="mechanic"
-              label="Mekanik Penanggung Jawab (Opsional)"
-              options={[
-                { label: 'Tidak ada / Hanya Beli Sparepart', value: '' },
-                ...mechanics.map(m => ({ label: m.name, value: m.id }))
-              ]}
-              value={mechanicId}
-              onChange={(e) => setMechanicId(e.target.value)}
-            />
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label htmlFor="mechanic" className="block text-sm font-medium text-slate-700">
+                  Mekanik Penanggung Jawab
+                </label>
+                <span className="text-[10px] px-2 py-0.5 font-mono font-bold bg-slate-100 text-slate-600 border border-slate-200 rounded-md">
+                  Tekan F4
+                </span>
+              </div>
+              <select
+                ref={mechanicSelectRef}
+                id="mechanic"
+                name="mechanic"
+                value={mechanicId}
+                onChange={(e) => setMechanicId(e.target.value)}
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 transition-all duration-200 appearance-none hover:border-slate-300 focus:border-primary-500 focus:bg-white focus:ring-2 focus:ring-primary-500/20 outline-none bg-[url('data:image/svg+xml;charset=UTF-8,%3csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2712%27%20height=%2712%27%20viewBox=%270%200%2012%2012%27%3e%3cpath%20fill=%27%2394a3b8%27%20d=%27M2%204l4%204%204-4%27/%3e%3c/svg%3e')] bg-[length:12px] bg-[right_16px_center] bg-no-repeat pr-10"
+              >
+                <option value="">Tidak ada / Hanya Beli Sparepart</option>
+                {mechanics.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name}
+                  </option>
+                ))}
+              </select>
+            </div>
             
             <div className="pt-2 border-t border-slate-100 mt-4 space-y-4">
               <Input
+                ref={notesInputRef}
                 id="notes"
                 name="notes"
                 label="Catatan Mekanik / Keluhan"
@@ -583,8 +774,14 @@ export default function NewTransactionClient({
               </div>
               
               <div className="flex items-center justify-between text-slate-400">
-                <span>Diskon (Rp)</span>
+                <div className="flex items-center gap-2">
+                  <span>Diskon (Rp)</span>
+                  <span className="text-[10px] px-1.5 py-0.2 font-mono font-bold bg-slate-800 text-yellow-400 border border-slate-700 rounded">
+                    F8
+                  </span>
+                </div>
                 <input
+                  ref={discountInputRef}
                   type="number"
                   min="0"
                   value={discount}
@@ -602,7 +799,12 @@ export default function NewTransactionClient({
             </div>
             
             <div className="space-y-2 mb-6">
-              <p className="text-xs text-slate-400 font-medium">Metode Pembayaran</p>
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-slate-400 font-medium">Metode Pembayaran</p>
+                <span className="text-[10px] px-1.5 py-0.2 font-mono font-bold bg-slate-800 text-pink-400 border border-slate-700 rounded">
+                  F7 Ganti
+                </span>
+              </div>
               <div className="grid grid-cols-3 gap-2">
                 {(['CASH', 'TRANSFER', 'QRIS'] as const).map(method => (
                   <button
@@ -621,12 +823,15 @@ export default function NewTransactionClient({
             </div>
 
             <Button
-              className="w-full py-4 text-base font-bold shadow-xl shadow-primary-900/50"
+              className="w-full py-4 text-base font-bold shadow-xl shadow-primary-900/50 flex items-center justify-center gap-2"
               onClick={handleSubmit}
               loading={isPending}
               disabled={items.length === 0}
             >
-              Simpan Transaksi
+              <span>Simpan Transaksi</span>
+              <span className="text-xs font-mono font-normal opacity-75 bg-primary-800 px-2 py-0.5 rounded border border-primary-400/30">
+                F9 / Ctrl+Enter
+              </span>
             </Button>
           </div>
         </div>

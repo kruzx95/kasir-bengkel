@@ -17,6 +17,7 @@ interface CustomerAutocompleteProps {
   initialCustomers: CustomerOption[]
   selectedId: string
   branchId?: string | null
+  inputRef?: React.RefObject<HTMLInputElement | null>
   onSelect: (customer: CustomerOption | null) => void
 }
 
@@ -24,12 +25,14 @@ export default function CustomerAutocomplete({
   initialCustomers,
   selectedId,
   branchId,
+  inputRef,
   onSelect,
 }: CustomerAutocompleteProps) {
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [options, setOptions] = useState<CustomerOption[]>(initialCustomers)
+  const [highlightIndex, setHighlightIndex] = useState(0)
   const containerRef = useRef<HTMLDivElement>(null)
 
   const selectedCustomer = options.find((c) => c.id === selectedId) || initialCustomers.find((c) => c.id === selectedId)
@@ -38,6 +41,7 @@ export default function CustomerAutocomplete({
   useEffect(() => {
     if (!query.trim()) {
       setOptions(initialCustomers)
+      setHighlightIndex(0)
       return
     }
 
@@ -46,6 +50,7 @@ export default function CustomerAutocomplete({
       try {
         const results = await searchCustomers(query, branchId)
         setOptions(results as CustomerOption[])
+        setHighlightIndex(0)
       } catch (err) {
         console.error('Customer search error:', err)
       } finally {
@@ -105,10 +110,34 @@ export default function CustomerAutocomplete({
         <div className="relative">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
+            ref={inputRef}
             type="text"
-            placeholder="Cari nama, plat nomor, atau no. HP..."
+            placeholder="Cari nama, plat nomor, atau no. HP... [F1]"
             value={query}
             onFocus={() => setOpen(true)}
+            onKeyDown={(e) => {
+              if (e.key === 'ArrowDown') {
+                e.preventDefault()
+                setOpen(true)
+                setHighlightIndex((prev) => (prev + 1 <= options.length ? prev + 1 : prev))
+              } else if (e.key === 'ArrowUp') {
+                e.preventDefault()
+                setHighlightIndex((prev) => (prev > 0 ? prev - 1 : 0))
+              } else if (e.key === 'Enter') {
+                e.preventDefault()
+                if (open) {
+                  if (highlightIndex === 0) {
+                    onSelect(null)
+                  } else if (options[highlightIndex - 1]) {
+                    onSelect(options[highlightIndex - 1])
+                  }
+                  setOpen(false)
+                  setQuery('')
+                }
+              } else if (e.key === 'Escape') {
+                setOpen(false)
+              }
+            }}
             onChange={(e) => {
               setQuery(e.target.value)
               setOpen(true)
@@ -127,37 +156,44 @@ export default function CustomerAutocomplete({
                   onSelect(null)
                   setOpen(false)
                 }}
-                className="w-full text-left px-4 py-2.5 hover:bg-slate-50 text-xs text-slate-500 font-medium flex items-center justify-between"
+                className={`w-full text-left px-4 py-2.5 text-xs font-medium flex items-center justify-between transition-colors ${
+                  highlightIndex === 0 ? 'bg-primary-50 text-primary-700 font-semibold' : 'hover:bg-slate-50 text-slate-500'
+                }`}
               >
                 <span>Pelanggan Umum (Tanpa Nama)</span>
                 {!selectedId && <Check className="w-3.5 h-3.5 text-primary-600" />}
               </button>
 
               {options.length > 0 ? (
-                options.map((cust) => (
-                  <button
-                    key={cust.id}
-                    type="button"
-                    onClick={() => {
-                      onSelect(cust)
-                      setOpen(false)
-                      setQuery('')
-                    }}
-                    className="w-full text-left px-4 py-2.5 hover:bg-primary-50/50 flex items-center justify-between group transition-colors"
-                  >
-                    <div>
-                      <p className="text-sm font-semibold text-slate-900 group-hover:text-primary-700">
-                        {cust.name}
-                      </p>
-                      <p className="text-xs text-slate-400">
-                        {cust.plateNumber ? `Plat: ${cust.plateNumber}` : ''}
-                        {cust.plateNumber && cust.phone ? ' · ' : ''}
-                        {cust.phone ? `HP: ${cust.phone}` : ''}
-                      </p>
-                    </div>
-                    {cust.id === selectedId && <Check className="w-4 h-4 text-primary-600 shrink-0" />}
-                  </button>
-                ))
+                options.map((cust, idx) => {
+                  const isHighlighted = highlightIndex === idx + 1
+                  return (
+                    <button
+                      key={cust.id}
+                      type="button"
+                      onClick={() => {
+                        onSelect(cust)
+                        setOpen(false)
+                        setQuery('')
+                      }}
+                      className={`w-full text-left px-4 py-2.5 flex items-center justify-between group transition-colors ${
+                        isHighlighted ? 'bg-primary-50 text-primary-900 font-semibold' : 'hover:bg-primary-50/50'
+                      }`}
+                    >
+                      <div>
+                        <p className={`text-sm ${isHighlighted ? 'text-primary-900 font-bold' : 'font-semibold text-slate-900'}`}>
+                          {cust.name}
+                        </p>
+                        <p className="text-xs text-slate-400">
+                          {cust.plateNumber ? `Plat: ${cust.plateNumber}` : ''}
+                          {cust.plateNumber && cust.phone ? ' · ' : ''}
+                          {cust.phone ? `HP: ${cust.phone}` : ''}
+                        </p>
+                      </div>
+                      {cust.id === selectedId && <Check className="w-4 h-4 text-primary-600 shrink-0" />}
+                    </button>
+                  )
+                })
               ) : (
                 <div className="p-3 text-center text-xs text-slate-400">
                   {query ? `Tidak ada pelanggan yang cocok dengan "${query}"` : 'Tidak ada data pelanggan'}
