@@ -202,6 +202,8 @@ async function main() {
     { name: 'Fajar Nugraha', phone: '081234567896', plateNumber: 'B 2345 PQR', vehicleBrand: 'Honda', vehicleType: 'PCX 160 ABS', vehicleYear: '2023', odometer: 8900 },
     { name: 'Kurir 01 (Armada PT Logistik)', phone: '081288990033', plateNumber: 'B 6789 STU', vehicleBrand: 'Honda', vehicleType: 'Revo Fit', vehicleYear: '2021', odometer: 45000, corporateCustomerId: createdCorporates['PT Logistik Cepat Aman'] },
     { name: 'Kurir 02 (Armada PT Logistik)', phone: '081288990034', plateNumber: 'B 1122 VWX', vehicleBrand: 'Honda', vehicleType: 'Supra X 125', vehicleYear: '2020', odometer: 52000, corporateCustomerId: createdCorporates['PT Logistik Cepat Aman'] },
+    { name: 'Hendra Wijaya', phone: '081234567897', plateNumber: 'B 4567 XYZ', vehicleBrand: 'Honda', vehicleType: 'Vario 125 CBS', vehicleYear: '2021', odometer: 28500 },
+    { name: 'Dewi Lestari', phone: '081234567898', plateNumber: 'B 8901 GHI', vehicleBrand: 'Yamaha', vehicleType: 'Mio M3 125', vehicleYear: '2020', odometer: 34000 },
   ]
   const createdCustomers: Record<string, string> = {}
   for (const c of customersData) {
@@ -372,6 +374,37 @@ async function main() {
       items: [
         { itemType: 'SPAREPART' as const, sparepartId: spOliMPX2?.id, itemName: spOliMPX2?.name || 'Oli Mesin MPX2', quantity: 2, unitPrice: 55000 },
         { itemType: 'SPAREPART' as const, sparepartId: spBusiNGK?.id, itemName: spBusiNGK?.name || 'Busi NGK', quantity: 2, unitPrice: 30000 },
+      ]
+    },
+    {
+      invoiceNumber: 'INV-DEMO-009',
+      date: daysAgo(95, 10, 0), // 3.1 bulan lalu
+      customerId: createdCustomers['B 4567 XYZ'],
+      mechanicId: mechBudi,
+      paymentMethod: 'CASH' as const,
+      status: 'COMPLETED' as const,
+      type: 'MIXED' as const,
+      odometer: 25000,
+      notes: 'Servis berkala Vario 125 (Uji Coba Reminder 3 Bulan)',
+      items: [
+        { itemType: 'SERVICE' as const, serviceId: srvRingan?.id, itemName: srvRingan?.name || 'Servis Ringan / Berkala', quantity: 1, unitPrice: 45000 },
+        { itemType: 'SPAREPART' as const, sparepartId: spOliMPX2?.id, itemName: spOliMPX2?.name || 'Oli Mesin MPX2', quantity: 1, unitPrice: 55000 },
+      ]
+    },
+    {
+      invoiceNumber: 'INV-DEMO-010',
+      date: daysAgo(130, 14, 30), // 4.3 bulan lalu
+      customerId: createdCustomers['B 8901 GHI'],
+      mechanicId: mechAsep,
+      paymentMethod: 'QRIS' as const,
+      status: 'COMPLETED' as const,
+      type: 'MIXED' as const,
+      odometer: 31000,
+      notes: 'Tune up & servis CVT Mio (Uji Coba Reminder 4 Bulan)',
+      items: [
+        { itemType: 'SERVICE' as const, serviceId: srvTuneUp?.id, itemName: srvTuneUp?.name || 'Tune Up Injeksi & Throttle Body', quantity: 1, unitPrice: 75000 },
+        { itemType: 'SERVICE' as const, serviceId: srvCVT?.id, itemName: srvCVT?.name || 'Servis CVT Lengkap & Roller', quantity: 1, unitPrice: 60000 },
+        { itemType: 'SPAREPART' as const, sparepartId: spOliGardan?.id, itemName: spOliGardan?.name || 'Oli Gardan', quantity: 1, unitPrice: 18000 },
       ]
     }
   ]
