@@ -7,10 +7,47 @@ import Select from '@/components/ui/Select'
 import Table from '@/components/ui/Table'
 import Badge from '@/components/ui/Badge'
 import { formatCurrency } from '@/lib/utils'
-import { getReportData, getRestockReportData, getIndentReportData, getCorporateReportData } from '@/actions/report'
-import { Download, Filter, Receipt, ShoppingCart, Printer, ClipboardList, Building2, Users } from 'lucide-react'
+import {
+  getReportData,
+  getRestockReportData,
+  getIndentReportData,
+  getCorporateReportData,
+  getMechanicReportData,
+} from '@/actions/report'
+import {
+  Download,
+  Filter,
+  Receipt,
+  ShoppingCart,
+  Printer,
+  ClipboardList,
+  Building2,
+  Users,
+  Wrench,
+  X,
+  Eye,
+} from 'lucide-react'
 
 import { exportProfessionalExcel } from '@/lib/exportExcel'
+
+interface MechanicReportRow {
+  id: string
+  name: string
+  phone: string | null
+  branchName: string
+  jobCount: number
+  serviceRevenue: number
+  sparepartRevenue: number
+  totalRevenue: number
+  transactions: Array<{
+    id: string
+    invoiceNumber: string
+    transactionDate: Date | string
+    total: number
+    customer: { name: string; plateNumber: string | null; vehicleType: string | null } | null
+    items: Array<{ itemName: string; itemType: string; quantity: number; unitPrice: number; subtotal: number }>
+  }>
+}
 
 interface CorporateLedgerRow {
   id: string
@@ -129,7 +166,7 @@ interface ReportClientProps {
 
 export default function ReportClient({ branches, initialData, initialSummary, shopName }: ReportClientProps) {
   const [isPending, startTransition] = useTransition()
-  const [activeTab, setActiveTab] = useState<'transaksi' | 'pembelian' | 'indent' | 'korporat'>('transaksi')
+  const [activeTab, setActiveTab] = useState<'transaksi' | 'pembelian' | 'indent' | 'korporat' | 'mekanik'>('transaksi')
 
   const formatLocalYYYYMMDD = (d: Date) => {
     const year = d.getFullYear()
@@ -187,6 +224,63 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
   const [corpPayments, setCorpPayments] = useState<CorporatePaymentRow[]>([])
   const [corpSummary, setCorpSummary] = useState({ totalInvoice: 0, totalPaid: 0, outstanding: 0, activeCompanies: 0 })
   const [corpLoaded, setCorpLoaded] = useState(false)
+
+  // Mekanik state
+  const [mechStartDate, setMechStartDate] = useState(firstDayStr)
+  const [mechEndDate, setMechEndDate] = useState(todayStr)
+  const [mechBranchId, setMechBranchId] = useState('')
+  const [mechData, setMechData] = useState<MechanicReportRow[]>([])
+  const [mechSummary, setMechSummary] = useState({
+    totalServiceRevenue: 0,
+    totalMotorHandled: 0,
+    activeMechanicsCount: 0,
+  })
+  const [mechLoaded, setMechLoaded] = useState(false)
+  const [selectedMechModal, setSelectedMechModal] = useState<MechanicReportRow | null>(null)
+
+  const handleMechFilter = () => {
+    startTransition(async () => {
+      const res = await getMechanicReportData(mechStartDate, mechEndDate, mechBranchId || undefined)
+      setMechData(res.mechanics as unknown as MechanicReportRow[])
+      setMechSummary(res.summary)
+      setMechLoaded(true)
+    })
+  }
+
+  const handleExportMechExcel = async () => {
+    const rows = mechData.map((m) => ({
+      namaMekanik: m.name,
+      noHp: m.phone || '-',
+      cabang: m.branchName,
+      jumlahMotor: m.jobCount,
+      omzetJasa: m.serviceRevenue,
+      omzetSparepart: m.sparepartRevenue,
+      totalOmzet: m.totalRevenue,
+    }))
+
+    await exportProfessionalExcel({
+      shopName: shopName,
+      title: 'LAPORAN KINERJA & KOMISI MEKANIK',
+      period: `${mechStartDate} s/d ${mechEndDate}`,
+      filename: `Laporan_Mekanik_${mechStartDate}_to_${mechEndDate}.xlsx`,
+      sheetName: 'Laporan Mekanik',
+      columns: [
+        { header: 'Nama Mekanik', key: 'namaMekanik', width: 24 },
+        { header: 'No. HP', key: 'noHp', width: 16 },
+        { header: 'Cabang', key: 'cabang', width: 18 },
+        { header: 'Motor Diservis', key: 'jumlahMotor', width: 15, align: 'right' },
+        { header: 'Omzet Jasa (Rp)', key: 'omzetJasa', width: 20, numFmt: '"Rp "#,##0', align: 'right' },
+        { header: 'Omzet Sparepart (Rp)', key: 'omzetSparepart', width: 22, numFmt: '"Rp "#,##0', align: 'right' },
+        { header: 'Total Omzet (Rp)', key: 'totalOmzet', width: 22, numFmt: '"Rp "#,##0', align: 'right' },
+      ],
+      rows,
+      summaries: [
+        { label: 'Jumlah Mekanik Aktif', value: mechSummary.activeMechanicsCount },
+        { label: 'Total Motor Diservis', value: mechSummary.totalMotorHandled },
+        { label: 'Total Omzet Jasa', value: mechSummary.totalServiceRevenue, currency: true },
+      ],
+    })
+  }
 
   const handleCorpFilter = () => {
     startTransition(async () => {
@@ -836,6 +930,77 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
     },
   ]
 
+  const mechanicColumns = [
+    {
+      key: 'name',
+      header: 'Nama Mekanik',
+      render: (row: MechanicReportRow) => (
+        <div>
+          <p className="font-bold text-slate-900">{row.name}</p>
+          <p className="text-xs text-slate-400">{row.phone || 'Tanpa No. HP'}</p>
+        </div>
+      ),
+    },
+    {
+      key: 'branch',
+      header: 'Cabang',
+      render: (row: MechanicReportRow) => (
+        <span className="text-xs text-slate-600 font-medium">{row.branchName}</span>
+      ),
+    },
+    {
+      key: 'jobCount',
+      header: 'Motor Diservis',
+      render: (row: MechanicReportRow) => (
+        <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-primary-50 text-primary-700 font-bold text-xs">
+          {row.jobCount} Motor
+        </span>
+      ),
+    },
+    {
+      key: 'serviceRevenue',
+      header: 'Omzet Jasa Servis',
+      render: (row: MechanicReportRow) => (
+        <span className="font-bold text-emerald-600">
+          {formatCurrency(row.serviceRevenue)}
+        </span>
+      ),
+    },
+    {
+      key: 'sparepartRevenue',
+      header: 'Penjualan Sparepart',
+      render: (row: MechanicReportRow) => (
+        <span className="text-xs text-slate-600">
+          {formatCurrency(row.sparepartRevenue)}
+        </span>
+      ),
+    },
+    {
+      key: 'totalRevenue',
+      header: 'Total Omzet',
+      render: (row: MechanicReportRow) => (
+        <span className="font-bold text-slate-900">
+          {formatCurrency(row.totalRevenue)}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      header: 'Aksi',
+      render: (row: MechanicReportRow) => (
+        <Button
+          size="sm"
+          variant="outline"
+          icon={Eye}
+          onClick={() => setSelectedMechModal(row)}
+          disabled={row.jobCount === 0}
+        >
+          Rincian ({row.jobCount})
+        </Button>
+      ),
+    },
+  ]
+
   return (
     <div className="space-y-8 print:space-y-0">
       {/* Tab Navigation */}
@@ -886,6 +1051,20 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
         >
           <Building2 className="w-4 h-4" />
           Piutang Korporat
+        </button>
+        <button
+          onClick={() => {
+            setActiveTab('mekanik')
+            if (!mechLoaded) handleMechFilter()
+          }}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            activeTab === 'mekanik'
+              ? 'bg-white text-slate-900 shadow-sm'
+              : 'text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          <Wrench className="w-4 h-4" />
+          Laporan Mekanik
         </button>
       </div>
 
@@ -1681,6 +1860,332 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
             </>
           )}
         </div>
+      )}
+
+      {/* ===== TAB: MEKANIK ===== */}
+      {activeTab === 'mekanik' && (
+        <>
+          <div className="print:hidden space-y-8">
+            {/* Filter Bar */}
+            <div className="flex flex-wrap items-end gap-3 bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm">
+              <div className="w-full md:w-auto">
+                <Input
+                  label="Dari Tanggal"
+                  type="date"
+                  value={mechStartDate}
+                  onChange={(e) => setMechStartDate(e.target.value)}
+                />
+              </div>
+              <div className="w-full md:w-auto">
+                <Input
+                  label="Sampai Tanggal"
+                  type="date"
+                  value={mechEndDate}
+                  onChange={(e) => setMechEndDate(e.target.value)}
+                />
+              </div>
+              {branches.length > 0 && (
+                <div className="w-full md:w-56">
+                  <Select
+                    label="Pilih Cabang"
+                    options={[
+                      { label: 'Semua Cabang', value: '' },
+                      ...branches.map((b) => ({ label: b.name, value: b.id })),
+                    ]}
+                    value={mechBranchId}
+                    onChange={(e) => setMechBranchId(e.target.value)}
+                  />
+                </div>
+              )}
+              <Button onClick={handleMechFilter} loading={isPending} icon={Filter}>
+                Filter
+              </Button>
+              <Button
+                onClick={() => window.print()}
+                variant="outline"
+                icon={Printer}
+                disabled={mechData.length === 0}
+              >
+                Cetak
+              </Button>
+              <Button
+                onClick={handleExportMechExcel}
+                variant="outline"
+                icon={Download}
+                disabled={mechData.length === 0}
+              >
+                Ekspor Excel
+              </Button>
+            </div>
+
+            {/* Stat Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
+                  Total Motor Diservis
+                </p>
+                <p className="text-2xl font-black text-slate-900">
+                  {mechSummary.totalMotorHandled} <span className="text-sm font-normal text-slate-400">Unit</span>
+                </p>
+              </div>
+              <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
+                  Total Omzet Jasa Mekanik
+                </p>
+                <p className="text-2xl font-bold text-emerald-600">
+                  {formatCurrency(mechSummary.totalServiceRevenue)}
+                </p>
+              </div>
+              <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
+                  Mekanik Aktif
+                </p>
+                <p className="text-2xl font-black text-slate-900">
+                  {mechSummary.activeMechanicsCount} <span className="text-sm font-normal text-slate-400">Orang</span>
+                </p>
+              </div>
+              <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
+                  Rata-rata Pekerjaan
+                </p>
+                <p className="text-2xl font-bold text-primary-600">
+                  {mechSummary.activeMechanicsCount > 0
+                    ? (mechSummary.totalMotorHandled / mechSummary.activeMechanicsCount).toFixed(1)
+                    : 0}{' '}
+                  <span className="text-sm font-normal text-slate-400">Motor / Mekanik</span>
+                </p>
+              </div>
+            </div>
+
+            {/* Table */}
+            <div className="bg-white rounded-2xl border border-slate-200/80 overflow-hidden shadow-sm">
+              <div className="p-4 sm:p-6 border-b border-slate-100 flex items-center justify-between">
+                <div>
+                  <h3 className="font-bold text-slate-900">Rekapitulasi Kinerja & Komisi Mekanik</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Periode: {new Date(mechStartDate).toLocaleDateString('id-ID')} s/d{' '}
+                    {new Date(mechEndDate).toLocaleDateString('id-ID')}
+                  </p>
+                </div>
+                <Badge variant="primary" size="md">
+                  {mechData.length} Mekanik
+                </Badge>
+              </div>
+              <Table
+                columns={mechanicColumns}
+                data={mechData}
+                keyExtractor={(row) => row.id}
+                emptyMessage="Tidak ada data mekanik pada periode ini."
+              />
+            </div>
+          </div>
+
+          {/* Modal Rincian Servis Mekanik */}
+          {selectedMechModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in print:hidden">
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-3xl w-full max-h-[85vh] flex flex-col overflow-hidden">
+                <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                  <div>
+                    <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
+                      <Wrench className="w-4 h-4 text-primary-600" />
+                      Riwayat Servis: {selectedMechModal.name}
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      {selectedMechModal.branchName} · Total {selectedMechModal.jobCount} Transaksi Motor
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setSelectedMechModal(null)}
+                    className="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 flex items-center justify-center transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="p-4 overflow-y-auto divide-y divide-slate-100">
+                  {selectedMechModal.transactions.map((tx) => (
+                    <div key={tx.id} className="py-3 first:pt-0 last:pb-0 space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono font-bold text-xs text-slate-900">{tx.invoiceNumber}</span>
+                          <span className="text-xs text-slate-400">·</span>
+                          <span className="text-xs text-slate-500">
+                            {new Date(tx.transactionDate).toLocaleDateString('id-ID')}
+                          </span>
+                        </div>
+                        <span className="font-bold text-sm text-slate-900">{formatCurrency(tx.total)}</span>
+                      </div>
+                      <p className="text-xs text-slate-600">
+                        👤 {tx.customer?.name || 'Pelanggan Umum'}{' '}
+                        {tx.customer?.plateNumber && (
+                          <span className="font-mono font-semibold text-slate-700 ml-1">
+                            [{tx.customer.plateNumber}]
+                          </span>
+                        )}
+                        {tx.customer?.vehicleType && (
+                          <span className="text-slate-400 ml-1">({tx.customer.vehicleType})</span>
+                        )}
+                      </p>
+                      <div className="bg-slate-50 rounded-lg p-2 text-xs space-y-1 text-slate-600">
+                        {tx.items.map((it, idx) => (
+                          <div key={idx} className="flex justify-between">
+                            <span>
+                              {it.itemType === 'SERVICE' ? '🛠️ [Jasa]' : '📦 [Part]'} {it.quantity}x {it.itemName}
+                            </span>
+                            <span className="font-medium text-slate-800">{formatCurrency(it.subtotal)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+                  <div className="text-xs text-slate-500">
+                    Total Omzet Jasa: <strong className="text-emerald-600">{formatCurrency(selectedMechModal.serviceRevenue)}</strong>
+                  </div>
+                  <Button variant="secondary" size="sm" onClick={() => setSelectedMechModal(null)}>
+                    Tutup
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Printable Layout untuk Mekanik */}
+          <div className="hidden print:block text-slate-900 bg-white text-[11px]">
+            <style
+              dangerouslySetInnerHTML={{
+                __html: `
+              @media print {
+                @page { size: A4 portrait; margin: 12mm; }
+                body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+              }
+            `,
+              }}
+            />
+
+            {/* Header Kop Surat */}
+            <div className="flex items-center justify-between border-b-2 border-slate-900 pb-3 mb-5">
+              <div>
+                <h1 className="text-xl font-black uppercase tracking-tight">{shopName}</h1>
+                <p className="text-[10px] text-slate-500">Rekapitulasi Kinerja & Komisi Mekanik</p>
+              </div>
+              <div className="text-right">
+                <h2 className="text-base font-bold uppercase tracking-wider text-slate-800">
+                  Laporan Kinerja Mekanik
+                </h2>
+                <p className="text-[10px] mt-0.5">
+                  Periode: {new Date(mechStartDate).toLocaleDateString('id-ID')} s/d{' '}
+                  {new Date(mechEndDate).toLocaleDateString('id-ID')}
+                </p>
+              </div>
+            </div>
+
+            {/* Ringkasan Stats */}
+            <div className="grid grid-cols-3 gap-2 mb-4 p-2 bg-slate-50 border border-slate-300 rounded text-center">
+              <div>
+                <p className="text-[9px] text-slate-500 uppercase font-semibold">Total Motor Diservis</p>
+                <p className="text-xs font-bold">{mechSummary.totalMotorHandled} Motor</p>
+              </div>
+              <div>
+                <p className="text-[9px] text-slate-500 uppercase font-semibold">Total Omzet Jasa Mekanik</p>
+                <p className="text-xs font-bold text-emerald-700">
+                  {formatCurrency(mechSummary.totalServiceRevenue)}
+                </p>
+              </div>
+              <div>
+                <p className="text-[9px] text-slate-500 uppercase font-semibold">Mekanik Aktif</p>
+                <p className="text-xs font-bold">{mechSummary.activeMechanicsCount} Orang</p>
+              </div>
+            </div>
+
+            <table className="w-full border-collapse border border-slate-300">
+              <thead>
+                <tr className="bg-slate-50">
+                  <th className="text-left py-1 px-1.5 border border-slate-300 font-bold uppercase text-[9px]">
+                    Nama Mekanik
+                  </th>
+                  <th className="text-left py-1 px-1.5 border border-slate-300 font-bold uppercase text-[9px]">
+                    Cabang
+                  </th>
+                  <th className="text-center py-1 px-1.5 border border-slate-300 font-bold uppercase text-[9px] w-24">
+                    Motor Diservis
+                  </th>
+                  <th className="text-right py-1 px-1.5 border border-slate-300 font-bold uppercase text-[9px] w-28">
+                    Omzet Jasa (Rp)
+                  </th>
+                  <th className="text-right py-1 px-1.5 border border-slate-300 font-bold uppercase text-[9px] w-28">
+                    Omzet Sparepart (Rp)
+                  </th>
+                  <th className="text-right py-1 px-1.5 border border-slate-300 font-bold uppercase text-[9px] w-28">
+                    Total Omzet (Rp)
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {mechData.map((m) => (
+                  <tr key={m.id}>
+                    <td className="py-1 px-1.5 border border-slate-300 font-bold text-[10px]">
+                      {m.name}
+                      {m.phone && <span className="block font-normal text-[9px] text-slate-500">{m.phone}</span>}
+                    </td>
+                    <td className="py-1 px-1.5 border border-slate-300 text-[10px]">{m.branchName}</td>
+                    <td className="py-1 px-1.5 border border-slate-300 text-center font-bold text-[10px]">
+                      {m.jobCount} Unit
+                    </td>
+                    <td className="py-1 px-1.5 border border-slate-300 text-right font-bold text-emerald-700 text-[10px]">
+                      {formatCurrency(m.serviceRevenue)}
+                    </td>
+                    <td className="py-1 px-1.5 border border-slate-300 text-right text-[10px]">
+                      {formatCurrency(m.sparepartRevenue)}
+                    </td>
+                    <td className="py-1 px-1.5 border border-slate-300 text-right font-bold text-[10px]">
+                      {formatCurrency(m.totalRevenue)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="bg-slate-50 font-bold">
+                  <td colSpan={2} className="text-right py-1.5 px-2 border border-slate-300 uppercase text-[10px]">
+                    Total Keseluruhan:
+                  </td>
+                  <td className="text-center py-1.5 px-2 border border-slate-300 text-[11px]">
+                    {mechSummary.totalMotorHandled} Motor
+                  </td>
+                  <td className="text-right py-1.5 px-2 border border-slate-300 text-[11px] text-emerald-700">
+                    {formatCurrency(mechSummary.totalServiceRevenue)}
+                  </td>
+                  <td className="text-right py-1.5 px-2 border border-slate-300 text-[11px]">
+                    {formatCurrency(
+                      mechData.reduce((acc, curr) => acc + curr.sparepartRevenue, 0)
+                    )}
+                  </td>
+                  <td className="text-right py-1.5 px-2 border border-slate-300 text-[11px]">
+                    {formatCurrency(
+                      mechData.reduce((acc, curr) => acc + curr.totalRevenue, 0)
+                    )}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+
+            {/* Signatures */}
+            <div className="mt-8 grid grid-cols-2 gap-8 text-center break-inside-avoid text-[10px]">
+              <div>
+                <p className="mb-12 font-medium text-slate-600">Dibuat Oleh,</p>
+                <div className="w-36 mx-auto border-b border-slate-900"></div>
+                <p className="mt-1 font-bold uppercase text-slate-800">Admin / Kasir</p>
+              </div>
+              <div>
+                <p className="mb-12 font-medium text-slate-600">Disetujui Oleh,</p>
+                <div className="w-36 mx-auto border-b border-slate-900"></div>
+                <p className="mt-1 font-bold uppercase text-slate-800">Kepala Bengkel / Pemilik</p>
+              </div>
+            </div>
+          </div>
+        </>
       )}
     </div>
   )

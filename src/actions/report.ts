@@ -453,3 +453,151 @@ export async function getCorporateReportData(
     }
   }
 }
+
+export async function getMechanicReportData(
+  startDateStr?: string,
+  endDateStr?: string,
+  branchId?: string,
+  mechanicId?: string
+) {
+  const session = await getSession()
+  if (!session) {
+    return {
+      mechanics: [],
+      summary: { totalServiceRevenue: 0, totalMotorHandled: 0, activeMechanicsCount: 0 },
+    }
+  }
+
+  const today = new Date()
+  const defaultStart = new Date(today.getFullYear(), today.getMonth(), 1)
+  const startDate = startDateStr ? new Date(startDateStr) : defaultStart
+  startDate.setHours(0, 0, 0, 0)
+  const endDate = endDateStr ? new Date(endDateStr) : new Date(today)
+  endDate.setHours(23, 59, 59, 999)
+
+  try {
+    const mechanicsList = await prisma.mechanic.findMany({
+      where: {
+        isActive: true,
+        ...getBranchFilter(session, branchId),
+        ...(mechanicId ? { id: mechanicId } : {}),
+      },
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        branch: { select: { name: true } },
+      },
+      orderBy: { name: 'asc' },
+    })
+
+    const transactions = await prisma.transaction.findMany({
+      where: {
+        ...getBranchFilter(session, branchId),
+        mechanicId: { in: mechanicsList.map((m) => m.id) },
+        transactionDate: { gte: startDate, lte: endDate },
+        status: { in: ['COMPLETED', 'PENDING_CORPORATE'] },
+      },
+      include: {
+        mechanic: { select: { id: true, name: true } },
+        branch: { select: { name: true } },
+        customer: { select: { name: true, plateNumber: true, vehicleType: true } },
+        items: {
+          select: {
+            itemName: true,
+            itemType: true,
+            quantity: true,
+            unitPrice: true,
+            subtotal: true,
+          },
+        },
+      },
+      orderBy: { transactionDate: 'desc' },
+    })
+
+    const mechanicSummaryMap: Record<
+      string,
+      {
+        id: string
+        name: string
+        phone: string | null
+        branchName: string
+        jobCount: number
+        serviceRevenue: number
+        sparepartRevenue: number
+        totalRevenue: number
+        transactions: Array<{
+          id: string
+          invoiceNumber: string
+          transactionDate: Date
+          total: number
+          customer: { name: string; plateNumber: string | null; vehicleType: string | null } | null
+          items: Array<{ itemName: string; itemType: string; quantity: number; unitPrice: number; subtotal: number }>
+        }>
+      }
+    > = {}
+
+    mechanicsList.forEach((m) => {
+      mechanicSummaryMap[m.id] = {
+        id: m.id,
+        name: m.name,
+        phone: m.phone,
+        branchName: m.branch.name,
+        jobCount: 0,
+        serviceRevenue: 0,
+        sparepartRevenue: 0,
+        totalRevenue: 0,
+        transactions: [],
+      }
+    })
+
+    let grandServiceRevenue = 0
+    let grandTotalJobs = 0
+
+    transactions.forEach((tx) => {
+      if (tx.mechanicId && mechanicSummaryMap[tx.mechanicId]) {
+        const m = mechanicSummaryMap[tx.mechanicId]
+        m.jobCount += 1
+        m.transactions.push({
+          id: tx.id,
+          invoiceNumber: tx.invoiceNumber,
+          transactionDate: tx.transactionDate,
+          total: tx.total,
+          customer: tx.customer,
+          items: tx.items,
+        })
+        grandTotalJobs += 1
+
+        let srvTotal = 0
+        let spTotal = 0
+        tx.items.forEach((item) => {
+          if (item.itemType === 'SERVICE') srvTotal += item.subtotal
+          if (item.itemType === 'SPAREPART') spTotal += item.subtotal
+        })
+
+        m.serviceRevenue += srvTotal
+        m.sparepartRevenue += spTotal
+        m.totalRevenue += tx.total
+        grandServiceRevenue += srvTotal
+      }
+    })
+
+    const mechanicReports = Object.values(mechanicSummaryMap)
+
+    return {
+      mechanics: mechanicReports,
+      summary: {
+        totalServiceRevenue: grandServiceRevenue,
+        totalMotorHandled: grandTotalJobs,
+        activeMechanicsCount: mechanicsList.length,
+      },
+    }
+  } catch (error) {
+    console.error('getMechanicReportData error:', error)
+    return {
+      mechanics: [],
+      summary: { totalServiceRevenue: 0, totalMotorHandled: 0, activeMechanicsCount: 0 },
+    }
+  }
+}
+
