@@ -14,9 +14,16 @@ interface ReminderClientProps {
   branches: { id: string; name: string }[]
   defaultMonths: number
   shopName: string
+  waTemplate?: string
 }
 
-export default function ReminderClient({ initialData, branches, defaultMonths, shopName }: ReminderClientProps) {
+export default function ReminderClient({
+  initialData,
+  branches,
+  defaultMonths,
+  shopName,
+  waTemplate,
+}: ReminderClientProps) {
   const [data, setData] = useState(initialData)
   const [months, setMonths] = useState(defaultMonths)
   const [branchId, setBranchId] = useState('')
@@ -48,11 +55,26 @@ export default function ReminderClient({ initialData, branches, defaultMonths, s
     if (phone.startsWith('0')) phone = '62' + phone.substring(1)
     if (!phone) return '#'
 
-    const dateStr = new Date(row.lastServiceDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
-    const vehicle = [row.vehicleBrand, row.vehicleType, row.plateNumber ? `(${row.plateNumber})` : ''].filter(Boolean).join(' ')
-    
-    const text = `Halo Bapak/Ibu ${row.name},\n\nKami dari *${shopName}* ingin mengingatkan bahwa kendaraan kesayangan Anda ${vehicle} sudah waktunya untuk diservis rutin/ganti oli, karena sudah mencapai ${months} bulan sejak servis terakhir pada tanggal ${dateStr}.\n\nDitunggu kedatangannya di bengkel kami ya! 🙏`
-    
+    const dateStr = new Date(row.lastServiceDate).toLocaleDateString('id-ID', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    })
+    const vehicle = [row.vehicleBrand, row.vehicleType].filter(Boolean).join(' ') || 'Motor'
+    const plate = row.plateNumber || 'Tanpa Plat'
+
+    const templateToUse =
+      waTemplate ||
+      `Halo Bapak/Ibu {nama_pelanggan},\n\nKami dari *{nama_toko}* ingin mengingatkan bahwa kendaraan kesayangan Anda {kendaraan} ({plat_nomor}) sudah waktunya untuk diservis rutin / ganti oli, karena sudah {bulan_telat} bulan sejak servis terakhir pada {tanggal_servis}.\n\nDitunggu kedatangannya di bengkel kami ya! 🙏`
+
+    const text = templateToUse
+      .replaceAll('{nama_pelanggan}', row.name)
+      .replaceAll('{nama_toko}', shopName)
+      .replaceAll('{kendaraan}', vehicle)
+      .replaceAll('{plat_nomor}', plate)
+      .replaceAll('{tanggal_servis}', dateStr)
+      .replaceAll('{bulan_telat}', String(months))
+
     return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`
   }
 

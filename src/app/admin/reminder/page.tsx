@@ -2,7 +2,7 @@ import Header from '@/components/layout/Header'
 import ReminderClient from './ReminderClient'
 import { getCustomersDueForService } from '@/actions/reminder'
 import { getBranches } from '@/actions/branch'
-import { getShopName } from '@/actions/settings'
+import { getShopName, getWaReminderTemplate } from '@/actions/settings'
 import { getSession } from '@/lib/session'
 import { redirect } from 'next/navigation'
 import type { Metadata } from 'next'
@@ -17,10 +17,11 @@ export default async function ReminderPage() {
 
   // Default to 3 months
   const defaultMonths = 3
-  const [initialData, branches, shopName] = await Promise.all([
+  const [initialData, branches, shopName, waTemplate] = await Promise.all([
     getCustomersDueForService(defaultMonths),
     getBranches(),
     getShopName(),
+    getWaReminderTemplate(),
   ])
 
   return (
@@ -30,7 +31,13 @@ export default async function ReminderPage() {
         subtitle="Follow-up pelanggan yang sudah waktunya servis berkala"
       />
       <div className="p-4 sm:p-6 animate-fade-in">
-        <ReminderClient initialData={initialData} branches={branches} defaultMonths={defaultMonths} shopName={shopName} />
+        <ReminderClient
+          initialData={initialData}
+          branches={branches}
+          defaultMonths={defaultMonths}
+          shopName={shopName}
+          waTemplate={waTemplate}
+        />
       </div>
     </>
   )
