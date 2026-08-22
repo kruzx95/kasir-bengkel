@@ -4,7 +4,7 @@ import { createContext, useContext, useState, useCallback, useEffect } from 'rea
 import Sidebar from '@/components/layout/Sidebar'
 import DemoBanner from '@/components/layout/DemoBanner'
 import { getNotifications } from '@/actions/notification'
-import type { NotificationItem } from '@/actions/notification'
+import type { NotificationItem, NotificationSummary } from '@/actions/notification'
 import { NotificationProvider } from './NotificationContext'
 
 interface SidebarContextType {
@@ -29,9 +29,10 @@ interface DashboardShellProps {
 export default function DashboardShell({ role, userName, branchName, shopName, isDemo, children }: DashboardShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-  const [notificationData, setNotificationData] = useState<{ items: NotificationItem[]; count: number }>({
+  const [notificationData, setNotificationData] = useState<{ items: NotificationItem[]; count: number; summary: NotificationSummary }>({
     items: [],
-    count: 0
+    count: 0,
+    summary: { lowStock: 0, indentOverdue: 0, corporatePending: 0 }
   })
   const openSidebar = useCallback(() => setSidebarOpen(true), [])
 

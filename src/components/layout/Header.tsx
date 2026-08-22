@@ -4,22 +4,12 @@ import MobileMenuButton from './MobileMenuButton'
 import NotificationPanel from './NotificationPanel'
 import { useNotifications } from './NotificationContext'
 import { useSidebar } from './DashboardShell'
+import type { NotificationResponse } from '@/actions/notification'
 
 interface HeaderProps {
   title: string
   subtitle?: string
-  notificationData?: {
-    items: Array<{
-      id: string
-      type: 'LOW_STOCK' | 'INDENT_OVERDUE' | 'CORPORATE_PENDING'
-      title: string
-      message: string
-      href: string
-      severity: 'warning' | 'danger' | 'info'
-      date?: string | Date
-    }>
-    count: number
-  }
+  notificationData?: NotificationResponse
 }
 
 /**
