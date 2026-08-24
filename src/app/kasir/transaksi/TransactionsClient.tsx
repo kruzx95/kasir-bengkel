@@ -97,12 +97,18 @@ export default function TransactionsClient({ initialTransactions }: Transactions
     },
     {
       key: 'type',
-      header: 'Tipe',
+      header: 'Tipe & Status',
       render: (row: TransactionRow) => (
         <div className="flex flex-col gap-1 items-start">
           {getTypeBadge(row.type)}
           {row.status === 'CANCELLED' && (
             <span className="text-[10px] font-bold text-red-500 bg-red-50 px-1.5 py-0.5 rounded uppercase">Dibatalkan</span>
+          )}
+          {row.status === 'PENDING_CORPORATE' && (
+            <span className="text-[10px] font-bold text-violet-600 bg-violet-50 px-1.5 py-0.5 rounded uppercase">Korporat</span>
+          )}
+          {row.status === 'PENDING_PAYMENT' && (
+            <span className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded uppercase">Belum Lunas</span>
           )}
         </div>
       ),
@@ -111,15 +117,29 @@ export default function TransactionsClient({ initialTransactions }: Transactions
       key: 'total',
       header: 'Total',
       render: (row: TransactionRow) => (
-        <span className={`text-sm font-semibold ${row.status === 'CANCELLED' ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
-          {formatCurrency(row.total)}
-        </span>
+        <div className="flex flex-col">
+          <span className={`text-sm font-semibold ${row.status === 'CANCELLED' ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
+            {formatCurrency(row.total)}
+          </span>
+          {row.status === 'PENDING_PAYMENT' && (
+            <span className="text-[10px] text-amber-600 font-medium">
+              Sisa: {formatCurrency(Math.max(0, row.total - (row.paidAmount || 0)))}
+            </span>
+          )}
+        </div>
       ),
     },
     {
       key: 'payment',
       header: 'Pembayaran',
       render: (row: TransactionRow) => {
+        if (row.status === 'PENDING_PAYMENT' || row.paymentMethod === 'DEBT') {
+          return (
+            <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 bg-amber-50 text-amber-800 border border-amber-200 rounded-md">
+              Hutang / DP
+            </span>
+          )
+        }
         if (row.paymentMethod === 'SPLIT' || (row.payments && row.payments.length > 1)) {
           const summaryText = row.payments && row.payments.length > 0
             ? row.payments.map(p => p.paymentMethod === 'CASH' ? 'Tunai' : p.paymentMethod === 'TRANSFER' ? 'Trf' : 'QRIS').join('+')

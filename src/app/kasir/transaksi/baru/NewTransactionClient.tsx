@@ -27,6 +27,8 @@ import {
   QrCode,
   Layers,
   AlertCircle,
+  Clock,
+  Handshake,
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -37,12 +39,14 @@ interface DraftState {
   isCorporate: boolean
   items: TransactionPayload['items']
   discount: number
-  paymentMethod: 'CASH' | 'TRANSFER' | 'QRIS' | 'SPLIT'
+  paymentMethod: 'CASH' | 'TRANSFER' | 'QRIS' | 'SPLIT' | 'DEBT'
   cashGiven: number | ''
   splitCash: number | ''
   splitTransfer: number | ''
   splitQris: number | ''
   splitCashGiven: number | ''
+  debtDpAmount: number | ''
+  debtDpMethod: 'CASH' | 'TRANSFER' | 'QRIS'
   mechanicId: string
   notes: string
   odometer: number | ''
@@ -59,6 +63,8 @@ const defaultDraft: DraftState = {
   splitTransfer: '',
   splitQris: '',
   splitCashGiven: '',
+  debtDpAmount: '',
+  debtDpMethod: 'CASH',
   mechanicId: '',
   notes: '',
   odometer: '',
@@ -123,12 +129,14 @@ export default function NewTransactionClient({
   const [isCorporate, setIsCorporate] = useState<boolean>(() => loadDraft().isCorporate)
   const [items, setItems] = useState<TransactionPayload['items']>(() => loadDraft().items)
   const [discount, setDiscount] = useState<number>(() => loadDraft().discount)
-  const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'TRANSFER' | 'QRIS' | 'SPLIT'>(() => loadDraft().paymentMethod)
+  const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'TRANSFER' | 'QRIS' | 'SPLIT' | 'DEBT'>(() => loadDraft().paymentMethod || 'CASH')
   const [cashGiven, setCashGiven] = useState<number | ''>(() => loadDraft().cashGiven ?? '')
   const [splitCash, setSplitCash] = useState<number | ''>(() => loadDraft().splitCash ?? '')
   const [splitTransfer, setSplitTransfer] = useState<number | ''>(() => loadDraft().splitTransfer ?? '')
   const [splitQris, setSplitQris] = useState<number | ''>(() => loadDraft().splitQris ?? '')
   const [splitCashGiven, setSplitCashGiven] = useState<number | ''>(() => loadDraft().splitCashGiven ?? '')
+  const [debtDpAmount, setDebtDpAmount] = useState<number | ''>(() => loadDraft().debtDpAmount ?? '')
+  const [debtDpMethod, setDebtDpMethod] = useState<'CASH' | 'TRANSFER' | 'QRIS'>(() => loadDraft().debtDpMethod ?? 'CASH')
   const [mechanicId, setMechanicId] = useState<string>(() => loadDraft().mechanicId)
   const [notes, setNotes] = useState<string>(() => loadDraft().notes)
   const [odometer, setOdometer] = useState<number | ''>(() => loadDraft().odometer)
@@ -152,13 +160,15 @@ export default function NewTransactionClient({
       splitTransfer,
       splitQris,
       splitCashGiven,
+      debtDpAmount,
+      debtDpMethod,
       mechanicId,
       notes,
       odometer
     }
     saveDraft(draft)
     startTransition(() => setHasDraft(items.length > 0))
-  }, [customerId, isCorporate, items, discount, paymentMethod, cashGiven, splitCash, splitTransfer, splitQris, splitCashGiven, mechanicId, notes, odometer])
+  }, [customerId, isCorporate, items, discount, paymentMethod, cashGiven, splitCash, splitTransfer, splitQris, splitCashGiven, debtDpAmount, debtDpMethod, mechanicId, notes, odometer])
 
   const handleResetDraft = () => {
     if (!confirm('Hapus semua item dan mulai transaksi baru?')) return
@@ -173,6 +183,8 @@ export default function NewTransactionClient({
     setSplitTransfer('')
     setSplitQris('')
     setSplitCashGiven('')
+    setDebtDpAmount('')
+    setDebtDpMethod('CASH')
     setMechanicId('')
     setNotes('')
     setOdometer('')
@@ -411,6 +423,22 @@ export default function NewTransactionClient({
       if (isActualCorporate) {
         paidAmountPayload = 0
         changeAmountPayload = 0
+      } else if (paymentMethod === 'DEBT') {
+        if (!customerId || customerId.trim() === '') {
+          setError('Pelanggan wajib dipilih atau didaftarkan terlebih dahulu untuk transaksi piutang / hutang.')
+          customerInputRef.current?.focus()
+          return
+        }
+        const dp = typeof debtDpAmount === 'number' ? Math.max(0, debtDpAmount) : 0
+        if (dp > total) {
+          setError(`Nominal DP (Rp ${dp.toLocaleString('id-ID')}) tidak boleh melebihi total tagihan (Rp ${total.toLocaleString('id-ID')}).`)
+          return
+        }
+        paidAmountPayload = dp
+        changeAmountPayload = 0
+        if (dp > 0) {
+          paymentsPayload = [{ paymentMethod: debtDpMethod, amount: dp }]
+        }
       } else if (paymentMethod === 'SPLIT') {
         paymentsPayload = [
           { paymentMethod: 'CASH' as const, amount: splitCashNum },
@@ -439,6 +467,8 @@ export default function NewTransactionClient({
         notes: notes || null,
         odometer: odometer === '' ? null : odometer,
         isCorporate: isActualCorporate,
+        isDebt: paymentMethod === 'DEBT' && !isActualCorporate,
+        dpPaymentMethod: debtDpMethod,
         branchId: txBranchId || null,
       }
       
@@ -497,6 +527,7 @@ export default function NewTransactionClient({
           if (prev === 'CASH') return 'TRANSFER'
           if (prev === 'TRANSFER') return 'QRIS'
           if (prev === 'QRIS') return 'SPLIT'
+          if (prev === 'SPLIT') return 'DEBT'
           return 'CASH'
         })
       } 
@@ -1141,13 +1172,14 @@ export default function NewTransactionClient({
                   F7 Ganti
                 </span>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 sm:gap-2">
                 {(
                   [
                     { key: 'CASH', label: 'Tunai', icon: Banknote },
                     { key: 'TRANSFER', label: 'Transfer', icon: CreditCard },
                     { key: 'QRIS', label: 'QRIS', icon: QrCode },
                     { key: 'SPLIT', label: 'Split / Mix', icon: Layers },
+                    { key: 'DEBT', label: 'Hutang / DP', icon: Clock },
                   ] as const
                 ).map(({ key, label, icon: Icon }) => (
                   <button
@@ -1156,7 +1188,7 @@ export default function NewTransactionClient({
                     onClick={() => setPaymentMethod(key)}
                     className={`py-2 px-1 text-xs font-bold rounded-xl transition-all border flex flex-col items-center justify-center gap-1 ${
                       paymentMethod === key 
-                        ? 'bg-primary-600 border-primary-500 text-white shadow-lg shadow-primary-900/50' 
+                        ? (key === 'DEBT' ? 'bg-amber-600 border-amber-500 text-white shadow-lg shadow-amber-900/50' : 'bg-primary-600 border-primary-500 text-white shadow-lg shadow-primary-900/50')
                         : 'bg-slate-800/80 border-slate-700/80 text-slate-400 hover:bg-slate-700 hover:text-slate-200'
                     }`}
                   >
@@ -1234,6 +1266,121 @@ export default function NewTransactionClient({
                   <p className="text-base font-bold text-primary-400 mt-0.5">
                     {formatCurrency(total)}
                   </p>
+                </div>
+              )}
+
+              {/* Mode HUTANG / PIUTANG (Belum Lunas / DP) */}
+              {paymentMethod === 'DEBT' && !isCorporate && (
+                <div className="mt-3 space-y-3 bg-amber-950/30 p-3.5 rounded-2xl border border-amber-800/60">
+                  <div className="flex items-center justify-between pb-2 border-b border-amber-800/40">
+                    <span className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 text-amber-400" />
+                      Transaksi Piutang / Hutang
+                    </span>
+                    <span className="text-[10px] text-amber-400/90 font-medium">
+                      Status: Belum Lunas
+                    </span>
+                  </div>
+
+                  {/* Customer Status Warning / Confirmation */}
+                  {!customerId ? (
+                    <div className="p-2.5 bg-red-950/50 border border-red-800/80 rounded-xl text-xs text-red-300 flex items-start gap-2">
+                      <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                      <div>
+                        <strong className="block font-semibold">Pelanggan Wajib Dipilih!</strong>
+                        <span>Silakan pilih atau daftarkan nama pelanggan di form atas agar piutang tercatat.</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-2 bg-emerald-950/40 border border-emerald-800/50 rounded-xl text-xs text-emerald-300 flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                      <span>Piutang atas nama <strong>{selectedCustomer?.name}</strong></span>
+                    </div>
+                  )}
+
+                  {/* DP / Uang Muka Input */}
+                  <div className="space-y-1.5 pt-1">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs text-slate-300 font-medium">Uang Muka / DP Awal (Rp)</label>
+                      <button
+                        type="button"
+                        onClick={() => setDebtDpAmount('')}
+                        className="text-[10px] font-semibold text-slate-400 hover:text-slate-200"
+                      >
+                        Tanpa DP (Rp 0)
+                      </button>
+                    </div>
+                    <input
+                      type="number"
+                      min="0"
+                      max={total}
+                      placeholder="0 (Jika tidak ada uang muka)"
+                      value={debtDpAmount}
+                      onChange={(e) => setDebtDpAmount(e.target.value === '' ? '' : Number(e.target.value))}
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-sm font-bold text-white focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none transition-all"
+                    />
+
+                    {/* Quick DP Presets */}
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {[
+                        { label: 'Rp 0 (Hutang Penuh)', val: 0 },
+                        { label: 'DP 25%', val: Math.round(total * 0.25) },
+                        { label: 'DP 50%', val: Math.round(total * 0.5) },
+                      ].map((preset) => (
+                        <button
+                          key={preset.label}
+                          type="button"
+                          onClick={() => setDebtDpAmount(preset.val === 0 ? '' : preset.val)}
+                          className="text-[10px] font-medium bg-slate-800 hover:bg-slate-700 border border-slate-700 px-2 py-1 rounded-md text-slate-300 transition-colors"
+                        >
+                          {preset.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Metode Pembayaran DP jika DP > 0 */}
+                  {Number(debtDpAmount) > 0 && (
+                    <div className="space-y-1.5 pt-1">
+                      <label className="text-xs text-slate-300 font-medium">Metode Pembayaran DP</label>
+                      <div className="grid grid-cols-3 gap-1.5">
+                        {(['CASH', 'TRANSFER', 'QRIS'] as const).map((m) => (
+                          <button
+                            key={m}
+                            type="button"
+                            onClick={() => setDebtDpMethod(m)}
+                            className={`py-1.5 text-xs font-semibold rounded-lg border transition-all ${
+                              debtDpMethod === m
+                                ? 'bg-amber-600 border-amber-500 text-white shadow-xs'
+                                : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-slate-200'
+                            }`}
+                          >
+                            {m === 'CASH' ? 'Tunai' : m === 'TRANSFER' ? 'Transfer' : 'QRIS'}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Sisa Piutang Calculation Box */}
+                  <div className="p-3 bg-slate-900/90 rounded-xl border border-slate-800 space-y-1.5">
+                    <div className="flex justify-between text-xs text-slate-400">
+                      <span>Total Tagihan:</span>
+                      <span className="font-semibold text-slate-200">{formatCurrency(total)}</span>
+                    </div>
+                    <div className="flex justify-between text-xs text-slate-400">
+                      <span>Uang Muka (DP):</span>
+                      <span className="font-semibold text-emerald-400">
+                        {formatCurrency(Number(debtDpAmount) || 0)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-xs font-bold pt-1.5 border-t border-slate-800">
+                      <span className="text-amber-300">Sisa Piutang (Kurang Bayar):</span>
+                      <span className="text-amber-400 text-sm font-black">
+                        {formatCurrency(Math.max(0, total - (Number(debtDpAmount) || 0)))}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               )}
 

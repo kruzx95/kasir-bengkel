@@ -17,6 +17,7 @@ const transactionItemSchema = z.object({
 const paymentItemSchema = z.object({
   paymentMethod: z.enum(['CASH', 'TRANSFER', 'QRIS']),
   amount: z.number().min(0),
+  notes: z.string().optional().nullable(),
 })
 
 const transactionSchema = z.object({
@@ -24,12 +25,14 @@ const transactionSchema = z.object({
   mechanicId: z.string().optional().nullable(),
   items: z.array(transactionItemSchema).min(1, 'Pilih minimal satu item'),
   discount: z.number().min(0).default(0),
-  paymentMethod: z.enum(['CASH', 'TRANSFER', 'QRIS', 'SPLIT']).default('CASH'),
+  paymentMethod: z.enum(['CASH', 'TRANSFER', 'QRIS', 'SPLIT', 'DEBT']).default('CASH'),
   payments: z.array(paymentItemSchema).optional(),
   paidAmount: z.number().min(0).optional().default(0),
   changeAmount: z.number().min(0).optional().default(0),
   notes: z.string().optional().nullable(),
   isCorporate: z.boolean().optional().default(false),
+  isDebt: z.boolean().optional().default(false),
+  dpPaymentMethod: z.enum(['CASH', 'TRANSFER', 'QRIS']).optional().default('CASH'),
   odometer: z.number().int().min(0).optional().nullable(),
   branchId: z.string().optional().nullable(),
 })
@@ -110,16 +113,44 @@ export async function createTransaction(payload: TransactionPayload): Promise<Tr
       if (!hasService && hasSparepart) type = 'SPAREPART'
 
       // Prepare payments to record
-      let paymentsToCreate: Array<{ paymentMethod: 'CASH' | 'TRANSFER' | 'QRIS'; amount: number }> = []
+      let paymentsToCreate: Array<{ paymentMethod: 'CASH' | 'TRANSFER' | 'QRIS'; amount: number; notes?: string }> = []
       let effectivePaidAmount = total
       let effectiveChangeAmount = 0
+      let transactionStatus: 'COMPLETED' | 'PENDING_CORPORATE' | 'PENDING_PAYMENT' = 'COMPLETED'
 
       if (data.isCorporate) {
+        transactionStatus = 'PENDING_CORPORATE'
         effectivePaidAmount = 0
         effectiveChangeAmount = 0
+      } else if (data.isDebt || data.paymentMethod === 'DEBT') {
+        // Regular Customer Receivable (Hutang / Piutang)
+        if (!data.customerId || data.customerId.trim() === '') {
+          throw new Error('Pelanggan wajib dipilih atau didaftarkan terlebih dahulu untuk transaksi piutang/hutang.')
+        }
+
+        const dp = Math.max(0, data.paidAmount || 0)
+        if (dp >= total) {
+          transactionStatus = 'COMPLETED'
+          effectivePaidAmount = total
+          effectiveChangeAmount = dp > total ? dp - total : 0
+          const dpMethod = data.dpPaymentMethod || 'CASH'
+          paymentsToCreate = [{ paymentMethod: dpMethod, amount: total, notes: 'Pelunasan Transaksi' }]
+        } else {
+          transactionStatus = 'PENDING_PAYMENT'
+          effectivePaidAmount = dp
+          effectiveChangeAmount = 0
+          if (dp > 0) {
+            const dpMethod = data.dpPaymentMethod || 'CASH'
+            paymentsToCreate = [{ paymentMethod: dpMethod, amount: dp, notes: 'Uang Muka (DP) Transaksi' }]
+          }
+        }
       } else if (data.paymentMethod === 'SPLIT') {
         const rawPayments = data.payments || []
-        paymentsToCreate = rawPayments.filter(p => p.amount > 0)
+        paymentsToCreate = rawPayments.filter(p => p.amount > 0).map(p => ({
+          paymentMethod: p.paymentMethod,
+          amount: p.amount,
+          notes: 'Pembayaran Split',
+        }))
         
         const totalPaidInSplit = paymentsToCreate.reduce((sum, p) => sum + p.amount, 0)
         if (totalPaidInSplit < total) {
@@ -131,7 +162,7 @@ export async function createTransaction(payload: TransactionPayload): Promise<Tr
       } else {
         // Single payment method
         const singleMethod = data.paymentMethod as 'CASH' | 'TRANSFER' | 'QRIS'
-        paymentsToCreate = [{ paymentMethod: singleMethod, amount: total }]
+        paymentsToCreate = [{ paymentMethod: singleMethod, amount: total, notes: 'Pembayaran Transaksi' }]
         
         if (singleMethod === 'CASH') {
           effectivePaidAmount = data.paidAmount && data.paidAmount >= total ? data.paidAmount : total
@@ -192,13 +223,13 @@ export async function createTransaction(payload: TransactionPayload): Promise<Tr
           mechanicId: data.mechanicId || null,
           invoiceNumber,
           type,
-          status: data.isCorporate ? 'PENDING_CORPORATE' : 'COMPLETED',
+          status: transactionStatus,
           subtotal,
           discount: data.discount,
           total,
           paidAmount: effectivePaidAmount,
           changeAmount: effectiveChangeAmount,
-          paymentMethod: data.paymentMethod,
+          paymentMethod: (data.isDebt || data.paymentMethod === 'DEBT') ? 'DEBT' : data.paymentMethod,
           notes: data.notes,
           odometer: data.odometer ?? null,
           transactionDate: new Date(),
@@ -213,10 +244,11 @@ export async function createTransaction(payload: TransactionPayload): Promise<Tr
               subtotal: item.quantity * item.unitPrice,
             }))
           },
-          payments: data.isCorporate ? undefined : {
+          payments: data.isCorporate || paymentsToCreate.length === 0 ? undefined : {
             create: paymentsToCreate.map(p => ({
               paymentMethod: p.paymentMethod,
               amount: p.amount,
+              notes: p.notes,
             }))
           }
         },
@@ -460,7 +492,10 @@ export async function getTransactionDetails(id: string) {
             id: true,
             paymentMethod: true,
             amount: true,
-          }
+            notes: true,
+            createdAt: true,
+          },
+          orderBy: { createdAt: 'asc' },
         },
         notes: true,
         transactionDate: true,
@@ -599,5 +634,127 @@ export async function cancelTransaction(id: string) {
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Gagal membatalkan transaksi.'
     return { success: false, message }
+  }
+}
+
+export async function payTransactionReceivable(
+  transactionId: string,
+  amount: number,
+  paymentMethod: 'CASH' | 'TRANSFER' | 'QRIS',
+  notes?: string
+): Promise<{ success: boolean; message: string }> {
+  try {
+    const session = await getSession()
+    if (!session) {
+      return { success: false, message: 'Unauthorized: Silakan login terlebih dahulu.' }
+    }
+
+    if (isDemoUser(session)) {
+      return {
+        success: false,
+        message: 'Mode Demo Aktif: Pembayaran piutang dinonaktifkan.',
+      }
+    }
+
+    if (!amount || amount <= 0) {
+      return { success: false, message: 'Nominal pembayaran harus lebih dari Rp 0.' }
+    }
+
+    const txRecord = await prisma.transaction.findUnique({
+      where: { id: transactionId },
+      include: {
+        customer: true,
+        branch: true,
+      },
+    })
+
+    if (!txRecord) {
+      return { success: false, message: 'Transaksi tidak ditemukan.' }
+    }
+
+    if (txRecord.status === 'CANCELLED') {
+      return { success: false, message: 'Transaksi ini telah dibatalkan.' }
+    }
+
+    if (txRecord.status === 'COMPLETED') {
+      return { success: false, message: 'Transaksi ini sudah lunas.' }
+    }
+
+    const remainingDebt = Math.max(0, txRecord.total - txRecord.paidAmount)
+    if (remainingDebt <= 0) {
+      return { success: false, message: 'Transaksi ini tidak memiliki sisa piutang.' }
+    }
+
+    if (amount > remainingDebt) {
+      return {
+        success: false,
+        message: `Nominal pembayaran (Rp ${amount.toLocaleString('id-ID')}) melebihi sisa piutang (Rp ${remainingDebt.toLocaleString('id-ID')}).`,
+      }
+    }
+
+    const newPaidAmount = txRecord.paidAmount + amount
+    const isNowCompleted = newPaidAmount >= txRecord.total
+
+    await prisma.$transaction(async (tx) => {
+      // 1. Create TransactionPayment record
+      await tx.transactionPayment.create({
+        data: {
+          transactionId,
+          paymentMethod,
+          amount,
+          notes: notes || (isNowCompleted ? 'Pelunasan Piutang' : 'Cicilan Piutang'),
+        },
+      })
+
+      // 2. Update Transaction
+      await tx.transaction.update({
+        where: { id: transactionId },
+        data: {
+          paidAmount: newPaidAmount,
+          status: isNowCompleted ? 'COMPLETED' : 'PENDING_PAYMENT',
+        },
+      })
+
+      // 3. Log Activity
+      createActivityLog({
+        action: 'TRANSACTION_PAYMENT',
+        category: 'TRANSACTION',
+        level: 'INFO',
+        description: `Pembayaran piutang ${txRecord.invoiceNumber} senilai Rp ${amount.toLocaleString('id-ID')} (${paymentMethod}) oleh ${session.name}`,
+        details: {
+          invoiceNumber: txRecord.invoiceNumber,
+          amount,
+          paymentMethod,
+          isCompleted: isNowCompleted,
+          customerName: txRecord.customer?.name,
+        },
+        branchId: txRecord.branchId,
+        userId: session.userId,
+        userName: session.name,
+        userRole: session.role,
+      })
+    })
+
+    revalidatePath('/kasir/transaksi')
+    revalidatePath('/admin/transaksi')
+    revalidatePath(`/kasir/transaksi/${transactionId}`)
+    revalidatePath(`/admin/transaksi/${transactionId}`)
+    revalidatePath('/kasir/pelanggan')
+    revalidatePath('/admin/pelanggan')
+    revalidatePath('/kasir/laporan')
+    revalidatePath('/admin/laporan')
+
+    return {
+      success: true,
+      message: isNowCompleted
+        ? `Pembayaran Rp ${amount.toLocaleString('id-ID')} berhasil. Transaksi ${txRecord.invoiceNumber} kini LUNAS!`
+        : `Pembayaran Rp ${amount.toLocaleString('id-ID')} berhasil dicatat. Sisa piutang: Rp ${(remainingDebt - amount).toLocaleString('id-ID')}.`,
+    }
+  } catch (error) {
+    console.error('Error payTransactionReceivable:', error)
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Terjadi kesalahan sistem saat memproses pembayaran.',
+    }
   }
 }

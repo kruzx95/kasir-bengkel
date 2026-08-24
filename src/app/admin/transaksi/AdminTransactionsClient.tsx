@@ -196,17 +196,31 @@ export default function AdminTransactionsClient({ initialData, initialDate, bran
                           <span className="text-[10px] font-bold text-red-500 bg-red-50 px-1.5 py-0.5 rounded uppercase">Dibatalkan</span>
                         )}
                         {tx.status === 'PENDING_CORPORATE' && (
-                          <span className="text-[10px] font-bold text-violet-500 bg-violet-50 px-1.5 py-0.5 rounded uppercase">Korporat</span>
+                          <span className="text-[10px] font-bold text-violet-600 bg-violet-50 px-1.5 py-0.5 rounded uppercase">Korporat</span>
+                        )}
+                        {tx.status === 'PENDING_PAYMENT' && (
+                          <span className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded uppercase">Belum Lunas</span>
                         )}
                       </div>
                     </td>
                     <td className="p-4">
-                      <span className={`text-sm font-bold ${tx.status === 'CANCELLED' ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
-                        {formatCurrency(tx.total)}
-                      </span>
+                      <div className="flex flex-col">
+                        <span className={`text-sm font-bold ${tx.status === 'CANCELLED' ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
+                          {formatCurrency(tx.total)}
+                        </span>
+                        {tx.status === 'PENDING_PAYMENT' && (
+                          <span className="text-[10px] text-amber-600 font-medium">
+                            Sisa: {formatCurrency(Math.max(0, tx.total - (tx.paidAmount || 0)))}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="p-4">
-                      {tx.paymentMethod === 'SPLIT' || (tx.payments && tx.payments.length > 1) ? (
+                      {tx.status === 'PENDING_PAYMENT' || tx.paymentMethod === 'DEBT' ? (
+                        <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 bg-amber-50 text-amber-800 border border-amber-200 rounded-md">
+                          Hutang / DP
+                        </span>
+                      ) : tx.paymentMethod === 'SPLIT' || (tx.payments && tx.payments.length > 1) ? (
                         <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 bg-violet-50 text-violet-700 border border-violet-200 rounded-md">
                           SPLIT ({tx.payments && tx.payments.length > 0 ? tx.payments.map(p => p.paymentMethod === 'CASH' ? 'Tunai' : p.paymentMethod === 'TRANSFER' ? 'Trf' : 'QRIS').join('+') : 'Mix'})
                         </span>

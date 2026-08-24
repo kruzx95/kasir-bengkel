@@ -13,6 +13,7 @@ import {
   getIndentReportData,
   getCorporateReportData,
   getMechanicReportData,
+  getProfitLossReportData,
 } from '@/actions/report'
 import {
   Download,
@@ -29,9 +30,16 @@ import {
   Banknote,
   CreditCard,
   QrCode,
+  TrendingUp,
+  Coins,
+  Scale,
+  ArrowUpRight,
+  ArrowDownRight,
+  PackageCheck,
+  Percent,
 } from 'lucide-react'
 
-import { exportProfessionalExcel } from '@/lib/exportExcel'
+import { exportProfessionalExcel, exportProfitLossExcel } from '@/lib/exportExcel'
 
 interface MechanicReportRow {
   id: string
@@ -163,6 +171,61 @@ interface IndentOrderRow {
   items: IndentOrderItem[]
 }
 
+interface ProfitLossTxRow {
+  id: string
+  invoiceNumber: string
+  transactionDate: string | Date
+  createdAt: string | Date
+  type: string
+  status: string
+  paymentMethod: string
+  subtotal: number
+  discount: number
+  total: number
+  paidAmount: number
+  changeAmount: number
+  branchName: string
+  cashierName: string
+  customerName: string
+  plateNumber: string | null
+  corporateName: string | null
+  serviceRevenue: number
+  sparepartRevenue: number
+  sparepartHpp: number
+  grossProfit: number
+  grossMarginPercent: number
+  items: Array<{
+    id: string
+    itemName: string
+    itemType: string
+    quantity: number
+    unitPrice: number
+    subtotal: number
+    buyPrice: number
+    hppSubtotal: number
+    profit: number
+  }>
+  payments: Array<{
+    paymentMethod: string
+    amount: number
+    notes: string | null
+  }>
+}
+
+interface ProfitLossSparepartRow {
+  id: string
+  name: string
+  sku: string | null
+  brand: string | null
+  soldQty: number
+  avgBuyPrice: number
+  avgSellPrice: number
+  totalRevenue: number
+  totalHpp: number
+  totalProfit: number
+  marginPercent: number
+}
+
 interface ReportClientProps {
   branches: { id: string; name: string }[]
   initialData: TransactionRow[]
@@ -181,7 +244,7 @@ interface ReportClientProps {
 
 export default function ReportClient({ branches, initialData, initialSummary, shopName }: ReportClientProps) {
   const [isPending, startTransition] = useTransition()
-  const [activeTab, setActiveTab] = useState<'transaksi' | 'pembelian' | 'indent' | 'korporat' | 'mekanik'>('transaksi')
+  const [activeTab, setActiveTab] = useState<'transaksi' | 'pembelian' | 'indent' | 'korporat' | 'mekanik' | 'labarugi'>('transaksi')
 
   const formatLocalYYYYMMDD = (d: Date) => {
     const year = d.getFullYear()
@@ -252,6 +315,82 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
   })
   const [mechLoaded, setMechLoaded] = useState(false)
   const [selectedMechModal, setSelectedMechModal] = useState<MechanicReportRow | null>(null)
+
+  // Laba Rugi (Profit & Loss) state
+  const [plStartDate, setPlStartDate] = useState(firstDayStr)
+  const [plEndDate, setPlEndDate] = useState(todayStr)
+  const [plBranchId, setPlBranchId] = useState('')
+  const [plSubTab, setPlSubTab] = useState<'statement' | 'transaksi' | 'sparepart'>('statement')
+  const [plData, setPlData] = useState<ProfitLossTxRow[]>([])
+  const [plSpData, setPlSpData] = useState<ProfitLossSparepartRow[]>([])
+  const [plSummary, setPlSummary] = useState({
+    serviceRevenue: 0,
+    sparepartRevenue: 0,
+    grossRevenue: 0,
+    discount: 0,
+    netRevenue: 0,
+    cogsSparepart: 0,
+    grossProfit: 0,
+    grossMarginPercent: 0,
+    serviceProfit: 0,
+    sparepartProfit: 0,
+    sparepartMarginPercent: 0,
+    cashInflow: 0,
+    transferInflow: 0,
+    qrisInflow: 0,
+    corporatePaymentsInflow: 0,
+    totalCashInflow: 0,
+    totalRestock: 0,
+    restockPaid: 0,
+    restockUnpaid: 0,
+    netCashFlow: 0,
+    regularReceivable: 0,
+    corporateReceivable: 0,
+    totalReceivable: 0,
+    totalTransactions: 0,
+    totalRestockCount: 0,
+  })
+  const [plLoaded, setPlLoaded] = useState(false)
+  const [plSearchQuery, setPlSearchQuery] = useState('')
+  const [plSpSearchQuery, setPlSpSearchQuery] = useState('')
+  const [selectedPlTxModal, setSelectedPlTxModal] = useState<ProfitLossTxRow | null>(null)
+
+  const handleProfitLossFilter = () => {
+    startTransition(async () => {
+      const res = await getProfitLossReportData(plStartDate, plEndDate, plBranchId || undefined)
+      setPlData(res.transactions as unknown as ProfitLossTxRow[])
+      setPlSpData(res.sparepartProfitability as unknown as ProfitLossSparepartRow[])
+      setPlSummary(res.summary)
+      setPlLoaded(true)
+    })
+  }
+
+  const handleExportProfitLossExcel = async () => {
+    const activeBranchName = branches.find((b) => b.id === plBranchId)?.name || 'Semua Cabang'
+    await exportProfitLossExcel({
+      shopName: shopName,
+      branchName: activeBranchName,
+      period: `${plStartDate} s/d ${plEndDate}`,
+      filename: `Laporan_Laba_Rugi_${plStartDate}_to_${plEndDate}.xlsx`,
+      summary: plSummary,
+      transactions: plData.map((tx) => ({
+        invoiceNumber: tx.invoiceNumber,
+        transactionDate: tx.transactionDate,
+        branchName: tx.branchName,
+        customerName: tx.customerName,
+        serviceRevenue: tx.serviceRevenue,
+        sparepartRevenue: tx.sparepartRevenue,
+        sparepartHpp: tx.sparepartHpp,
+        discount: tx.discount,
+        total: tx.total,
+        grossProfit: tx.grossProfit,
+        grossMarginPercent: tx.grossMarginPercent,
+        status: tx.status,
+        paymentMethod: tx.paymentMethod,
+      })),
+      sparepartProfitability: plSpData,
+    })
+  }
 
   const handleMechFilter = () => {
     startTransition(async () => {
@@ -1127,6 +1266,20 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
         >
           <Wrench className="w-4 h-4" />
           Laporan Mekanik
+        </button>
+        <button
+          onClick={() => {
+            setActiveTab('labarugi')
+            if (!plLoaded) handleProfitLossFilter()
+          }}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            activeTab === 'labarugi'
+              ? 'bg-white text-emerald-800 font-bold shadow-sm'
+              : 'text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          <TrendingUp className="w-4 h-4 text-emerald-600" />
+          Laba Rugi & Arus Kas
         </button>
       </div>
 
@@ -2289,6 +2442,729 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
                 <p className="mb-12 font-medium text-slate-600">Dibuat Oleh,</p>
                 <div className="w-36 mx-auto border-b border-slate-900"></div>
                 <p className="mt-1 font-bold uppercase text-slate-800">Admin / Kasir</p>
+              </div>
+              <div>
+                <p className="mb-12 font-medium text-slate-600">Disetujui Oleh,</p>
+                <div className="w-36 mx-auto border-b border-slate-900"></div>
+                <p className="mt-1 font-bold uppercase text-slate-800">Kepala Bengkel / Pemilik</p>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ===== TAB: LABA RUGI & ARUS KAS ===== */}
+      {activeTab === 'labarugi' && (
+        <>
+          {/* Filter Bar (Screen only) */}
+          <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-sm print:hidden space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-end gap-3 flex-wrap">
+              <div className="w-full sm:w-40">
+                <Input
+                  id="pl-start-date"
+                  name="pl-start-date"
+                  label="Dari Tanggal"
+                  type="date"
+                  value={plStartDate}
+                  onChange={(e) => setPlStartDate(e.target.value)}
+                />
+              </div>
+              <div className="w-full sm:w-40">
+                <Input
+                  id="pl-end-date"
+                  name="pl-end-date"
+                  label="Sampai Tanggal"
+                  type="date"
+                  value={plEndDate}
+                  onChange={(e) => setPlEndDate(e.target.value)}
+                />
+              </div>
+
+              {branches.length > 0 && (
+                <div className="w-full sm:w-48">
+                  <Select
+                    id="pl-branch"
+                    name="pl-branch"
+                    label="Cabang"
+                    value={plBranchId}
+                    onChange={(e) => setPlBranchId(e.target.value)}
+                    options={[
+                      { value: '', label: 'Semua Cabang' },
+                      ...branches.map((b) => ({ value: b.id, label: b.name })),
+                    ]}
+                  />
+                </div>
+              )}
+
+              <div className="flex items-center gap-2">
+                <Button onClick={handleProfitLossFilter} loading={isPending} icon={Filter}>
+                  Filter
+                </Button>
+                <Button
+                  variant="outline"
+                  icon={Download}
+                  onClick={handleExportProfitLossExcel}
+                  loading={isPending}
+                >
+                  Ekspor Excel
+                </Button>
+                <Button
+                  variant="outline"
+                  icon={Printer}
+                  onClick={() => window.print()}
+                >
+                  Cetak Laporan
+                </Button>
+              </div>
+            </div>
+
+            {/* Quick Date Presets */}
+            <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-slate-100 text-xs">
+              <span className="text-slate-400 font-medium mr-1">Preset Cepat:</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setPlStartDate(todayStr)
+                  setPlEndDate(todayStr)
+                }}
+                className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors"
+              >
+                Hari Ini
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setPlStartDate(firstDayStr)
+                  setPlEndDate(todayStr)
+                }}
+                className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors"
+              >
+                Bulan Ini
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const prevM = new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1)
+                  const endPrevM = new Date(new Date().getFullYear(), new Date().getMonth(), 0)
+                  setPlStartDate(formatLocalYYYYMMDD(prevM))
+                  setPlEndDate(formatLocalYYYYMMDD(endPrevM))
+                }}
+                className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors"
+              >
+                Bulan Lalu
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const startY = new Date(new Date().getFullYear(), 0, 1)
+                  setPlStartDate(formatLocalYYYYMMDD(startY))
+                  setPlEndDate(todayStr)
+                }}
+                className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors"
+              >
+                Tahun Ini
+              </button>
+            </div>
+          </div>
+
+          {/* Screen Content */}
+          <div className="print:hidden space-y-6">
+            {/* KPI Summary Cards (6 Cards) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+              {/* 1. Total Pendapatan Bersih */}
+              <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    Total Pendapatan Bersih
+                  </span>
+                  <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                    <Coins className="w-4 h-4" />
+                  </div>
+                </div>
+                <p className="text-xl sm:text-2xl font-black text-slate-900">
+                  {formatCurrency(plSummary.netRevenue)}
+                </p>
+                <div className="text-[11px] text-slate-500 flex justify-between pt-1 border-t border-slate-100">
+                  <span>Jasa: <strong className="text-slate-700">{formatCurrency(plSummary.serviceRevenue)}</strong></span>
+                  <span>Part: <strong className="text-slate-700">{formatCurrency(plSummary.sparepartRevenue)}</strong></span>
+                </div>
+              </div>
+
+              {/* 2. Total HPP Sparepart (Modal) */}
+              <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    HPP Sparepart Terjual
+                  </span>
+                  <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+                    <ShoppingCart className="w-4 h-4" />
+                  </div>
+                </div>
+                <p className="text-xl sm:text-2xl font-black text-amber-700">
+                  {formatCurrency(plSummary.cogsSparepart)}
+                </p>
+                <p className="text-[11px] text-slate-500 pt-1 border-t border-slate-100">
+                  Modal harga beli suku cadang yang telah laku terjual
+                </p>
+              </div>
+
+              {/* 3. Laba Kotor (Gross Profit) */}
+              <div className="bg-gradient-to-br from-emerald-900 to-slate-900 text-white p-4 sm:p-5 rounded-2xl shadow-sm space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-emerald-300 uppercase tracking-wider">
+                    Laba Kotor (Gross Profit)
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                    Margin {plSummary.grossMarginPercent.toFixed(1)}%
+                  </span>
+                </div>
+                <p className="text-2xl sm:text-3xl font-black text-emerald-400">
+                  {formatCurrency(plSummary.grossProfit)}
+                </p>
+                <div className="text-[11px] text-emerald-200/80 flex justify-between pt-1 border-t border-emerald-800/60">
+                  <span>Laba Jasa: <strong>{formatCurrency(plSummary.serviceProfit)}</strong></span>
+                  <span>Laba Part: <strong>{formatCurrency(plSummary.sparepartProfit)}</strong></span>
+                </div>
+              </div>
+
+              {/* 4. Modal Belanja Stok Supplier */}
+              <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    Belanja Stok Supplier (PO)
+                  </span>
+                  <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center">
+                    <PackageCheck className="w-4 h-4" />
+                  </div>
+                </div>
+                <p className="text-xl sm:text-2xl font-black text-slate-800">
+                  {formatCurrency(plSummary.totalRestock)}
+                </p>
+                <div className="text-[11px] text-slate-500 flex justify-between pt-1 border-t border-slate-100">
+                  <span>Dibayar: <strong className="text-emerald-700">{formatCurrency(plSummary.restockPaid)}</strong></span>
+                  <span>Hutang: <strong className="text-red-600">{formatCurrency(plSummary.restockUnpaid)}</strong></span>
+                </div>
+              </div>
+
+              {/* 5. Arus Kas Bersih (Net Cash Flow) */}
+              <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    Arus Kas Bersih (Net Cash)
+                  </span>
+                  <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                    <Scale className="w-4 h-4" />
+                  </div>
+                </div>
+                <p className={`text-xl sm:text-2xl font-black ${plSummary.netCashFlow >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                  {formatCurrency(plSummary.netCashFlow)}
+                </p>
+                <div className="text-[11px] text-slate-500 flex justify-between pt-1 border-t border-slate-100">
+                  <span>Kas Masuk: <strong className="text-blue-700">{formatCurrency(plSummary.totalCashInflow)}</strong></span>
+                  <span>Kas Keluar: <strong className="text-slate-700">{formatCurrency(plSummary.restockPaid)}</strong></span>
+                </div>
+              </div>
+
+              {/* 6. Total Piutang Berjalan */}
+              <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    Piutang Belum Tertagih
+                  </span>
+                  <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
+                    <Building2 className="w-4 h-4" />
+                  </div>
+                </div>
+                <p className="text-xl sm:text-2xl font-black text-purple-700">
+                  {formatCurrency(plSummary.totalReceivable)}
+                </p>
+                <div className="text-[11px] text-slate-500 flex justify-between pt-1 border-t border-slate-100">
+                  <span>Reguler: <strong className="text-amber-700">{formatCurrency(plSummary.regularReceivable)}</strong></span>
+                  <span>Korporat: <strong className="text-purple-700">{formatCurrency(plSummary.corporateReceivable)}</strong></span>
+                </div>
+              </div>
+            </div>
+
+            {/* Sub-Tab Navigation */}
+            <div className="flex gap-2 border-b border-slate-200 pb-2">
+              <button
+                type="button"
+                onClick={() => setPlSubTab('statement')}
+                className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${
+                  plSubTab === 'statement'
+                    ? 'bg-slate-900 text-white shadow-xs'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                📊 Laporan Laba Rugi Formal (P&L)
+              </button>
+              <button
+                type="button"
+                onClick={() => setPlSubTab('transaksi')}
+                className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${
+                  plSubTab === 'transaksi'
+                    ? 'bg-slate-900 text-white shadow-xs'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                🧾 Rincian Laba per Transaksi ({plData.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setPlSubTab('sparepart')}
+                className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${
+                  plSubTab === 'sparepart'
+                    ? 'bg-slate-900 text-white shadow-xs'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                📦 Profitabilitas Produk Sparepart ({plSpData.length})
+              </button>
+            </div>
+
+            {/* SUB-TAB 1: STATEMENT (FORMAT P&L AKUNTANSI) */}
+            {plSubTab === 'statement' && (
+              <div className="bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-8 shadow-xs space-y-6">
+                <div className="border-b border-slate-200 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900">Laporan Laba Rugi & Arus Kas Operasional</h3>
+                    <p className="text-xs text-slate-500">
+                      Periode: {new Date(plStartDate).toLocaleDateString('id-ID', { dateStyle: 'long' })} s/d {new Date(plEndDate).toLocaleDateString('id-ID', { dateStyle: 'long' })}
+                    </p>
+                  </div>
+                  <span className="text-xs font-mono font-semibold bg-emerald-50 text-emerald-700 px-3 py-1 rounded-lg border border-emerald-200">
+                    Gross Margin: {plSummary.grossMarginPercent.toFixed(1)}%
+                  </span>
+                </div>
+
+                <div className="space-y-6 text-sm">
+                  {/* Bagian 1: Pendapatan Penjualan */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center py-2 px-3 bg-slate-100 rounded-lg font-bold text-slate-800 text-xs uppercase tracking-wider">
+                      <span>1. Pendapatan Penjualan (Revenue / Inflow)</span>
+                      <span>Nominal (Rp)</span>
+                    </div>
+                    <div className="pl-4 pr-3 space-y-1.5 text-slate-600">
+                      <div className="flex justify-between py-1 border-b border-slate-100">
+                        <span>• Pendapatan Jasa Servis (Margin 100%)</span>
+                        <span className="font-semibold text-slate-800">{formatCurrency(plSummary.serviceRevenue)}</span>
+                      </div>
+                      <div className="flex justify-between py-1 border-b border-slate-100">
+                        <span>• Pendapatan Penjualan Sparepart (Harga Jual)</span>
+                        <span className="font-semibold text-slate-800">{formatCurrency(plSummary.sparepartRevenue)}</span>
+                      </div>
+                      <div className="flex justify-between py-1.5 font-bold text-slate-900">
+                        <span>Total Omset Penjualan Kotor</span>
+                        <span>{formatCurrency(plSummary.grossRevenue)}</span>
+                      </div>
+                      {plSummary.discount > 0 && (
+                        <div className="flex justify-between py-1 text-red-600 border-b border-slate-100">
+                          <span>• Potongan Diskon Transaksi</span>
+                          <span>-{formatCurrency(plSummary.discount)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between py-2 px-3 bg-blue-50/70 rounded-lg font-bold text-blue-900">
+                        <span>TOTAL PENDAPATAN BERSIH (NET REVENUE)</span>
+                        <span className="text-base">{formatCurrency(plSummary.netRevenue)}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Bagian 2: HPP (Cost of Goods Sold) */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center py-2 px-3 bg-slate-100 rounded-lg font-bold text-slate-800 text-xs uppercase tracking-wider">
+                      <span>2. Harga Pokok Penjualan (HPP / Biaya Modal Barang Terjual)</span>
+                      <span>Nominal (Rp)</span>
+                    </div>
+                    <div className="pl-4 pr-3 space-y-1.5 text-slate-600">
+                      <div className="flex justify-between py-1 border-b border-slate-100">
+                        <span>• Total Modal Suku Cadang Terjual (Σ Qty × Harga Beli/buyPrice)</span>
+                        <span className="font-semibold text-amber-800">{formatCurrency(plSummary.cogsSparepart)}</span>
+                      </div>
+                      <div className="flex justify-between py-2 px-3 bg-amber-50/70 rounded-lg font-bold text-amber-900">
+                        <span>TOTAL HARGA POKOK PENJUALAN (HPP)</span>
+                        <span className="text-base">-{formatCurrency(plSummary.cogsSparepart)}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Bagian 3: Laba Kotor (Gross Profit) */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center py-2 px-3 bg-emerald-800 text-white rounded-lg font-bold text-xs uppercase tracking-wider">
+                      <span>3. Laba Kotor Operasional (Gross Profit)</span>
+                      <span>Nominal (Rp)</span>
+                    </div>
+                    <div className="pl-4 pr-3 space-y-1.5 text-slate-600">
+                      <div className="flex justify-between py-1 border-b border-slate-100">
+                        <span>• Keuntungan dari Jasa Servis</span>
+                        <span className="font-semibold text-emerald-700">{formatCurrency(plSummary.serviceProfit)}</span>
+                      </div>
+                      <div className="flex justify-between py-1 border-b border-slate-100">
+                        <span>• Keuntungan dari Penjualan Sparepart (Margin: {plSummary.sparepartMarginPercent.toFixed(1)}%)</span>
+                        <span className="font-semibold text-emerald-700">{formatCurrency(plSummary.sparepartProfit)}</span>
+                      </div>
+                      <div className="flex justify-between py-3 px-3.5 bg-emerald-50 rounded-xl font-black text-emerald-900 border border-emerald-200">
+                        <span className="text-sm uppercase">TOTAL LABA KOTOR (GROSS PROFIT)</span>
+                        <span className="text-xl text-emerald-700">{formatCurrency(plSummary.grossProfit)}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Bagian 4: Arus Kas & Modal Masuk/Keluar */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center py-2 px-3 bg-slate-100 rounded-lg font-bold text-slate-800 text-xs uppercase tracking-wider">
+                      <span>4. Realisasi Arus Kas Masuk vs Kas Keluar (Cash Flow)</span>
+                      <span>Nominal (Rp)</span>
+                    </div>
+                    <div className="pl-4 pr-3 space-y-1.5 text-slate-600">
+                      <div className="flex justify-between py-1 border-b border-slate-100">
+                        <span>• Kas Tunai Fisik Masuk (Cash)</span>
+                        <span className="font-semibold text-slate-800">{formatCurrency(plSummary.cashInflow)}</span>
+                      </div>
+                      <div className="flex justify-between py-1 border-b border-slate-100">
+                        <span>• Bank Transfer Masuk</span>
+                        <span className="font-semibold text-slate-800">{formatCurrency(plSummary.transferInflow)}</span>
+                      </div>
+                      <div className="flex justify-between py-1 border-b border-slate-100">
+                        <span>• QRIS Masuk</span>
+                        <span className="font-semibold text-slate-800">{formatCurrency(plSummary.qrisInflow)}</span>
+                      </div>
+                      <div className="flex justify-between py-1.5 font-bold text-blue-900 border-b border-slate-200">
+                        <span>Total Kas Masuk Diterima</span>
+                        <span>{formatCurrency(plSummary.totalCashInflow)}</span>
+                      </div>
+                      <div className="flex justify-between py-1 text-slate-700 border-b border-slate-100">
+                        <span>• Modal Belanja Stok yang Telah Dibayar ke Supplier</span>
+                        <span className="font-semibold text-slate-900">-{formatCurrency(plSummary.restockPaid)}</span>
+                      </div>
+                      <div className="flex justify-between py-2 px-3 bg-indigo-50/70 rounded-lg font-bold text-indigo-900">
+                        <span>ARUS KAS BERSIH (NET CASH FLOW)</span>
+                        <span className="text-base font-black">{formatCurrency(plSummary.netCashFlow)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* SUB-TAB 2: RINCIAN LABA PER TRANSAKSI */}
+            {plSubTab === 'transaksi' && (
+              <div className="bg-white rounded-2xl border border-slate-200/80 overflow-hidden shadow-xs space-y-4 p-5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="relative flex-1 max-w-sm">
+                    <input
+                      type="text"
+                      placeholder="Cari invoice, pelanggan, atau plat..."
+                      value={plSearchQuery}
+                      onChange={(e) => setPlSearchQuery(e.target.value)}
+                      className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400"
+                    />
+                  </div>
+                  <span className="text-xs text-slate-500">
+                    Menampilkan <strong>{plData.filter(tx => tx.invoiceNumber.toLowerCase().includes(plSearchQuery.toLowerCase()) || tx.customerName.toLowerCase().includes(plSearchQuery.toLowerCase())).length}</strong> dari {plData.length} transaksi
+                  </span>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b border-slate-200 bg-slate-50/80 font-bold text-slate-700 uppercase tracking-wider">
+                        <th className="p-3">Invoice & Tanggal</th>
+                        <th className="p-3">Pelanggan</th>
+                        <th className="p-3 text-right">Jasa (Rp)</th>
+                        <th className="p-3 text-right">Part Jual (Rp)</th>
+                        <th className="p-3 text-right">Part HPP (Rp)</th>
+                        <th className="p-3 text-right">Diskon (Rp)</th>
+                        <th className="p-3 text-right">Total Nota (Rp)</th>
+                        <th className="p-3 text-right text-emerald-800 font-black">Laba Kotor (Rp)</th>
+                        <th className="p-3 text-center">Margin</th>
+                        <th className="p-3 text-center w-12">Aksi</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {plData
+                        .filter(tx => tx.invoiceNumber.toLowerCase().includes(plSearchQuery.toLowerCase()) || tx.customerName.toLowerCase().includes(plSearchQuery.toLowerCase()))
+                        .map((tx) => (
+                          <tr key={tx.id} className="hover:bg-slate-50/80 transition-colors">
+                            <td className="p-3">
+                              <span className="font-mono font-bold text-slate-900">{tx.invoiceNumber}</span>
+                              <span className="block text-[10px] text-slate-400">
+                                {new Date(tx.transactionDate).toLocaleDateString('id-ID')}
+                              </span>
+                            </td>
+                            <td className="p-3">
+                              <span className="font-semibold text-slate-800">{tx.customerName}</span>
+                              {tx.plateNumber && (
+                                <span className="block text-[10px] font-mono text-slate-500">
+                                  [{tx.plateNumber}]
+                                </span>
+                              )}
+                            </td>
+                            <td className="p-3 text-right">{formatCurrency(tx.serviceRevenue)}</td>
+                            <td className="p-3 text-right">{formatCurrency(tx.sparepartRevenue)}</td>
+                            <td className="p-3 text-right text-amber-700">{formatCurrency(tx.sparepartHpp)}</td>
+                            <td className="p-3 text-right text-red-600">{tx.discount > 0 ? `-${formatCurrency(tx.discount)}` : '0'}</td>
+                            <td className="p-3 text-right font-bold text-slate-900">{formatCurrency(tx.total)}</td>
+                            <td className="p-3 text-right font-black text-emerald-700">{formatCurrency(tx.grossProfit)}</td>
+                            <td className="p-3 text-center">
+                              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                {tx.grossMarginPercent.toFixed(0)}%
+                              </span>
+                            </td>
+                            <td className="p-3 text-center">
+                              <button
+                                type="button"
+                                onClick={() => setSelectedPlTxModal(tx)}
+                                className="p-1 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition-colors"
+                                title="Lihat rincian laba item"
+                              >
+                                <Eye className="w-4 h-4" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* SUB-TAB 3: PROFITABILITAS PRODUK SPAREPART */}
+            {plSubTab === 'sparepart' && (
+              <div className="bg-white rounded-2xl border border-slate-200/80 overflow-hidden shadow-xs space-y-4 p-5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="relative flex-1 max-w-sm">
+                    <input
+                      type="text"
+                      placeholder="Cari sparepart, SKU, atau brand..."
+                      value={plSpSearchQuery}
+                      onChange={(e) => setPlSpSearchQuery(e.target.value)}
+                      className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400"
+                    />
+                  </div>
+                  <span className="text-xs text-slate-500">
+                    Menampilkan <strong>{plSpData.filter(sp => sp.name.toLowerCase().includes(plSpSearchQuery.toLowerCase()) || (sp.sku && sp.sku.toLowerCase().includes(plSpSearchQuery.toLowerCase()))).length}</strong> jenis sparepart terjual
+                  </span>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b border-slate-200 bg-slate-50/80 font-bold text-slate-700 uppercase tracking-wider">
+                        <th className="p-3">Kode / SKU</th>
+                        <th className="p-3">Nama Sparepart</th>
+                        <th className="p-3">Brand</th>
+                        <th className="p-3 text-center">Qty Terjual</th>
+                        <th className="p-3 text-right">Rata2 Beli</th>
+                        <th className="p-3 text-right">Rata2 Jual</th>
+                        <th className="p-3 text-right">Total Omset (Rp)</th>
+                        <th className="p-3 text-right">Total HPP (Rp)</th>
+                        <th className="p-3 text-right text-emerald-800 font-black">Total Laba (Rp)</th>
+                        <th className="p-3 text-center">Margin %</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {plSpData
+                        .filter(sp => sp.name.toLowerCase().includes(plSpSearchQuery.toLowerCase()) || (sp.sku && sp.sku.toLowerCase().includes(plSpSearchQuery.toLowerCase())))
+                        .map((sp) => (
+                          <tr key={sp.id} className="hover:bg-slate-50/80 transition-colors">
+                            <td className="p-3 font-mono text-slate-500">{sp.sku || '-'}</td>
+                            <td className="p-3 font-semibold text-slate-900">{sp.name}</td>
+                            <td className="p-3 text-slate-500">{sp.brand || '-'}</td>
+                            <td className="p-3 text-center font-bold text-slate-800">{sp.soldQty}</td>
+                            <td className="p-3 text-right">{formatCurrency(sp.avgBuyPrice)}</td>
+                            <td className="p-3 text-right">{formatCurrency(sp.avgSellPrice)}</td>
+                            <td className="p-3 text-right font-semibold text-slate-900">{formatCurrency(sp.totalRevenue)}</td>
+                            <td className="p-3 text-right text-amber-700">{formatCurrency(sp.totalHpp)}</td>
+                            <td className="p-3 text-right font-black text-emerald-700">{formatCurrency(sp.totalProfit)}</td>
+                            <td className="p-3 text-center">
+                              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                {sp.marginPercent.toFixed(1)}%
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Modal Rincian Item Transaksi */}
+          {selectedPlTxModal && (
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in print:hidden">
+              <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200 space-y-4 max-h-[85vh] flex flex-col">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900">
+                      Rincian Laba Nota {selectedPlTxModal.invoiceNumber}
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      Pelanggan: {selectedPlTxModal.customerName} • {new Date(selectedPlTxModal.transactionDate).toLocaleDateString('id-ID')}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPlTxModal(null)}
+                    className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="overflow-y-auto flex-1 space-y-2 text-xs">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="border-b border-slate-200 bg-slate-50 font-bold text-slate-700">
+                        <th className="p-2">Item</th>
+                        <th className="p-2 text-center">Qty</th>
+                        <th className="p-2 text-right">Modal/Beli</th>
+                        <th className="p-2 text-right">Harga Jual</th>
+                        <th className="p-2 text-right">Total Jual</th>
+                        <th className="p-2 text-right text-emerald-800">Laba Bersih</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {selectedPlTxModal.items.map((it) => (
+                        <tr key={it.id}>
+                          <td className="p-2">
+                            <span className="font-semibold text-slate-800">{it.itemName}</span>
+                            <span className="block text-[10px] text-slate-400">{it.itemType === 'SERVICE' ? 'Jasa Servis' : 'Sparepart'}</span>
+                          </td>
+                          <td className="p-2 text-center">{it.quantity}</td>
+                          <td className="p-2 text-right text-amber-700">{formatCurrency(it.buyPrice)}</td>
+                          <td className="p-2 text-right">{formatCurrency(it.unitPrice)}</td>
+                          <td className="p-2 text-right font-semibold">{formatCurrency(it.subtotal)}</td>
+                          <td className="p-2 text-right font-bold text-emerald-700">{formatCurrency(it.profit)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 flex items-center justify-between text-xs font-bold">
+                  <span>Total Laba Kotor Nota:</span>
+                  <span className="text-emerald-700 text-sm font-black">{formatCurrency(selectedPlTxModal.grossProfit)}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Dedicated Printable Sheet (Hidden on screen, Visible on print) */}
+          <div className="hidden print:block font-sans text-slate-900 space-y-4">
+            {/* Kop Bengkel */}
+            <div className="text-center border-b-2 border-slate-900 pb-3">
+              <h1 className="text-xl font-black uppercase tracking-wider">{shopName}</h1>
+              <p className="text-xs font-semibold text-slate-700">
+                LAPORAN DETAIL LABA RUGI & ARUS KAS OPERASIONAL {plBranchId ? `(CABANG ${branches.find(b => b.id === plBranchId)?.name.toUpperCase()})` : ''}
+              </p>
+              <p className="text-[10px] text-slate-500 italic mt-0.5">
+                Periode: {new Date(plStartDate).toLocaleDateString('id-ID', { dateStyle: 'long' })} s/d {new Date(plEndDate).toLocaleDateString('id-ID', { dateStyle: 'long' })} • Dicetak pada: {new Date().toLocaleString('id-ID')}
+              </p>
+            </div>
+
+            {/* KPI Boxes Print */}
+            <div className="grid grid-cols-4 gap-2 text-center text-[10px]">
+              <div className="border border-slate-300 p-2 rounded">
+                <span className="block text-slate-500 uppercase text-[8px] font-bold">Pendapatan Bersih</span>
+                <strong className="text-xs font-bold">{formatCurrency(plSummary.netRevenue)}</strong>
+              </div>
+              <div className="border border-slate-300 p-2 rounded">
+                <span className="block text-slate-500 uppercase text-[8px] font-bold">HPP Sparepart (Modal)</span>
+                <strong className="text-xs font-bold">{formatCurrency(plSummary.cogsSparepart)}</strong>
+              </div>
+              <div className="border border-slate-300 p-2 rounded bg-slate-50">
+                <span className="block text-slate-700 uppercase text-[8px] font-black">Laba Kotor (Profit)</span>
+                <strong className="text-xs font-black text-emerald-800">{formatCurrency(plSummary.grossProfit)}</strong>
+              </div>
+              <div className="border border-slate-300 p-2 rounded">
+                <span className="block text-slate-500 uppercase text-[8px] font-bold">Arus Kas Bersih</span>
+                <strong className="text-xs font-bold">{formatCurrency(plSummary.netCashFlow)}</strong>
+              </div>
+            </div>
+
+            {/* P&L Statement Table Print */}
+            <table className="w-full text-left text-[10px] border-collapse border border-slate-300">
+              <thead>
+                <tr className="bg-slate-100 font-bold border-b border-slate-300">
+                  <th className="py-1 px-2 border-r border-slate-300">Pos Laporan Keuangan</th>
+                  <th className="py-1 px-2 text-right border-r border-slate-300 w-36">Nominal (Rp)</th>
+                  <th className="py-1 px-2 text-left">Keterangan</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200">
+                <tr className="bg-slate-50 font-bold">
+                  <td colSpan={3} className="py-1 px-2 border border-slate-300 uppercase text-[9px]">1. PENDAPATAN PENJUALAN (REVENUE)</td>
+                </tr>
+                <tr>
+                  <td className="py-0.5 px-3 border border-slate-300">• Pendapatan Jasa Servis</td>
+                  <td className="py-0.5 px-2 text-right border border-slate-300 font-semibold">{formatCurrency(plSummary.serviceRevenue)}</td>
+                  <td className="py-0.5 px-2 border border-slate-300 text-slate-500 text-[9px]">Margin 100%</td>
+                </tr>
+                <tr>
+                  <td className="py-0.5 px-3 border border-slate-300">• Penjualan Sparepart (Harga Jual)</td>
+                  <td className="py-0.5 px-2 text-right border border-slate-300 font-semibold">{formatCurrency(plSummary.sparepartRevenue)}</td>
+                  <td className="py-0.5 px-2 border border-slate-300 text-slate-500 text-[9px]">Omset Suku Cadang</td>
+                </tr>
+                {plSummary.discount > 0 && (
+                  <tr>
+                    <td className="py-0.5 px-3 border border-slate-300">• Potongan Diskon Transaksi</td>
+                    <td className="py-0.5 px-2 text-right border border-slate-300 font-semibold text-red-600">-{formatCurrency(plSummary.discount)}</td>
+                    <td className="py-0.5 px-2 border border-slate-300 text-slate-500 text-[9px]">Diskon Konsumen</td>
+                  </tr>
+                )}
+                <tr className="bg-slate-100 font-bold">
+                  <td className="py-1 px-2 border border-slate-300">TOTAL PENDAPATAN BERSIH</td>
+                  <td className="py-1 px-2 text-right border border-slate-300 font-black">{formatCurrency(plSummary.netRevenue)}</td>
+                  <td className="py-1 px-2 border border-slate-300"></td>
+                </tr>
+
+                <tr className="bg-slate-50 font-bold">
+                  <td colSpan={3} className="py-1 px-2 border border-slate-300 uppercase text-[9px]">2. HARGA POKOK PENJUALAN (HPP / COGS)</td>
+                </tr>
+                <tr>
+                  <td className="py-0.5 px-3 border border-slate-300">• Modal Sparepart Terjual</td>
+                  <td className="py-0.5 px-2 text-right border border-slate-300 font-semibold">-{formatCurrency(plSummary.cogsSparepart)}</td>
+                  <td className="py-0.5 px-2 border border-slate-300 text-slate-500 text-[9px]">Σ(Qty Terjual × Harga Beli)</td>
+                </tr>
+
+                <tr className="bg-slate-100 font-bold">
+                  <td colSpan={3} className="py-1 px-2 border border-slate-300 uppercase text-[9px]">3. LABA KOTOR OPERASIONAL (GROSS PROFIT)</td>
+                </tr>
+                <tr className="bg-emerald-50 font-black">
+                  <td className="py-1.5 px-2 border border-slate-300 text-emerald-950">TOTAL LABA KOTOR (GROSS PROFIT)</td>
+                  <td className="py-1.5 px-2 text-right border border-slate-300 text-emerald-800 text-xs font-black">{formatCurrency(plSummary.grossProfit)}</td>
+                  <td className="py-1.5 px-2 border border-slate-300 text-emerald-900 font-bold text-[9px]">Gross Margin: {plSummary.grossMarginPercent.toFixed(1)}%</td>
+                </tr>
+
+                <tr className="bg-slate-50 font-bold">
+                  <td colSpan={3} className="py-1 px-2 border border-slate-300 uppercase text-[9px]">4. REALISASI ARUS KAS & MODAL KELUAR</td>
+                </tr>
+                <tr>
+                  <td className="py-0.5 px-3 border border-slate-300">• Kas Masuk Diterima (Tunai, Bank, QRIS)</td>
+                  <td className="py-0.5 px-2 text-right border border-slate-300 font-semibold">{formatCurrency(plSummary.totalCashInflow)}</td>
+                  <td className="py-0.5 px-2 border border-slate-300 text-slate-500 text-[9px]">Pemasukan Riil</td>
+                </tr>
+                <tr>
+                  <td className="py-0.5 px-3 border border-slate-300">• Modal Belanja Restock Dibayar ke Supplier</td>
+                  <td className="py-0.5 px-2 text-right border border-slate-300 font-semibold">-{formatCurrency(plSummary.restockPaid)}</td>
+                  <td className="py-0.5 px-2 border border-slate-300 text-slate-500 text-[9px]">Pengeluaran Kulakan</td>
+                </tr>
+                <tr className="bg-slate-100 font-bold">
+                  <td className="py-1 px-2 border border-slate-300">ARUS KAS BERSIH (NET CASH FLOW)</td>
+                  <td className="py-1 px-2 text-right border border-slate-300 font-black">{formatCurrency(plSummary.netCashFlow)}</td>
+                  <td className="py-1 px-2 border border-slate-300 text-[9px] text-slate-600">Kas Masuk − Kas Belanja</td>
+                </tr>
+              </tbody>
+            </table>
+
+            {/* Signatures Print */}
+            <div className="mt-8 grid grid-cols-2 gap-8 text-center break-inside-avoid text-[10px]">
+              <div>
+                <p className="mb-12 font-medium text-slate-600">Dibuat Oleh,</p>
+                <div className="w-36 mx-auto border-b border-slate-900"></div>
+                <p className="mt-1 font-bold uppercase text-slate-800">Admin / Keuangan</p>
               </div>
               <div>
                 <p className="mb-12 font-medium text-slate-600">Disetujui Oleh,</p>

@@ -218,6 +218,7 @@ model TransactionPayment {
   transactionId String        @map("transaction_id")
   paymentMethod PaymentMethod @map("payment_method")
   amount        Float
+  notes         String?
   createdAt     DateTime      @default(now()) @map("created_at")
 
   transaction   Transaction   @relation(fields: [transactionId], references: [id], onDelete: Cascade)
@@ -359,6 +360,7 @@ enum TransactionStatus {
   COMPLETED
   CANCELLED
   PENDING_CORPORATE
+  PENDING_PAYMENT
 }
 
 enum PaymentMethod {
@@ -366,6 +368,7 @@ enum PaymentMethod {
   TRANSFER
   QRIS
   SPLIT
+  DEBT
 }
 
 enum ItemType {

@@ -7,6 +7,7 @@ import { ArrowLeft, Receipt, MapPin, Phone, User, Calendar } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import PrintButton from './PrintButton'
 import CancelButton from './CancelButton'
+import ReceivablePaymentModal from './ReceivablePaymentModal'
 import { getSession } from '@/lib/session'
 
 // Simple WhatsApp icon
@@ -50,6 +51,15 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
           <Button variant="ghost" icon={ArrowLeft}>Kembali</Button>
         </Link>
         <div className="flex items-center gap-2">
+          {tx.status === 'PENDING_PAYMENT' && (
+            <ReceivablePaymentModal
+              transactionId={tx.id}
+              invoiceNumber={tx.invoiceNumber}
+              total={tx.total}
+              paidAmount={tx.paidAmount}
+              customerName={tx.customer?.name}
+            />
+          )}
           {session?.role === 'ADMIN' && tx.status !== 'CANCELLED' && (
             <CancelButton id={tx.id} invoiceNumber={tx.invoiceNumber} />
           )}
@@ -88,8 +98,13 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
                 </span>
               )}
               {tx.status === 'PENDING_CORPORATE' && (
-                <span className="px-3 py-1 bg-amber-100 text-amber-700 font-black text-sm rounded-lg tracking-wider border border-amber-200 uppercase print:text-xs print:px-1.5 print:py-0.5">
+                <span className="px-3 py-1 bg-violet-100 text-violet-700 font-black text-sm rounded-lg tracking-wider border border-violet-200 uppercase print:text-xs print:px-1.5 print:py-0.5">
                   Piutang Korporat
+                </span>
+              )}
+              {tx.status === 'PENDING_PAYMENT' && (
+                <span className="px-3 py-1 bg-amber-100 text-amber-800 font-black text-sm rounded-lg tracking-wider border border-amber-300 uppercase print:text-xs print:px-1.5 print:py-0.5">
+                  Belum Lunas (Piutang)
                 </span>
               )}
               <h2 className="text-2xl sm:text-3xl font-black text-slate-200 uppercase tracking-wider print:text-lg">INVOICE</h2>
@@ -200,11 +215,34 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
               <p className="text-sm font-bold text-violet-700 mb-4 print:mb-1 print:text-xs">
                 Tagihan Korporat (Piutang)
               </p>
+            ) : tx.status === 'PENDING_PAYMENT' || tx.paymentMethod === 'DEBT' ? (
+              <div className="mb-4 print:mb-1">
+                <p className="text-sm font-bold text-amber-700 mb-1.5 print:text-xs">
+                  Hutang / Piutang Konsumen
+                </p>
+                {tx.payments && tx.payments.length > 0 ? (
+                  <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200/80 space-y-1.5 print:p-1 print:border-none print:bg-transparent">
+                    <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
+                      Riwayat Pembayaran:
+                    </p>
+                    {tx.payments.map((p: any, idx: number) => (
+                      <div key={p.id || idx} className="flex justify-between text-xs text-slate-700 print:text-[10px]">
+                        <span>
+                          • {p.notes || (p.paymentMethod === 'CASH' ? 'Tunai (Cash)' : p.paymentMethod === 'TRANSFER' ? 'Transfer Bank' : 'QRIS')}
+                        </span>
+                        <span className="font-semibold text-slate-900">{formatCurrency(p.amount)}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-500 italic">Belum ada pembayaran / DP awal Rp 0</p>
+                )}
+              </div>
             ) : tx.paymentMethod === 'SPLIT' || (tx.payments && tx.payments.length > 1) ? (
               <div className="mb-4 print:mb-1">
                 <p className="text-sm font-bold text-slate-900 mb-1.5 print:text-xs">Split / Kombinasi</p>
                 <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200/80 space-y-1 print:p-1 print:border-none print:bg-transparent">
-                  {tx.payments?.map((p) => (
+                  {tx.payments?.map((p: any) => (
                     <div key={p.id} className="flex justify-between text-xs text-slate-700 print:text-[10px]">
                       <span>• {p.paymentMethod === 'CASH' ? 'Tunai (Cash)' : p.paymentMethod === 'TRANSFER' ? 'Transfer Bank' : 'QRIS'}</span>
                       <span className="font-semibold text-slate-900">{formatCurrency(p.amount)}</span>
@@ -242,21 +280,21 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
               <span className="text-2xl font-black text-primary-600 print:text-base print:font-bold">{formatCurrency(tx.total)}</span>
             </div>
 
-            {tx.status !== 'PENDING_CORPORATE' && tx.paidAmount > tx.total && (
+            {tx.status !== 'PENDING_CORPORATE' && tx.status !== 'PENDING_PAYMENT' && tx.paidAmount > tx.total && (
               <div className="flex justify-between text-sm text-slate-600 print:text-xs pt-2 border-t border-slate-100">
                 <span>Uang Diterima</span>
                 <span className="font-semibold text-slate-900">{formatCurrency(tx.paidAmount)}</span>
               </div>
             )}
 
-            {tx.status !== 'PENDING_CORPORATE' && (tx.changeAmount ?? 0) > 0 && (
+            {tx.status !== 'PENDING_CORPORATE' && tx.status !== 'PENDING_PAYMENT' && (tx.changeAmount ?? 0) > 0 && (
               <div className="flex justify-between text-sm text-emerald-600 print:text-xs font-semibold">
                 <span>Kembalian</span>
                 <span className="font-bold">{formatCurrency(tx.changeAmount ?? 0)}</span>
               </div>
             )}
 
-            {(tx.status === 'PENDING_CORPORATE' || tx.customer?.corporateCustomer) && (
+            {(tx.status === 'PENDING_CORPORATE' || tx.status === 'PENDING_PAYMENT' || (tx.total - (tx.paidAmount || 0) > 0)) && (
               <>
                 <div className="flex justify-between text-sm text-slate-600 print:text-xs pt-2 border-t border-slate-100">
                   <span>Sudah Dibayar</span>

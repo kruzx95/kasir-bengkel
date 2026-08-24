@@ -33,7 +33,7 @@ export async function getReportData(
     }
 
     if (txCategory === 'REGULAR') {
-      whereClause.status = 'COMPLETED'
+      whereClause.status = { in: ['COMPLETED', 'PENDING_PAYMENT'] }
       whereClause.OR = [
         { customerId: null },
         { customer: { corporateCustomerId: null } },
@@ -44,7 +44,7 @@ export async function getReportData(
         { customer: { corporateCustomerId: { not: null } } },
       ]
     } else {
-      whereClause.status = { in: ['COMPLETED', 'PENDING_CORPORATE'] }
+      whereClause.status = { in: ['COMPLETED', 'PENDING_CORPORATE', 'PENDING_PAYMENT'] }
     }
 
     const transactions = await prisma.transaction.findMany({
@@ -96,6 +96,7 @@ export async function getReportData(
     let totalDiscount = 0
     let grandTotal = 0
     let pendingCorporate = 0
+    let pendingReceivable = 0
     let cashTotal = 0
     let transferTotal = 0
     let qrisTotal = 0
@@ -105,6 +106,16 @@ export async function getReportData(
       totalDiscount += tx.discount
       if (tx.status === 'PENDING_CORPORATE') {
         pendingCorporate += tx.total
+      } else if (tx.status === 'PENDING_PAYMENT') {
+        const remaining = Math.max(0, tx.total - (tx.paidAmount || 0))
+        pendingReceivable += remaining
+        if (tx.payments && tx.payments.length > 0) {
+          tx.payments.forEach(p => {
+            if (p.paymentMethod === 'CASH') cashTotal += p.amount
+            else if (p.paymentMethod === 'TRANSFER') transferTotal += p.amount
+            else if (p.paymentMethod === 'QRIS') qrisTotal += p.amount
+          })
+        }
       } else {
         if (tx.payments && tx.payments.length > 0) {
           tx.payments.forEach(p => {
@@ -133,6 +144,7 @@ export async function getReportData(
         sparepart: sparepartRev,
         discount: totalDiscount,
         pendingCorporate,
+        pendingReceivable,
         cashTotal,
         transferTotal,
         qrisTotal,
@@ -640,4 +652,435 @@ export async function getMechanicReportData(
     }
   }
 }
+
+export async function getProfitLossReportData(
+  startDateStr?: string,
+  endDateStr?: string,
+  branchId?: string
+) {
+  const session = await getSession()
+  if (!session) {
+    return {
+      transactions: [],
+      sparepartProfitability: [],
+      restocks: [],
+      corporatePayments: [],
+      summary: {
+        serviceRevenue: 0,
+        sparepartRevenue: 0,
+        grossRevenue: 0,
+        discount: 0,
+        netRevenue: 0,
+        cogsSparepart: 0,
+        grossProfit: 0,
+        grossMarginPercent: 0,
+        serviceProfit: 0,
+        sparepartProfit: 0,
+        sparepartMarginPercent: 0,
+        cashInflow: 0,
+        transferInflow: 0,
+        qrisInflow: 0,
+        corporatePaymentsInflow: 0,
+        totalCashInflow: 0,
+        totalRestock: 0,
+        restockPaid: 0,
+        restockUnpaid: 0,
+        netCashFlow: 0,
+        regularReceivable: 0,
+        corporateReceivable: 0,
+        totalReceivable: 0,
+        totalTransactions: 0,
+        totalRestockCount: 0,
+      },
+    }
+  }
+
+  const today = new Date()
+  const defaultStart = new Date(today.getFullYear(), today.getMonth(), 1)
+
+  const startDate = startDateStr ? new Date(startDateStr) : defaultStart
+  startDate.setHours(0, 0, 0, 0)
+
+  const endDate = endDateStr ? new Date(endDateStr) : new Date(today)
+  endDate.setHours(23, 59, 59, 999)
+
+  try {
+    const branchFilter = getBranchFilter(session, branchId)
+
+    // 1. Fetch Sales Transactions in Period (Exclude CANCELLED)
+    const rawTransactions = await prisma.transaction.findMany({
+      where: {
+        ...branchFilter,
+        transactionDate: { gte: startDate, lte: endDate },
+        status: { in: ['COMPLETED', 'PENDING_PAYMENT', 'PENDING_CORPORATE'] },
+      },
+      include: {
+        branch: { select: { name: true } },
+        user: { select: { name: true } },
+        customer: {
+          select: {
+            name: true,
+            plateNumber: true,
+            corporateCustomer: { select: { id: true, name: true } },
+          },
+        },
+        payments: {
+          select: {
+            paymentMethod: true,
+            amount: true,
+            notes: true,
+          },
+        },
+        items: {
+          include: {
+            sparepart: {
+              select: {
+                id: true,
+                name: true,
+                sku: true,
+                buyPrice: true,
+                sellPrice: true,
+                sparepartBrand: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { transactionDate: 'desc' },
+    })
+
+    // 2. Fetch Restocks (PO / Kulakan Modal Keluar) in Period
+    const rawRestocks = await prisma.restock.findMany({
+      where: {
+        ...branchFilter,
+        date: { gte: startDate, lte: endDate },
+      },
+      include: {
+        branch: { select: { name: true } },
+        user: { select: { name: true } },
+        items: {
+          include: {
+            sparepart: { select: { name: true, sku: true } },
+          },
+        },
+      },
+      orderBy: { date: 'desc' },
+    })
+
+    // 3. Fetch Corporate Payments in Period
+    const rawCorpPayments = await prisma.corporatePayment.findMany({
+      where: {
+        ...branchFilter,
+        paidAt: { gte: startDate, lte: endDate },
+        voidedAt: null,
+      },
+      include: {
+        corporateCustomer: { select: { name: true } },
+        branch: { select: { name: true } },
+      },
+      orderBy: { paidAt: 'desc' },
+    })
+
+    // Aggregations
+    let serviceRevenue = 0
+    let sparepartRevenue = 0
+    let totalDiscount = 0
+    let cogsSparepart = 0
+
+    let cashInflow = 0
+    let transferInflow = 0
+    let qrisInflow = 0
+
+    let regularReceivable = 0
+    let corporateReceivable = 0
+
+    // Sparepart item profitability map: sparepartId -> stats
+    const spProfitMap: Record<
+      string,
+      {
+        id: string
+        name: string
+        sku: string | null
+        brand: string | null
+        soldQty: number
+        totalRevenue: number
+        totalHpp: number
+        totalProfit: number
+        buyPrices: number[]
+        sellPrices: number[]
+      }
+    > = {}
+
+    const transactions = rawTransactions.map((tx) => {
+      let txServiceRev = 0
+      let txSparepartRev = 0
+      let txSparepartHpp = 0
+
+      const processedItems = tx.items.map((item) => {
+        let itemBuyPrice = 0
+        let itemHpp = 0
+        let itemProfit = item.subtotal
+
+        if (item.itemType === 'SERVICE') {
+          txServiceRev += item.subtotal
+        } else if (item.itemType === 'SPAREPART') {
+          txSparepartRev += item.subtotal
+          if (item.sparepart) {
+            itemBuyPrice = item.sparepart.buyPrice || 0
+            itemHpp = item.quantity * itemBuyPrice
+            itemProfit = item.subtotal - itemHpp
+
+            const spKey = item.sparepart.id
+            if (!spProfitMap[spKey]) {
+              spProfitMap[spKey] = {
+                id: item.sparepart.id,
+                name: item.sparepart.name,
+                sku: item.sparepart.sku,
+                brand: item.sparepart.sparepartBrand,
+                soldQty: 0,
+                totalRevenue: 0,
+                totalHpp: 0,
+                totalProfit: 0,
+                buyPrices: [],
+                sellPrices: [],
+              }
+            }
+            spProfitMap[spKey].soldQty += item.quantity
+            spProfitMap[spKey].totalRevenue += item.subtotal
+            spProfitMap[spKey].totalHpp += itemHpp
+            spProfitMap[spKey].totalProfit += itemProfit
+            spProfitMap[spKey].buyPrices.push(itemBuyPrice)
+            spProfitMap[spKey].sellPrices.push(item.unitPrice)
+          }
+          txSparepartHpp += itemHpp
+        }
+
+        return {
+          id: item.id,
+          itemName: item.itemName,
+          itemType: item.itemType,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          subtotal: item.subtotal,
+          buyPrice: itemBuyPrice,
+          hppSubtotal: itemHpp,
+          profit: itemProfit,
+        }
+      })
+
+      serviceRevenue += txServiceRev
+      sparepartRevenue += txSparepartRev
+      totalDiscount += tx.discount
+      cogsSparepart += txSparepartHpp
+
+      // Calculate Cash Inflows
+      if (tx.status === 'PENDING_CORPORATE') {
+        corporateReceivable += Math.max(0, tx.total - (tx.paidAmount || 0))
+      } else if (tx.status === 'PENDING_PAYMENT') {
+        const remaining = Math.max(0, tx.total - (tx.paidAmount || 0))
+        regularReceivable += remaining
+        if (tx.payments && tx.payments.length > 0) {
+          tx.payments.forEach((p) => {
+            if (p.paymentMethod === 'CASH') cashInflow += p.amount
+            else if (p.paymentMethod === 'TRANSFER') transferInflow += p.amount
+            else if (p.paymentMethod === 'QRIS') qrisInflow += p.amount
+          })
+        }
+      } else {
+        // COMPLETED
+        if (tx.payments && tx.payments.length > 0) {
+          tx.payments.forEach((p) => {
+            if (p.paymentMethod === 'CASH') cashInflow += p.amount
+            else if (p.paymentMethod === 'TRANSFER') transferInflow += p.amount
+            else if (p.paymentMethod === 'QRIS') qrisInflow += p.amount
+          })
+        } else {
+          if (tx.paymentMethod === 'CASH') cashInflow += tx.total
+          else if (tx.paymentMethod === 'TRANSFER') transferInflow += tx.total
+          else if (tx.paymentMethod === 'QRIS') qrisInflow += tx.total
+        }
+      }
+
+      const txGrossProfit = (txServiceRev + txSparepartRev - tx.discount) - txSparepartHpp
+      const txGrossMarginPercent = tx.total > 0 ? (txGrossProfit / tx.total) * 100 : 0
+
+      return {
+        id: tx.id,
+        invoiceNumber: tx.invoiceNumber,
+        transactionDate: tx.transactionDate,
+        createdAt: tx.createdAt,
+        type: tx.type,
+        status: tx.status,
+        paymentMethod: tx.paymentMethod,
+        subtotal: tx.subtotal,
+        discount: tx.discount,
+        total: tx.total,
+        paidAmount: tx.paidAmount,
+        changeAmount: tx.changeAmount,
+        branchName: tx.branch.name,
+        cashierName: tx.user.name,
+        customerName: tx.customer?.name || 'Pelanggan Umum',
+        plateNumber: tx.customer?.plateNumber || null,
+        corporateName: tx.customer?.corporateCustomer?.name || null,
+        serviceRevenue: txServiceRev,
+        sparepartRevenue: txSparepartRev,
+        sparepartHpp: txSparepartHpp,
+        grossProfit: txGrossProfit,
+        grossMarginPercent: txGrossMarginPercent,
+        items: processedItems,
+        payments: tx.payments,
+      }
+    })
+
+    // Restock aggregates
+    let totalRestock = 0
+    let restockPaid = 0
+    let restockUnpaid = 0
+
+    const restocks = rawRestocks.map((r) => {
+      totalRestock += r.total
+      restockPaid += r.paidAmount
+      const unpaid = Math.max(0, r.total - r.paidAmount)
+      restockUnpaid += unpaid
+
+      return {
+        id: r.id,
+        supplierName: r.supplierName,
+        date: r.date,
+        total: r.total,
+        paidAmount: r.paidAmount,
+        paymentStatus: r.paymentStatus,
+        notes: r.notes,
+        branchName: r.branch.name,
+        userName: r.user.name,
+        itemCount: r.items.length,
+      }
+    })
+
+    // Corporate payment aggregates
+    let corporatePaymentsInflow = 0
+    const corporatePayments = rawCorpPayments.map((cp) => {
+      corporatePaymentsInflow += cp.amount
+      if (cp.paymentMethod === 'CASH') cashInflow += cp.amount
+      else if (cp.paymentMethod === 'TRANSFER') transferInflow += cp.amount
+      else if (cp.paymentMethod === 'QRIS') qrisInflow += cp.amount
+
+      return {
+        id: cp.id,
+        amount: cp.amount,
+        paymentMethod: cp.paymentMethod,
+        paidAt: cp.paidAt,
+        notes: cp.notes,
+        companyName: cp.corporateCustomer.name,
+        branchName: cp.branch.name,
+      }
+    })
+
+    // Final P&L Computations
+    const grossRevenue = serviceRevenue + sparepartRevenue
+    const netRevenue = Math.max(0, grossRevenue - totalDiscount)
+    const grossProfit = netRevenue - cogsSparepart
+    const grossMarginPercent = netRevenue > 0 ? (grossProfit / netRevenue) * 100 : 0
+
+    const serviceProfit = serviceRevenue
+    const sparepartProfit = sparepartRevenue - cogsSparepart
+    const sparepartMarginPercent = sparepartRevenue > 0 ? (sparepartProfit / sparepartRevenue) * 100 : 0
+
+    const totalCashInflow = cashInflow + transferInflow + qrisInflow
+    const netCashFlow = totalCashInflow - restockPaid
+    const totalReceivable = regularReceivable + corporateReceivable
+
+    // Sparepart Profitability list
+    const sparepartProfitability = Object.values(spProfitMap)
+      .map((sp) => {
+        const avgBuy = sp.buyPrices.length > 0 ? sp.buyPrices.reduce((a, b) => a + b, 0) / sp.buyPrices.length : 0
+        const avgSell = sp.sellPrices.length > 0 ? sp.sellPrices.reduce((a, b) => a + b, 0) / sp.sellPrices.length : 0
+        const marginPercent = sp.totalRevenue > 0 ? (sp.totalProfit / sp.totalRevenue) * 100 : 0
+        return {
+          id: sp.id,
+          name: sp.name,
+          sku: sp.sku,
+          brand: sp.brand,
+          soldQty: sp.soldQty,
+          avgBuyPrice: avgBuy,
+          avgSellPrice: avgSell,
+          totalRevenue: sp.totalRevenue,
+          totalHpp: sp.totalHpp,
+          totalProfit: sp.totalProfit,
+          marginPercent,
+        }
+      })
+      .sort((a, b) => b.totalProfit - a.totalProfit)
+
+    return {
+      transactions,
+      sparepartProfitability,
+      restocks,
+      corporatePayments,
+      summary: {
+        serviceRevenue,
+        sparepartRevenue,
+        grossRevenue,
+        discount: totalDiscount,
+        netRevenue,
+        cogsSparepart,
+        grossProfit,
+        grossMarginPercent,
+        serviceProfit,
+        sparepartProfit,
+        sparepartMarginPercent,
+        cashInflow,
+        transferInflow,
+        qrisInflow,
+        corporatePaymentsInflow,
+        totalCashInflow,
+        totalRestock,
+        restockPaid,
+        restockUnpaid,
+        netCashFlow,
+        regularReceivable,
+        corporateReceivable,
+        totalReceivable,
+        totalTransactions: rawTransactions.length,
+        totalRestockCount: rawRestocks.length,
+      },
+    }
+  } catch (error) {
+    console.error('getProfitLossReportData error:', error)
+    return {
+      transactions: [],
+      sparepartProfitability: [],
+      restocks: [],
+      corporatePayments: [],
+      summary: {
+        serviceRevenue: 0,
+        sparepartRevenue: 0,
+        grossRevenue: 0,
+        discount: 0,
+        netRevenue: 0,
+        cogsSparepart: 0,
+        grossProfit: 0,
+        grossMarginPercent: 0,
+        serviceProfit: 0,
+        sparepartProfit: 0,
+        sparepartMarginPercent: 0,
+        cashInflow: 0,
+        transferInflow: 0,
+        qrisInflow: 0,
+        corporatePaymentsInflow: 0,
+        totalCashInflow: 0,
+        totalRestock: 0,
+        restockPaid: 0,
+        restockUnpaid: 0,
+        netCashFlow: 0,
+        regularReceivable: 0,
+        corporateReceivable: 0,
+        totalReceivable: 0,
+        totalTransactions: 0,
+        totalRestockCount: 0,
+      },
+    }
+  }
+}
+
 
