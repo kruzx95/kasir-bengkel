@@ -1009,3 +1009,213 @@ export async function createCorporateServiceTransaction(
     return { success: false, message }
   }
 }
+
+// ============================================
+// CORPORATE VEHICLE SERVICE HISTORY (Riwayat Servis)
+// ============================================
+
+export interface CorporateServiceHistoryItem {
+  id: string
+  itemType: 'SERVICE' | 'SPAREPART'
+  itemName: string
+  quantity: number
+  unitPrice: number
+  subtotal: number
+}
+
+export interface CorporateServiceHistoryRecord {
+  id: string
+  invoiceNumber: string
+  transactionDate: Date
+  status: string
+  subtotal: number
+  discount: number
+  total: number
+  paidAmount: number
+  notes: string | null
+  odometer: number | null
+  customer: {
+    id: string
+    name: string
+    plateNumber: string | null
+    vehicleBrand: string | null
+    vehicleType: string | null
+  } | null
+  mechanic: {
+    id: string
+    name: string
+  } | null
+  items: CorporateServiceHistoryItem[]
+  branch: {
+    id: string
+    name: string
+  }
+}
+
+export interface CorporateServiceHistoryResult {
+  corporate: {
+    id: string
+    name: string
+    branch: { id: string; name: string; code: string; phone: string | null; address: string | null }
+  }
+  vehicles: Array<{
+    id: string
+    name: string
+    plateNumber: string | null
+    vehicleBrand: string | null
+    vehicleType: string | null
+    odometer: number | null
+  }>
+  transactions: CorporateServiceHistoryRecord[]
+  summary: {
+    totalTransactions: number
+    totalAmount: number
+    totalServiceItemsCount: number
+    totalSparepartItemsCount: number
+  }
+  startDate: Date
+  endDate: Date
+}
+
+export async function getCorporateServiceHistory(
+  corporateCustomerId: string,
+  vehicleId?: string,
+  startDateStr?: string,
+  endDateStr?: string,
+  search?: string
+): Promise<CorporateServiceHistoryResult | null> {
+  const session = await getSession()
+  if (!session || !canAccessCorporate(session)) return null
+
+  const corporate = await prisma.corporateCustomer.findUnique({
+    where: { id: corporateCustomerId },
+    include: {
+      branch: { select: { id: true, name: true, code: true, phone: true, address: true } },
+      customers: {
+        select: {
+          id: true,
+          name: true,
+          plateNumber: true,
+          vehicleBrand: true,
+          vehicleType: true,
+          odometer: true,
+        },
+        orderBy: { name: 'asc' },
+      },
+    },
+  })
+  if (!corporate) return null
+
+  // Date filtering
+  const today = new Date()
+  const defaultStart = new Date(today.getFullYear(), today.getMonth() - 2, 1) // default 3 months
+
+  const startDate = startDateStr ? new Date(startDateStr) : defaultStart
+  startDate.setHours(0, 0, 0, 0)
+  const endDate = endDateStr ? new Date(endDateStr) : new Date(today)
+  endDate.setHours(23, 59, 59, 999)
+
+  const customerIds = vehicleId && vehicleId.trim() !== ''
+    ? [vehicleId]
+    : corporate.customers.map((c) => c.id)
+
+  if (customerIds.length === 0) {
+    return {
+      corporate,
+      vehicles: corporate.customers,
+      transactions: [],
+      summary: {
+        totalTransactions: 0,
+        totalAmount: 0,
+        totalServiceItemsCount: 0,
+        totalSparepartItemsCount: 0,
+      },
+      startDate,
+      endDate,
+    }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const where: any = {
+    customerId: { in: customerIds },
+    transactionDate: { gte: startDate, lte: endDate },
+    status: { not: 'CANCELLED' },
+  }
+
+  if (search && search.trim()) {
+    const q = search.trim()
+    where.OR = [
+      { invoiceNumber: { contains: q } },
+      { customer: { name: { contains: q } } },
+      { customer: { plateNumber: { contains: q } } },
+      { mechanic: { name: { contains: q } } },
+      { notes: { contains: q } },
+      { items: { some: { itemName: { contains: q } } } },
+    ]
+  }
+
+  const transactions = await prisma.transaction.findMany({
+    where,
+    include: {
+      customer: {
+        select: {
+          id: true,
+          name: true,
+          plateNumber: true,
+          vehicleBrand: true,
+          vehicleType: true,
+        },
+      },
+      mechanic: { select: { id: true, name: true } },
+      items: {
+        select: {
+          id: true,
+          itemType: true,
+          itemName: true,
+          quantity: true,
+          unitPrice: true,
+          subtotal: true,
+        },
+      },
+      branch: { select: { id: true, name: true } },
+      corporatePaymentLinks: {
+        include: {
+          payment: {
+            select: { id: true, amount: true, paymentMethod: true, paidAt: true },
+          },
+        },
+      },
+    },
+    orderBy: { transactionDate: 'desc' },
+  })
+
+  // Summary aggregation
+  const totalTransactions = transactions.length
+  const totalAmount = transactions.reduce((acc, t) => acc + t.total, 0)
+  let totalServiceItemsCount = 0
+  let totalSparepartItemsCount = 0
+
+  for (const t of transactions) {
+    for (const item of t.items) {
+      if (item.itemType === 'SERVICE') {
+        totalServiceItemsCount += item.quantity
+      } else {
+        totalSparepartItemsCount += item.quantity
+      }
+    }
+  }
+
+  return {
+    corporate,
+    vehicles: corporate.customers,
+    transactions,
+    summary: {
+      totalTransactions,
+      totalAmount,
+      totalServiceItemsCount,
+      totalSparepartItemsCount,
+    },
+    startDate,
+    endDate,
+  }
+}

@@ -40,7 +40,7 @@ export async function exportDatabaseBackup() {
       prisma.mechanic.findMany(),
       prisma.service.findMany(),
       prisma.sparepart.findMany(),
-      prisma.transaction.findMany({ include: { items: true } }),
+      prisma.transaction.findMany({ include: { items: true, payments: true } }),
       prisma.indentOrder.findMany({ include: { items: true } }),
       prisma.restock.findMany({ include: { items: true } }),
       prisma.stockTransfer.findMany(),
@@ -423,7 +423,7 @@ export async function restoreDatabase(jsonContent: string, password: string) {
 
         // 9. Insert transactions & transaction items
         for (const t of transactions) {
-          const { items = [], ...txData } = t
+          const { items = [], payments = [], ...txData } = t
           await tx.transaction.create({
             data: {
               id: txData.id,
@@ -436,7 +436,8 @@ export async function restoreDatabase(jsonContent: string, password: string) {
               subtotal: txData.subtotal ?? 0,
               total: txData.total,
               discount: txData.discount ?? 0,
-              paidAmount: txData.paidAmount,
+              paidAmount: txData.paidAmount ?? 0,
+              changeAmount: txData.changeAmount ?? 0,
               paymentMethod: txData.paymentMethod || 'CASH',
               notes: txData.notes,
               status: txData.status || 'COMPLETED',
@@ -456,6 +457,13 @@ export async function restoreDatabase(jsonContent: string, password: string) {
                   subtotal: i.subtotal,
                 })),
               },
+              payments: payments && payments.length > 0 ? {
+                create: payments.map((p: any) => ({
+                  id: p.id,
+                  paymentMethod: p.paymentMethod,
+                  amount: p.amount,
+                }))
+              } : undefined,
             },
           })
         }

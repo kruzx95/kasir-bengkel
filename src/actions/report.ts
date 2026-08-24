@@ -56,6 +56,14 @@ export async function getReportData(
         type: true,
         status: true,
         paymentMethod: true,
+        paidAmount: true,
+        changeAmount: true,
+        payments: {
+          select: {
+            paymentMethod: true,
+            amount: true,
+          }
+        },
         subtotal: true,
         discount: true,
         total: true,
@@ -88,11 +96,28 @@ export async function getReportData(
     let totalDiscount = 0
     let grandTotal = 0
     let pendingCorporate = 0
+    let cashTotal = 0
+    let transferTotal = 0
+    let qrisTotal = 0
 
     transactions.forEach(tx => {
       grandTotal += tx.total
       totalDiscount += tx.discount
-      if (tx.status === 'PENDING_CORPORATE') pendingCorporate += tx.total
+      if (tx.status === 'PENDING_CORPORATE') {
+        pendingCorporate += tx.total
+      } else {
+        if (tx.payments && tx.payments.length > 0) {
+          tx.payments.forEach(p => {
+            if (p.paymentMethod === 'CASH') cashTotal += p.amount
+            else if (p.paymentMethod === 'TRANSFER') transferTotal += p.amount
+            else if (p.paymentMethod === 'QRIS') qrisTotal += p.amount
+          })
+        } else {
+          if (tx.paymentMethod === 'CASH') cashTotal += tx.total
+          else if (tx.paymentMethod === 'TRANSFER') transferTotal += tx.total
+          else if (tx.paymentMethod === 'QRIS') qrisTotal += tx.total
+        }
+      }
 
       tx.items.forEach(item => {
         if (item.itemType === 'SERVICE') serviceRev += item.subtotal
@@ -107,12 +132,27 @@ export async function getReportData(
         service: serviceRev,
         sparepart: sparepartRev,
         discount: totalDiscount,
-        pendingCorporate
+        pendingCorporate,
+        cashTotal,
+        transferTotal,
+        qrisTotal,
       }
     }
   } catch (error) {
     console.error('Report fetching error:', error)
-    return { transactions: [], summary: { total: 0, service: 0, sparepart: 0, discount: 0, pendingCorporate: 0 } }
+    return {
+      transactions: [],
+      summary: {
+        total: 0,
+        service: 0,
+        sparepart: 0,
+        discount: 0,
+        pendingCorporate: 0,
+        cashTotal: 0,
+        transferTotal: 0,
+        qrisTotal: 0,
+      }
+    }
   }
 }
 

@@ -1,7 +1,7 @@
 'use client'
 
-import { login, loginAsDemo } from '@/actions/auth'
-import { useActionState, useState, useTransition } from 'react'
+import { login } from '@/actions/auth'
+import { useActionState, useState } from 'react'
 import {
   Wrench,
   Eye,
@@ -9,34 +9,20 @@ import {
   Mail,
   Lock,
   ShieldCheck,
-  Sparkles,
-  UserCheck,
-  ShoppingCart,
-  ArrowRight,
   Loader2,
-  Info,
 } from 'lucide-react'
 
 export default function LoginClient({ shopName }: { shopName: string }) {
   const [state, action, pending] = useActionState(login, undefined)
   const [showPassword, setShowPassword] = useState(false)
-  const [isDemoPending, startDemoTransition] = useTransition()
-  const [activeDemoRole, setActiveDemoRole] = useState<'ADMIN' | 'KASIR' | null>(null)
-
-  const handleDemoLogin = (role: 'ADMIN' | 'KASIR') => {
-    setActiveDemoRole(role)
-    startDemoTransition(async () => {
-      await loginAsDemo(role)
-    })
-  }
 
   return (
     <div className="min-h-screen relative flex flex-col justify-between bg-slate-50 overflow-hidden font-sans selection:bg-primary-500 selection:text-white">
       {/* Dynamic Background Elements */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         {/* Soft Radial Gradients */}
-        <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[60%] rounded-full bg-gradient-to-br from-primary-200/40 via-blue-100/30 to-transparent blur-3xl" />
-        <div className="absolute -bottom-[20%] -right-[10%] w-[50%] h-[60%] rounded-full bg-gradient-to-tl from-accent-200/40 via-emerald-100/30 to-transparent blur-3xl" />
+        <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[60%] rounded-full bg-linear-to-br from-primary-200/40 via-blue-100/30 to-transparent blur-3xl" />
+        <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[60%] rounded-full bg-linear-to-tl from-accent-200/40 via-emerald-100/30 to-transparent blur-3xl" />
         <div className="absolute top-[30%] right-[15%] w-[35%] h-[35%] rounded-full bg-primary-100/25 blur-3xl" />
 
         {/* Decorative Subtle Grid Pattern */}
@@ -52,7 +38,7 @@ export default function LoginClient({ shopName }: { shopName: string }) {
       {/* Top Header Bar */}
       <header className="relative z-10 w-full max-w-7xl mx-auto px-6 py-6 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-primary-600 to-primary-500 flex items-center justify-center shadow-md shadow-primary-500/20 text-white">
+          <div className="w-10 h-10 rounded-xl bg-linear-to-tr from-primary-600 to-primary-500 flex items-center justify-center shadow-md shadow-primary-500/20 text-white">
             <Wrench className="w-5 h-5" />
           </div>
           <div>
@@ -80,7 +66,7 @@ export default function LoginClient({ shopName }: { shopName: string }) {
             <div className="text-center mb-6">
               <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Selamat Datang Kembali</h1>
               <p className="text-sm text-slate-500 mt-1">
-                Masukkan akun Anda atau gunakan akses instan demo
+                Masukkan email dan password akun Anda untuk masuk
               </p>
             </div>
 
@@ -159,8 +145,8 @@ export default function LoginClient({ shopName }: { shopName: string }) {
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={pending || isDemoPending}
-                className="w-full py-3 px-4 bg-gradient-to-r from-primary-600 via-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white font-semibold text-sm rounded-xl shadow-md shadow-primary-600/25 hover:shadow-primary-600/35 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer"
+                disabled={pending}
+                className="w-full py-3 px-4 bg-linear-to-r from-primary-600 via-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white font-semibold text-sm rounded-xl shadow-md shadow-primary-600/25 hover:shadow-primary-600/35 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer"
               >
                 {pending ? (
                   <span className="inline-flex items-center gap-2">
@@ -172,61 +158,6 @@ export default function LoginClient({ shopName }: { shopName: string }) {
                 )}
               </button>
             </form>
-
-            {/* Divider */}
-            <div className="relative my-6">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-slate-200" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-white px-3 text-slate-400 font-semibold tracking-wider flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                  Pratinjau Mode Demo
-                </span>
-              </div>
-            </div>
-
-            {/* 1-Click Quick Demo Kasir Access (Read-Only) */}
-            <div>
-              <button
-                type="button"
-                onClick={() => handleDemoLogin('KASIR')}
-                disabled={pending || isDemoPending}
-                className="w-full group relative flex items-center justify-between p-3.5 sm:p-4 rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50/70 via-white to-emerald-50/40 hover:from-emerald-100/60 hover:to-white hover:border-emerald-300 transition-all duration-200 shadow-xs hover:shadow-md text-left disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold text-sm shadow-xs shadow-emerald-600/30 group-hover:scale-105 transition-transform shrink-0">
-                    {isDemoPending ? (
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                    ) : (
-                      <ShoppingCart className="w-5 h-5" />
-                    )}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-bold text-sm text-slate-900 group-hover:text-emerald-700 transition-colors">
-                        Coba Demo Kasir POS
-                      </span>
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
-                        Read-Only
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      Jelajahi antarmuka kasir, transaksi, dan data dummy bengkel
-                    </p>
-                  </div>
-                </div>
-
-                <div className="hidden sm:flex items-center gap-1 text-xs font-semibold text-emerald-700 shrink-0 pl-2">
-                  <span>{isDemoPending ? 'Membuka...' : 'Buka Demo'}</span>
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                </div>
-              </button>
-
-              <p className="text-[11px] text-slate-400 text-center mt-2.5">
-                Menggunakan data simulasi <span className="font-medium text-slate-600">Cabang Demo</span> (Hanya Lihat).
-              </p>
-            </div>
           </div>
         </div>
       </main>

@@ -15,7 +15,10 @@ interface TransactionRow {
   type: string
   status: string
   total: number
+  paidAmount?: number
+  changeAmount?: number
   paymentMethod: string
+  payments?: { paymentMethod: string; amount: number }[]
   createdAt: Date
   customer: { name: string; plateNumber: string | null } | null
   items: { itemType: string; subtotal: number }[]
@@ -116,11 +119,23 @@ export default function TransactionsClient({ initialTransactions }: Transactions
     {
       key: 'payment',
       header: 'Pembayaran',
-      render: (row: TransactionRow) => (
-        <span className="text-xs font-medium px-2 py-1 bg-slate-100 rounded-md text-slate-600">
-          {row.paymentMethod}
-        </span>
-      ),
+      render: (row: TransactionRow) => {
+        if (row.paymentMethod === 'SPLIT' || (row.payments && row.payments.length > 1)) {
+          const summaryText = row.payments && row.payments.length > 0
+            ? row.payments.map(p => p.paymentMethod === 'CASH' ? 'Tunai' : p.paymentMethod === 'TRANSFER' ? 'Trf' : 'QRIS').join('+')
+            : 'Mix'
+          return (
+            <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 bg-violet-50 text-violet-700 border border-violet-200 rounded-md">
+              SPLIT ({summaryText})
+            </span>
+          )
+        }
+        return (
+          <span className="text-xs font-medium px-2 py-1 bg-slate-100 rounded-md text-slate-600">
+            {row.paymentMethod === 'CASH' ? 'Tunai' : row.paymentMethod}
+          </span>
+        )
+      },
     },
     {
       key: 'actions',

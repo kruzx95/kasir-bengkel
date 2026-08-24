@@ -197,9 +197,28 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start pt-6 border-t border-slate-200 gap-6 print:pt-2 print:gap-2">
           <div className="sm:w-1/2 sm:pr-8 print:pr-2">
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 print:mb-0.5 print:text-[10px]">Metode Pembayaran</p>
-            <p className="text-sm font-bold text-slate-900 mb-6 print:mb-2 print:text-xs">
-              {tx.status === 'PENDING_CORPORATE' ? 'Tagihan Korporat (Piutang)' : tx.paymentMethod}
-            </p>
+            
+            {tx.status === 'PENDING_CORPORATE' ? (
+              <p className="text-sm font-bold text-violet-700 mb-4 print:mb-1 print:text-xs">
+                Tagihan Korporat (Piutang)
+              </p>
+            ) : tx.paymentMethod === 'SPLIT' || (tx.payments && tx.payments.length > 1) ? (
+              <div className="mb-4 print:mb-1">
+                <p className="text-sm font-bold text-slate-900 mb-1.5 print:text-xs">Split / Kombinasi</p>
+                <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200/80 space-y-1 print:p-1 print:border-none print:bg-transparent">
+                  {tx.payments?.map((p) => (
+                    <div key={p.id} className="flex justify-between text-xs text-slate-700 print:text-[10px]">
+                      <span>• {p.paymentMethod === 'CASH' ? 'Tunai (Cash)' : p.paymentMethod === 'TRANSFER' ? 'Transfer Bank' : 'QRIS'}</span>
+                      <span className="font-semibold text-slate-900">{formatCurrency(p.amount)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm font-bold text-slate-900 mb-4 print:mb-1 print:text-xs">
+                {tx.paymentMethod === 'CASH' ? 'Tunai (Cash)' : tx.paymentMethod === 'TRANSFER' ? 'Transfer Bank' : 'QRIS'}
+              </p>
+            )}
             
             {tx.notes && (
               <>
@@ -224,6 +243,20 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
               <span className="text-base font-bold text-slate-900 print:text-sm">Total Akhir</span>
               <span className="text-2xl font-black text-primary-600 print:text-base print:font-bold">{formatCurrency(tx.total)}</span>
             </div>
+
+            {tx.status !== 'PENDING_CORPORATE' && tx.paidAmount > tx.total && (
+              <div className="flex justify-between text-sm text-slate-600 print:text-xs pt-2 border-t border-slate-100">
+                <span>Uang Diterima</span>
+                <span className="font-semibold text-slate-900">{formatCurrency(tx.paidAmount)}</span>
+              </div>
+            )}
+
+            {tx.status !== 'PENDING_CORPORATE' && (tx.changeAmount ?? 0) > 0 && (
+              <div className="flex justify-between text-sm text-emerald-600 print:text-xs font-semibold">
+                <span>Kembalian</span>
+                <span className="font-bold">{formatCurrency(tx.changeAmount ?? 0)}</span>
+              </div>
+            )}
 
             {(tx.status === 'PENDING_CORPORATE' || tx.customer?.corporateCustomer) && (
               <>

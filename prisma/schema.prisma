@@ -170,6 +170,7 @@ model Transaction {
   discount              Float                        @default(0)
   total                 Float                        @default(0)
   paidAmount            Float                        @default(0) @map("paid_amount")
+  changeAmount          Float                        @default(0) @map("change_amount")
   paymentMethod         PaymentMethod                @default(CASH) @map("payment_method")
   notes                 String?
   transactionDate       DateTime                     @map("transaction_date") @db.Date
@@ -177,6 +178,7 @@ model Transaction {
   createdAt             DateTime                     @default(now())
   updatedAt             DateTime                     @updatedAt
   items                 TransactionItem[]
+  payments              TransactionPayment[]
   branch                Branch                       @relation(fields: [branchId], references: [id])
   customer              Customer?                    @relation(fields: [customerId], references: [id])
   mechanic              Mechanic?                    @relation(fields: [mechanicId], references: [id])
@@ -209,6 +211,19 @@ model TransactionItem {
   @@index([sparepartId], map: "transaction_items_sparepart_id_fkey")
   @@index([transactionId], map: "transaction_items_transaction_id_fkey")
   @@map("transaction_items")
+}
+
+model TransactionPayment {
+  id            String        @id @default(cuid())
+  transactionId String        @map("transaction_id")
+  paymentMethod PaymentMethod @map("payment_method")
+  amount        Float
+  createdAt     DateTime      @default(now()) @map("created_at")
+
+  transaction   Transaction   @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@index([transactionId], map: "transaction_payments_transaction_id_fkey")
+  @@map("transaction_payments")
 }
 
 model Mechanic {
@@ -350,6 +365,7 @@ enum PaymentMethod {
   CASH
   TRANSFER
   QRIS
+  SPLIT
 }
 
 enum ItemType {

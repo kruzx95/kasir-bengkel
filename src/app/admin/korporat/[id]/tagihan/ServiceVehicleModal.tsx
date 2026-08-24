@@ -9,6 +9,7 @@ import { formatCurrency } from '@/lib/utils'
 import {
   Wrench,
   Package,
+  PackagePlus,
   Plus,
   Trash2,
   Search,
@@ -129,7 +130,12 @@ export default function ServiceVehicleModal({
   const grandTotal = Math.max(0, subtotal - discountVal)
 
   const stockErrors = items.filter(
-    (item) => item.itemType === 'SPAREPART' && item.stock !== undefined && item.quantity > item.stock
+    (item) =>
+      item.itemType === 'SPAREPART' &&
+      item.itemId &&
+      !item.itemId.startsWith('MANUAL_') &&
+      item.stock !== undefined &&
+      item.quantity > item.stock
   )
 
   const addService = (svc: ServiceOption) => {
@@ -140,6 +146,22 @@ export default function ServiceVehicleModal({
     setItems((prev) => [
       ...prev,
       { id: generateId(), itemType: 'SERVICE', itemId: svc.id, itemName: svc.name, quantity: 1, unitPrice: svc.price },
+    ])
+    setServiceSearch('')
+    setShowServicePicker(false)
+  }
+
+  const addManualService = (customName?: string) => {
+    setItems((prev) => [
+      ...prev,
+      {
+        id: generateId(),
+        itemType: 'SERVICE',
+        itemId: 'MANUAL_JASA_' + Date.now(),
+        itemName: customName?.trim() || 'Jasa Custom',
+        quantity: 1,
+        unitPrice: 0,
+      },
     ])
     setServiceSearch('')
     setShowServicePicker(false)
@@ -163,6 +185,23 @@ export default function ServiceVehicleModal({
         unitPrice: sp.sellPrice,
         stock: sp.stock,
         unit: sp.unit,
+      },
+    ])
+    setSparepartSearch('')
+    setShowSparepartPicker(false)
+  }
+
+  const addManualSparepart = (customName?: string) => {
+    setItems((prev) => [
+      ...prev,
+      {
+        id: generateId(),
+        itemType: 'SPAREPART',
+        itemId: 'MANUAL_PART_' + Date.now(),
+        itemName: customName?.trim() || 'Sparepart Luar',
+        quantity: 1,
+        unitPrice: 0,
+        unit: 'pcs',
       },
     ])
     setSparepartSearch('')
@@ -200,7 +239,7 @@ export default function ServiceVehicleModal({
       return
     }
     if (stockErrors.length > 0) {
-      setErrorMsg('Stok sparepart tidak mencukupi. Periksa kembali quantity.')
+      setErrorMsg('Stok sparepart toko tidak mencukupi. Periksa kembali quantity.')
       return
     }
 
@@ -208,9 +247,9 @@ export default function ServiceVehicleModal({
       const payload: ServiceItem[] = items.map((item) => ({
         itemType: item.itemType,
         itemId: item.itemId,
-        itemName: item.itemName,
-        quantity: item.quantity,
-        unitPrice: item.unitPrice,
+        itemName: item.itemName.trim() || (item.itemType === 'SERVICE' ? 'Jasa Custom' : 'Sparepart Luar'),
+        quantity: item.quantity > 0 ? item.quantity : 1,
+        unitPrice: item.unitPrice >= 0 ? item.unitPrice : 0,
       }))
 
       const res = await createCorporateServiceTransaction({
@@ -317,7 +356,7 @@ export default function ServiceVehicleModal({
         {/* Mechanic + Odometer */}
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5 flex items-center gap-1">
+            <label className="text-xs font-semibold text-slate-600 mb-1.5 flex items-center gap-1">
               <User className="w-3.5 h-3.5" />Mekanik
             </label>
             <div className="relative">
@@ -345,15 +384,25 @@ export default function ServiceVehicleModal({
 
         {/* Jasa Service */}
         <div>
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
             <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
               <Wrench className="w-3.5 h-3.5 text-blue-500" />Jasa Service
             </p>
-            <Button
-              size="sm" variant="outline" icon={Plus}
-              onClick={() => { setShowServicePicker(true); setShowSparepartPicker(false) }}
-              className="text-blue-600 border-blue-200 hover:bg-blue-50"
-            >Tambah Jasa</Button>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm" variant="outline" icon={Plus}
+                onClick={() => { setShowServicePicker(true); setShowSparepartPicker(false) }}
+                className="text-blue-600 border-blue-200 hover:bg-blue-50"
+              >Tambah Jasa</Button>
+              <button
+                type="button"
+                onClick={() => addManualService()}
+                className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                + Jasa Custom
+              </button>
+            </div>
           </div>
 
           {showServicePicker && (
@@ -371,7 +420,19 @@ export default function ServiceVehicleModal({
               </div>
               <div className="max-h-48 overflow-y-auto divide-y divide-slate-50">
                 {filteredServices.length === 0 ? (
-                  <p className="p-4 text-sm text-slate-400 text-center">Tidak ada jasa ditemukan</p>
+                  <div className="p-4 text-center">
+                    <p className="text-sm text-slate-400 mb-2">Tidak ada jasa ditemukan untuk &quot;{serviceSearch}&quot;</p>
+                    {serviceSearch.trim() && (
+                      <button
+                        type="button"
+                        onClick={() => addManualService(serviceSearch)}
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3 py-1.5 rounded-lg"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        Jadikan Jasa Custom &quot;{serviceSearch}&quot;
+                      </button>
+                    )}
+                  </div>
                 ) : filteredServices.map((svc) => (
                   <button key={svc.id} type="button" onClick={() => addService(svc)}
                     className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-blue-50 transition-colors text-left">
@@ -383,9 +444,16 @@ export default function ServiceVehicleModal({
                   </button>
                 ))}
               </div>
-              <div className="p-2 border-t border-slate-100">
+              <div className="p-2 border-t border-slate-100 flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => addManualService(serviceSearch)}
+                  className="text-xs font-semibold text-blue-600 hover:text-blue-800 px-2 py-1"
+                >
+                  + Tambah Jasa Custom Manual
+                </button>
                 <button type="button" onClick={() => setShowServicePicker(false)}
-                  className="w-full text-xs text-slate-400 py-1 hover:text-slate-600">Tutup</button>
+                  className="text-xs text-slate-400 py-1 hover:text-slate-600">Tutup</button>
               </div>
             </div>
           )}
@@ -394,54 +462,75 @@ export default function ServiceVehicleModal({
             <p className="text-sm text-slate-400 italic py-2 px-1">Belum ada jasa ditambahkan</p>
           ) : (
             <div className="space-y-2">
-              {items.filter((i) => i.itemType === 'SERVICE').map((item) => (
-                <div key={item.id} className="flex items-center gap-2 bg-blue-50/50 border border-blue-100 rounded-xl px-3 py-2">
-                  <Wrench className="w-4 h-4 text-blue-400 shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <input
-                      className="w-full text-sm font-medium text-slate-900 bg-transparent border-b border-dashed border-blue-200 focus:outline-none focus:border-blue-400 pb-0.5"
-                      value={item.itemName}
-                      onChange={(e) => updateItem(item.id, 'itemName', e.target.value)}
-                    />
+              {items.filter((i) => i.itemType === 'SERVICE').map((item) => {
+                const isCustom = item.itemId?.startsWith('MANUAL_')
+                return (
+                  <div key={item.id} className="flex items-center gap-2 bg-blue-50/50 border border-blue-100 rounded-xl px-3 py-2">
+                    <Wrench className="w-4 h-4 text-blue-400 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <input
+                          className="w-full text-sm font-medium text-slate-900 bg-transparent border-b border-dashed border-blue-200 focus:outline-none focus:border-blue-400 pb-0.5"
+                          value={item.itemName}
+                          placeholder="Nama Jasa..."
+                          onChange={(e) => updateItem(item.id, 'itemName', e.target.value)}
+                        />
+                        {isCustom && (
+                          <span className="text-[10px] font-bold bg-sky-100 text-sky-800 border border-sky-200 px-1.5 py-0.2 rounded shrink-0">
+                            Custom
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <span className="text-xs text-slate-500">Qty:</span>
+                      <input type="number" min={1} value={item.quantity}
+                        onChange={(e) => updateItem(item.id, 'quantity', e.target.value)}
+                        className="w-14 text-sm text-center border border-slate-200 rounded-lg px-1.5 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500/30 bg-white"
+                      />
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <span className="text-xs text-slate-500">Rp</span>
+                      <input type="number" min={0} value={item.unitPrice}
+                        onChange={(e) => updateItem(item.id, 'unitPrice', e.target.value)}
+                        className="w-28 text-sm text-right border border-slate-200 rounded-lg px-1.5 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500/30 bg-white font-medium"
+                      />
+                    </div>
+                    <span className="text-sm font-bold text-blue-700 w-28 text-right shrink-0">
+                      {formatCurrency(item.quantity * item.unitPrice)}
+                    </span>
+                    <button type="button" onClick={() => removeItem(item.id)}
+                      className="text-red-400 hover:text-red-600 p-1 rounded-lg hover:bg-red-50 transition-colors shrink-0">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <span className="text-xs text-slate-500">Qty:</span>
-                    <input type="number" min={1} value={item.quantity}
-                      onChange={(e) => updateItem(item.id, 'quantity', e.target.value)}
-                      className="w-14 text-sm text-center border border-slate-200 rounded-lg px-1.5 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
-                    />
-                  </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <span className="text-xs text-slate-500">Rp</span>
-                    <input type="number" min={0} value={item.unitPrice}
-                      onChange={(e) => updateItem(item.id, 'unitPrice', e.target.value)}
-                      className="w-28 text-sm text-right border border-slate-200 rounded-lg px-1.5 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
-                    />
-                  </div>
-                  <span className="text-sm font-bold text-blue-700 w-28 text-right shrink-0">
-                    {formatCurrency(item.quantity * item.unitPrice)}
-                  </span>
-                  <button type="button" onClick={() => removeItem(item.id)}
-                    className="text-red-400 hover:text-red-600 p-1 rounded-lg hover:bg-red-50 transition-colors shrink-0">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>
 
         {/* Sparepart */}
         <div>
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
             <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
-              <Package className="w-3.5 h-3.5 text-orange-500" />Sparepart (Stock Toko)
+              <Package className="w-3.5 h-3.5 text-orange-500" />Sparepart
             </p>
-            <Button
-              size="sm" variant="outline" icon={Plus}
-              onClick={() => { setShowSparepartPicker(true); setShowServicePicker(false) }}
-              className="text-orange-600 border-orange-200 hover:bg-orange-50"
-            >Tambah Sparepart</Button>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm" variant="outline" icon={Plus}
+                onClick={() => { setShowSparepartPicker(true); setShowServicePicker(false) }}
+                className="text-orange-600 border-orange-200 hover:bg-orange-50"
+              >Tambah Sparepart</Button>
+              <button
+                type="button"
+                onClick={() => addManualSparepart()}
+                className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 transition-colors"
+              >
+                <PackagePlus className="w-3.5 h-3.5" />
+                + Part Luar (Non-Stok)
+              </button>
+            </div>
           </div>
 
           {showSparepartPicker && (
@@ -459,7 +548,19 @@ export default function ServiceVehicleModal({
               </div>
               <div className="max-h-48 overflow-y-auto divide-y divide-slate-50">
                 {filteredSpareparts.length === 0 ? (
-                  <p className="p-4 text-sm text-slate-400 text-center">Tidak ada sparepart ditemukan</p>
+                  <div className="p-4 text-center">
+                    <p className="text-sm text-slate-400 mb-2">Tidak ada sparepart ditemukan untuk &quot;{sparepartSearch}&quot;</p>
+                    {sparepartSearch.trim() && (
+                      <button
+                        type="button"
+                        onClick={() => addManualSparepart(sparepartSearch)}
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-3 py-1.5 rounded-lg"
+                      >
+                        <PackagePlus className="w-3.5 h-3.5" />
+                        Jadikan Sparepart Luar &quot;{sparepartSearch}&quot;
+                      </button>
+                    )}
+                  </div>
                 ) : filteredSpareparts.map((sp) => (
                   <button key={sp.id} type="button" onClick={() => addSparepart(sp)} disabled={sp.stock === 0}
                     className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-orange-50 transition-colors text-left disabled:opacity-50 disabled:cursor-not-allowed">
@@ -468,7 +569,7 @@ export default function ServiceVehicleModal({
                       <div className="flex items-center gap-2">
                         {sp.sparepartBrand && <span className="text-xs text-slate-400">{sp.sparepartBrand}</span>}
                         <span className={`text-xs font-medium ${sp.stock <= 5 ? 'text-red-500' : 'text-emerald-600'}`}>
-                          Stok: {sp.stock} {sp.unit}
+                          Stok Toko: {sp.stock} {sp.unit}
                         </span>
                       </div>
                     </div>
@@ -476,9 +577,16 @@ export default function ServiceVehicleModal({
                   </button>
                 ))}
               </div>
-              <div className="p-2 border-t border-slate-100">
+              <div className="p-2 border-t border-slate-100 flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => addManualSparepart(sparepartSearch)}
+                  className="text-xs font-semibold text-amber-700 hover:text-amber-900 px-2 py-1"
+                >
+                  + Tambah Sparepart Luar (Non-Stok)
+                </button>
                 <button type="button" onClick={() => setShowSparepartPicker(false)}
-                  className="w-full text-xs text-slate-400 py-1 hover:text-slate-600">Tutup</button>
+                  className="text-xs text-slate-400 py-1 hover:text-slate-600">Tutup</button>
               </div>
             </div>
           )}
@@ -488,16 +596,39 @@ export default function ServiceVehicleModal({
           ) : (
             <div className="space-y-2">
               {items.filter((i) => i.itemType === 'SPAREPART').map((item) => {
-                const overStock = item.stock !== undefined && item.quantity > item.stock
+                const isCustom = item.itemId?.startsWith('MANUAL_')
+                const overStock = !isCustom && item.stock !== undefined && item.quantity > item.stock
                 return (
                   <div key={item.id}
-                    className={`flex items-center gap-2 border rounded-xl px-3 py-2 ${overStock ? 'bg-red-50/50 border-red-200' : 'bg-orange-50/30 border-orange-100'}`}>
-                    <Package className={`w-4 h-4 shrink-0 ${overStock ? 'text-red-400' : 'text-orange-400'}`} />
+                    className={`flex items-center gap-2 border rounded-xl px-3 py-2 ${
+                      overStock ? 'bg-red-50/50 border-red-200' : isCustom ? 'bg-amber-50/30 border-amber-200' : 'bg-orange-50/30 border-orange-100'
+                    }`}>
+                    {isCustom ? (
+                      <PackagePlus className="w-4 h-4 shrink-0 text-amber-600" />
+                    ) : (
+                      <Package className={`w-4 h-4 shrink-0 ${overStock ? 'text-red-400' : 'text-orange-400'}`} />
+                    )}
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-slate-900 truncate">{item.itemName}</p>
-                      {item.stock !== undefined && (
+                      <div className="flex items-center gap-1.5">
+                        {isCustom ? (
+                          <input
+                            className="w-full text-sm font-medium text-slate-900 bg-transparent border-b border-dashed border-amber-300 focus:outline-none focus:border-amber-500 pb-0.5"
+                            value={item.itemName}
+                            placeholder="Nama Sparepart Luar..."
+                            onChange={(e) => updateItem(item.id, 'itemName', e.target.value)}
+                          />
+                        ) : (
+                          <p className="text-sm font-medium text-slate-900 truncate">{item.itemName}</p>
+                        )}
+                        {isCustom && (
+                          <span className="text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200 px-1.5 py-0.2 rounded shrink-0">
+                            Luar (Non-Stok)
+                          </span>
+                        )}
+                      </div>
+                      {!isCustom && item.stock !== undefined && (
                         <p className={`text-xs ${overStock ? 'text-red-500 font-semibold' : 'text-slate-400'}`}>
-                          Stok: {item.stock} {item.unit}{overStock && ' ← Melebihi stok!'}
+                          Stok Toko: {item.stock} {item.unit}{overStock && ' ← Melebihi stok!'}
                         </p>
                       )}
                     </div>
@@ -505,14 +636,18 @@ export default function ServiceVehicleModal({
                       <span className="text-xs text-slate-500">Qty:</span>
                       <input type="number" min={1} value={item.quantity}
                         onChange={(e) => updateItem(item.id, 'quantity', e.target.value)}
-                        className={`w-14 text-sm text-center border rounded-lg px-1.5 py-1 focus:outline-none focus:ring-2 ${overStock ? 'border-red-300 focus:ring-red-500/30' : 'border-slate-200 focus:ring-orange-500/30'}`}
+                        className={`w-14 text-sm text-center border rounded-lg px-1.5 py-1 focus:outline-none focus:ring-2 bg-white ${
+                          overStock ? 'border-red-300 focus:ring-red-500/30' : isCustom ? 'border-amber-200 focus:ring-amber-500/30' : 'border-slate-200 focus:ring-orange-500/30'
+                        }`}
                       />
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
                       <span className="text-xs text-slate-500">Rp</span>
                       <input type="number" min={0} value={item.unitPrice}
                         onChange={(e) => updateItem(item.id, 'unitPrice', e.target.value)}
-                        className="w-28 text-sm text-right border border-slate-200 rounded-lg px-1.5 py-1 focus:outline-none focus:ring-2 focus:ring-orange-500/30"
+                        className={`w-28 text-sm text-right border rounded-lg px-1.5 py-1 focus:outline-none focus:ring-2 bg-white font-medium ${
+                          isCustom ? 'border-amber-200 focus:ring-amber-500/30' : 'border-slate-200 focus:ring-orange-500/30'
+                        }`}
                       />
                     </div>
                     <span className="text-sm font-bold text-orange-700 w-28 text-right shrink-0">
@@ -569,7 +704,7 @@ export default function ServiceVehicleModal({
           onClick={handleSubmit}
           loading={isPending}
           disabled={items.length === 0 || stockErrors.length > 0}
-          className="bg-violet-600 hover:bg-violet-700 min-w-[160px]"
+          className="bg-violet-600 hover:bg-violet-700 min-w-40"
         >
           Simpan &amp; Buat Nota
         </Button>

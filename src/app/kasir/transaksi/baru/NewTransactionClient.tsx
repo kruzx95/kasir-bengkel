@@ -4,7 +4,6 @@ import { useState, useMemo, useTransition, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
-import Select from '@/components/ui/Select'
 import CustomerAutocomplete from '@/components/ui/CustomerAutocomplete'
 import Badge from '@/components/ui/Badge'
 import { createTransaction, type TransactionPayload } from '@/actions/transaction'
@@ -16,13 +15,18 @@ import {
   Receipt,
   Wrench,
   Package,
+  PackagePlus,
   User,
   RotateCcw,
   Plus,
   Building2,
   Zap,
-  Keyboard,
   Check,
+  CreditCard,
+  Banknote,
+  QrCode,
+  Layers,
+  AlertCircle,
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -33,7 +37,12 @@ interface DraftState {
   isCorporate: boolean
   items: TransactionPayload['items']
   discount: number
-  paymentMethod: 'CASH' | 'TRANSFER' | 'QRIS'
+  paymentMethod: 'CASH' | 'TRANSFER' | 'QRIS' | 'SPLIT'
+  cashGiven: number | ''
+  splitCash: number | ''
+  splitTransfer: number | ''
+  splitQris: number | ''
+  splitCashGiven: number | ''
   mechanicId: string
   notes: string
   odometer: number | ''
@@ -45,6 +54,11 @@ const defaultDraft: DraftState = {
   items: [],
   discount: 0,
   paymentMethod: 'CASH',
+  cashGiven: '',
+  splitCash: '',
+  splitTransfer: '',
+  splitQris: '',
+  splitCashGiven: '',
   mechanicId: '',
   notes: '',
   odometer: '',
@@ -109,7 +123,12 @@ export default function NewTransactionClient({
   const [isCorporate, setIsCorporate] = useState<boolean>(() => loadDraft().isCorporate)
   const [items, setItems] = useState<TransactionPayload['items']>(() => loadDraft().items)
   const [discount, setDiscount] = useState<number>(() => loadDraft().discount)
-  const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'TRANSFER' | 'QRIS'>(() => loadDraft().paymentMethod)
+  const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'TRANSFER' | 'QRIS' | 'SPLIT'>(() => loadDraft().paymentMethod)
+  const [cashGiven, setCashGiven] = useState<number | ''>(() => loadDraft().cashGiven ?? '')
+  const [splitCash, setSplitCash] = useState<number | ''>(() => loadDraft().splitCash ?? '')
+  const [splitTransfer, setSplitTransfer] = useState<number | ''>(() => loadDraft().splitTransfer ?? '')
+  const [splitQris, setSplitQris] = useState<number | ''>(() => loadDraft().splitQris ?? '')
+  const [splitCashGiven, setSplitCashGiven] = useState<number | ''>(() => loadDraft().splitCashGiven ?? '')
   const [mechanicId, setMechanicId] = useState<string>(() => loadDraft().mechanicId)
   const [notes, setNotes] = useState<string>(() => loadDraft().notes)
   const [odometer, setOdometer] = useState<number | ''>(() => loadDraft().odometer)
@@ -122,10 +141,24 @@ export default function NewTransactionClient({
 
   // Auto-save ke localStorage setiap kali state berubah
   useEffect(() => {
-    const draft: DraftState = { customerId, isCorporate, items, discount, paymentMethod, mechanicId, notes, odometer }
+    const draft: DraftState = {
+      customerId,
+      isCorporate,
+      items,
+      discount,
+      paymentMethod,
+      cashGiven,
+      splitCash,
+      splitTransfer,
+      splitQris,
+      splitCashGiven,
+      mechanicId,
+      notes,
+      odometer
+    }
     saveDraft(draft)
     startTransition(() => setHasDraft(items.length > 0))
-  }, [customerId, isCorporate, items, discount, paymentMethod, mechanicId, notes, odometer])
+  }, [customerId, isCorporate, items, discount, paymentMethod, cashGiven, splitCash, splitTransfer, splitQris, splitCashGiven, mechanicId, notes, odometer])
 
   const handleResetDraft = () => {
     if (!confirm('Hapus semua item dan mulai transaksi baru?')) return
@@ -135,6 +168,11 @@ export default function NewTransactionClient({
     setItems([])
     setDiscount(0)
     setPaymentMethod('CASH')
+    setCashGiven('')
+    setSplitCash('')
+    setSplitTransfer('')
+    setSplitQris('')
+    setSplitCashGiven('')
     setMechanicId('')
     setNotes('')
     setOdometer('')
@@ -144,18 +182,34 @@ export default function NewTransactionClient({
   // Catalog search state
   const [searchQuery, setSearchQuery] = useState('')
   const [error, setError] = useState<string | null>(null)
+
+  // Manual / Custom Input State (Jasa & Sparepart Luar)
+  const [manualTab, setManualTab] = useState<'SERVICE' | 'SPAREPART'>('SERVICE')
+  const [manualJasaName, setManualJasaName] = useState('')
   const [manualJasaPrice, setManualJasaPrice] = useState<number | ''>('')
+  const [manualPartName, setManualPartName] = useState('')
+  const [manualPartQty, setManualPartQty] = useState<number | ''>(1)
+  const [manualPartPrice, setManualPartPrice] = useState<number | ''>('')
 
   // Refs for POS Keyboard Shortcuts
   const customerInputRef = useRef<HTMLInputElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
-  const manualJasaInputRef = useRef<HTMLInputElement>(null)
+  const manualJasaNameRef = useRef<HTMLInputElement>(null)
+  const manualJasaPriceRef = useRef<HTMLInputElement>(null)
+  const manualPartNameRef = useRef<HTMLInputElement>(null)
+  const manualPartQtyRef = useRef<HTMLInputElement>(null)
+  const manualPartPriceRef = useRef<HTMLInputElement>(null)
   const mechanicSelectRef = useRef<HTMLSelectElement>(null)
   const discountInputRef = useRef<HTMLInputElement>(null)
   const notesInputRef = useRef<HTMLInputElement>(null)
   const odometerInputRef = useRef<HTMLInputElement>(null)
 
   const [highlightedSearchIndex, setHighlightedSearchIndex] = useState(0)
+  const [prevSearchQuery, setPrevSearchQuery] = useState(searchQuery)
+  if (searchQuery !== prevSearchQuery) {
+    setPrevSearchQuery(searchQuery)
+    setHighlightedSearchIndex(0)
+  }
 
   // Detect if selected customer is corporate
   const selectedCustomer = customers.find(c => c.id === customerId)
@@ -197,10 +251,6 @@ export default function NewTransactionClient({
     
     return scored.map(r => r.item)
   }, [searchQuery, catalog])
-
-  useEffect(() => {
-    setHighlightedSearchIndex(0)
-  }, [searchResults])
 
   // Computed Totals
   const subtotal = items.reduce((acc, curr) => acc + (curr.quantity * curr.unitPrice), 0)
@@ -257,20 +307,50 @@ export default function NewTransactionClient({
   }
 
   const handleAddManualJasa = () => {
-    if (typeof manualJasaPrice !== 'number' || manualJasaPrice <= 0) {
-      alert('Masukkan nominal jasa yang valid')
+    const finalPrice = typeof manualJasaPrice === 'number' ? manualJasaPrice : Number(manualJasaPrice)
+    if (isNaN(finalPrice) || finalPrice <= 0) {
+      alert('Masukkan nominal biaya jasa yang valid (lebih dari Rp 0)')
+      manualJasaPriceRef.current?.focus()
       return
     }
+
+    const finalName = manualJasaName.trim() || 'Jasa Manual'
 
     setItems([...items, {
       itemType: 'SERVICE',
       itemId: 'MANUAL_JASA_' + Date.now(),
-      itemName: 'Jasa',
+      itemName: finalName,
       quantity: 1,
-      unitPrice: manualJasaPrice
+      unitPrice: finalPrice
     }])
+    setManualJasaName('')
     setManualJasaPrice('')
-    manualJasaInputRef.current?.focus()
+    manualJasaNameRef.current?.focus()
+  }
+
+  const handleAddManualSparepart = () => {
+    const finalPrice = typeof manualPartPrice === 'number' ? manualPartPrice : Number(manualPartPrice)
+    const finalQty = typeof manualPartQty === 'number' && manualPartQty > 0 ? manualPartQty : 1
+
+    if (isNaN(finalPrice) || finalPrice <= 0) {
+      alert('Masukkan harga satuan sparepart yang valid (lebih dari Rp 0)')
+      manualPartPriceRef.current?.focus()
+      return
+    }
+
+    const finalName = manualPartName.trim() || 'Sparepart Luar'
+
+    setItems([...items, {
+      itemType: 'SPAREPART',
+      itemId: 'MANUAL_PART_' + Date.now(),
+      itemName: finalName,
+      quantity: finalQty,
+      unitPrice: finalPrice
+    }])
+    setManualPartName('')
+    setManualPartQty(1)
+    setManualPartPrice('')
+    manualPartNameRef.current?.focus()
   }
 
   const handleRemoveItem = (index: number) => {
@@ -280,7 +360,8 @@ export default function NewTransactionClient({
   const handleUpdateQty = (index: number, newQty: number) => {
     const item = items[index]
     
-    if (item.itemType === 'SPAREPART') {
+    // Hanya cek stok jika sparepart dari master/stok toko (bukan manual/luar bengkel)
+    if (item.itemType === 'SPAREPART' && item.itemId && !item.itemId.startsWith('MANUAL_')) {
       const sp = spareparts.find(s => s.id === item.itemId)
       if (sp && newQty > sp.stock) {
         alert(`Maksimal stok: ${sp.stock}`)
@@ -292,6 +373,18 @@ export default function NewTransactionClient({
     newItems[index].quantity = newQty
     setItems(newItems)
   }
+  // Single Cash calculations
+  const cashReceivedNum = typeof cashGiven === 'number' ? cashGiven : 0
+  const cashChangeAmount = cashReceivedNum > total ? cashReceivedNum - total : 0
+
+  // Split Payment calculations
+  const splitCashNum = typeof splitCash === 'number' ? splitCash : 0
+  const splitTransferNum = typeof splitTransfer === 'number' ? splitTransfer : 0
+  const splitQrisNum = typeof splitQris === 'number' ? splitQris : 0
+  const splitTotalPaid = splitCashNum + splitTransferNum + splitQrisNum
+  const splitDeficit = Math.max(0, total - splitTotalPaid)
+  const splitCashGivenNum = typeof splitCashGiven === 'number' && splitCashGiven > 0 ? splitCashGiven : splitCashNum
+  const splitCashChange = splitCashGivenNum > splitCashNum ? splitCashGivenNum - splitCashNum : 0
 
   const handleSubmit = async () => {
     if (items.length === 0) {
@@ -300,17 +393,52 @@ export default function NewTransactionClient({
       return
     }
 
+    const isActualCorporate = isSelectedCorporate && isCorporate
+
+    if (!isActualCorporate && paymentMethod === 'SPLIT') {
+      if (splitTotalPaid < total) {
+        setError(`Total pembayaran split baru Rp ${splitTotalPaid.toLocaleString('id-ID')}, masih kurang Rp ${splitDeficit.toLocaleString('id-ID')} dari total tagihan (Rp ${total.toLocaleString('id-ID')}).`)
+        return
+      }
+    }
+
     setError(null)
     startTransition(async () => {
+      let paymentsPayload: Array<{ paymentMethod: 'CASH' | 'TRANSFER' | 'QRIS'; amount: number }> | undefined = undefined
+      let paidAmountPayload = total
+      let changeAmountPayload = 0
+
+      if (isActualCorporate) {
+        paidAmountPayload = 0
+        changeAmountPayload = 0
+      } else if (paymentMethod === 'SPLIT') {
+        paymentsPayload = [
+          { paymentMethod: 'CASH' as const, amount: splitCashNum },
+          { paymentMethod: 'TRANSFER' as const, amount: splitTransferNum },
+          { paymentMethod: 'QRIS' as const, amount: splitQrisNum },
+        ].filter(p => p.amount > 0)
+        paidAmountPayload = splitCashGivenNum + splitTransferNum + splitQrisNum
+        changeAmountPayload = splitCashChange
+      } else if (paymentMethod === 'CASH') {
+        paidAmountPayload = cashReceivedNum >= total ? cashReceivedNum : total
+        changeAmountPayload = cashChangeAmount
+      } else {
+        paidAmountPayload = total
+        changeAmountPayload = 0
+      }
+
       const payload: TransactionPayload = {
         customerId: customerId || null,
         mechanicId: mechanicId || null,
         items,
         discount,
         paymentMethod,
+        payments: paymentsPayload,
+        paidAmount: paidAmountPayload,
+        changeAmount: changeAmountPayload,
         notes: notes || null,
         odometer: odometer === '' ? null : odometer,
-        isCorporate: isSelectedCorporate && isCorporate,
+        isCorporate: isActualCorporate,
         branchId: txBranchId || null,
       }
       
@@ -323,6 +451,11 @@ export default function NewTransactionClient({
       }
     })
   }
+
+  const handleSubmitRef = useRef(handleSubmit)
+  useEffect(() => {
+    handleSubmitRef.current = handleSubmit
+  })
 
   // Global Keyboard Shortcuts (F1 - F9, Alt+1 - Alt+9, Ctrl+K, Ctrl+Enter, Escape)
   useEffect(() => {
@@ -341,18 +474,31 @@ export default function NewTransactionClient({
       // Jasa Manual (F3 atau Alt+3)
       else if (e.key === 'F3' || (e.altKey && e.key === '3')) {
         e.preventDefault()
-        manualJasaInputRef.current?.focus()
-        manualJasaInputRef.current?.select()
+        setManualTab('SERVICE')
+        manualJasaNameRef.current?.focus()
+        manualJasaNameRef.current?.select()
       } 
       // Mekanik (F4 atau Alt+4)
       else if (e.key === 'F4' || (e.altKey && e.key === '4')) {
         e.preventDefault()
         mechanicSelectRef.current?.focus()
       } 
+      // Sparepart Luar / Custom (F5, Alt+5, atau F6)
+      else if (e.key === 'F5' || (e.altKey && e.key === '5') || e.key === 'F6' || (e.altKey && e.key === '6')) {
+        e.preventDefault()
+        setManualTab('SPAREPART')
+        manualPartNameRef.current?.focus()
+        manualPartNameRef.current?.select()
+      } 
       // Ganti Metode Pembayaran (F7 atau Alt+7)
       else if (e.key === 'F7' || (e.altKey && e.key === '7')) {
         e.preventDefault()
-        setPaymentMethod(prev => prev === 'CASH' ? 'QRIS' : prev === 'QRIS' ? 'TRANSFER' : 'CASH')
+        setPaymentMethod(prev => {
+          if (prev === 'CASH') return 'TRANSFER'
+          if (prev === 'TRANSFER') return 'QRIS'
+          if (prev === 'QRIS') return 'SPLIT'
+          return 'CASH'
+        })
       } 
       // Diskon (F8 atau Alt+8)
       else if (e.key === 'F8' || (e.altKey && e.key === '8')) {
@@ -363,7 +509,7 @@ export default function NewTransactionClient({
       // Simpan Transaksi (F9, Alt+9, atau Ctrl+Enter)
       else if (e.key === 'F9' || (e.altKey && e.key === '9') || ((e.ctrlKey || e.metaKey) && e.key === 'Enter')) {
         e.preventDefault()
-        handleSubmit()
+        handleSubmitRef.current()
       } 
       // Escape untuk bersihkan pencarian
       else if (e.key === 'Escape') {
@@ -373,7 +519,7 @@ export default function NewTransactionClient({
 
     window.addEventListener('keydown', handleGlobalKeyDown)
     return () => window.removeEventListener('keydown', handleGlobalKeyDown)
-  }, [items, subtotal, discount, paymentMethod, customerId, mechanicId, notes, odometer, isCorporate, isSelectedCorporate, txBranchId, basePath])
+  }, [])
 
   return (
     <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6">
@@ -419,6 +565,9 @@ export default function NewTransactionClient({
           </span>
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-800 border border-slate-700 text-slate-300">
             <kbd className="font-mono font-bold text-purple-400">F4 / Alt+4</kbd> Mekanik
+          </span>
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-800 border border-slate-700 text-slate-300">
+            <kbd className="font-mono font-bold text-amber-400">F6 / Alt+6</kbd> Part Luar
           </span>
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-800 border border-slate-700 text-slate-300">
             <kbd className="font-mono font-bold text-pink-400">F7 / Alt+7</kbd> Metode Bayar
@@ -519,45 +668,220 @@ export default function NewTransactionClient({
                     </div>
                   ) : (
                     <div className="p-4 text-center text-sm text-slate-500">
-                      Tidak ditemukan hasil untuk {"\"" + searchQuery + "\""}
+                      <p className="text-slate-600 mb-2">Tidak ditemukan hasil untuk {`"${searchQuery}"`}</p>
+                      <div className="flex flex-wrap items-center justify-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setManualTab('SERVICE')
+                            setManualJasaName(searchQuery)
+                            setSearchQuery('')
+                            setTimeout(() => manualJasaPriceRef.current?.focus(), 50)
+                          }}
+                          className="inline-flex items-center gap-1.5 text-xs font-semibold text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-200 px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
+                        >
+                          <Wrench className="w-3.5 h-3.5" />
+                          Jadikan Jasa Manual
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setManualTab('SPAREPART')
+                            setManualPartName(searchQuery)
+                            setSearchQuery('')
+                            setTimeout(() => manualPartPriceRef.current?.focus(), 50)
+                          }}
+                          className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
+                        >
+                          <PackagePlus className="w-3.5 h-3.5" />
+                          Jadikan Sparepart Luar
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
               )}
             </div>
 
-            <div className="mt-6 pt-6 border-t border-slate-100 flex items-end gap-3">
-              <div className="flex-1">
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="block text-sm font-medium text-slate-700">
-                    Input Jasa Manual
-                  </label>
-                  <span className="text-[10px] px-2 py-0.5 font-mono font-bold bg-slate-100 text-slate-600 border border-slate-200 rounded-md">
-                    Tekan F3
-                  </span>
+            {/* Input Manual / Custom Section (Jasa & Sparepart Luar) */}
+            <div className="mt-6 pt-6 border-t border-slate-100">
+              <div className="bg-slate-50/80 rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+                {/* Tab Header */}
+                <div className="flex border-b border-slate-200 bg-slate-100/70 p-1 gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setManualTab('SERVICE')}
+                    className={`flex-1 py-2 px-3 text-xs font-bold rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                      manualTab === 'SERVICE'
+                        ? 'bg-white text-sky-700 shadow-sm border border-slate-200/80'
+                        : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50 border border-transparent'
+                    }`}
+                  >
+                    <Wrench className="w-3.5 h-3.5" />
+                    <span>Jasa Manual / Custom</span>
+                    <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded font-normal ${
+                      manualTab === 'SERVICE' ? 'bg-sky-100 text-sky-800' : 'bg-slate-200 text-slate-600'
+                    }`}>F3</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setManualTab('SPAREPART')}
+                    className={`flex-1 py-2 px-3 text-xs font-bold rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                      manualTab === 'SPAREPART'
+                        ? 'bg-white text-amber-700 shadow-sm border border-slate-200/80'
+                        : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50 border border-transparent'
+                    }`}
+                  >
+                    <PackagePlus className="w-3.5 h-3.5" />
+                    <span>Sparepart Luar (Non-Stok)</span>
+                    <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded font-normal ${
+                      manualTab === 'SPAREPART' ? 'bg-amber-100 text-amber-800' : 'bg-slate-200 text-slate-600'
+                    }`}>F6</span>
+                  </button>
                 </div>
-                <input
-                  ref={manualJasaInputRef}
-                  placeholder="Nominal jasa (contoh: 50000)... lalu tekan Enter"
-                  type="number"
-                  value={manualJasaPrice === '' ? '' : manualJasaPrice}
-                  onChange={(e) => setManualJasaPrice(e.target.value ? Number(e.target.value) : '')}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault()
-                      handleAddManualJasa()
-                    }
-                  }}
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 hover:border-slate-300 focus:border-primary-500 focus:bg-white focus:ring-2 focus:ring-primary-500/20 outline-none transition-all"
-                />
+
+                {/* Tab Content */}
+                <div className="p-3.5">
+                  {/* Form Jasa Manual */}
+                  <div className={manualTab === 'SERVICE' ? 'grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-end' : 'hidden'}>
+                    <div className="sm:col-span-6">
+                      <label className="block text-xs font-medium text-slate-600 mb-1">
+                        Nama / Keterangan Jasa
+                      </label>
+                      <input
+                        ref={manualJasaNameRef}
+                        placeholder="Contoh: Tambal Ban, Bubut, Pasang..."
+                        type="text"
+                        value={manualJasaName}
+                        onChange={(e) => setManualJasaName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault()
+                            manualJasaPriceRef.current?.focus()
+                          }
+                        }}
+                        className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 hover:border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 outline-none transition-all"
+                      />
+                    </div>
+
+                    <div className="sm:col-span-4">
+                      <label className="block text-xs font-medium text-slate-600 mb-1">
+                        Biaya Jasa (Rp)
+                      </label>
+                      <input
+                        ref={manualJasaPriceRef}
+                        placeholder="Contoh: 25000"
+                        type="number"
+                        min="0"
+                        value={manualJasaPrice === '' ? '' : manualJasaPrice}
+                        onChange={(e) => setManualJasaPrice(e.target.value ? Number(e.target.value) : '')}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault()
+                            handleAddManualJasa()
+                          }
+                        }}
+                        className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 hover:border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 outline-none transition-all"
+                      />
+                    </div>
+
+                    <div className="sm:col-span-2">
+                      <Button 
+                        className="w-full py-2 bg-sky-600 hover:bg-sky-700 text-white font-bold"
+                        onClick={handleAddManualJasa}
+                        disabled={manualJasaPrice === '' || Number(manualJasaPrice) <= 0}
+                        icon={Plus}
+                      >
+                        Tambah
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Form Sparepart Luar (Non-Stok) */}
+                  <div className={manualTab === 'SPAREPART' ? 'space-y-2.5' : 'hidden'}>
+                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-end">
+                      <div className="sm:col-span-5">
+                        <label className="block text-xs font-medium text-slate-600 mb-1">
+                          Nama Sparepart Luar
+                        </label>
+                        <input
+                          ref={manualPartNameRef}
+                          placeholder="Contoh: Bearing Koyo, Busi Racing..."
+                          type="text"
+                          value={manualPartName}
+                          onChange={(e) => setManualPartName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault()
+                              manualPartQtyRef.current?.focus()
+                            }
+                          }}
+                          className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 hover:border-slate-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 outline-none transition-all"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-2">
+                        <label className="block text-xs font-medium text-slate-600 mb-1">
+                          Jumlah (Qty)
+                        </label>
+                        <input
+                          ref={manualPartQtyRef}
+                          placeholder="1"
+                          type="number"
+                          min="1"
+                          value={manualPartQty === '' ? '' : manualPartQty}
+                          onChange={(e) => setManualPartQty(e.target.value ? Number(e.target.value) : '')}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault()
+                              manualPartPriceRef.current?.focus()
+                            }
+                          }}
+                          className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 text-center placeholder:text-slate-400 hover:border-slate-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 outline-none transition-all"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-3">
+                        <label className="block text-xs font-medium text-slate-600 mb-1">
+                          Harga Satuan (Rp)
+                        </label>
+                        <input
+                          ref={manualPartPriceRef}
+                          placeholder="Contoh: 75000"
+                          type="number"
+                          min="0"
+                          value={manualPartPrice === '' ? '' : manualPartPrice}
+                          onChange={(e) => setManualPartPrice(e.target.value ? Number(e.target.value) : '')}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault()
+                              handleAddManualSparepart()
+                            }
+                          }}
+                          className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 hover:border-slate-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 outline-none transition-all"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-2">
+                        <Button 
+                          className="w-full py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold"
+                          onClick={handleAddManualSparepart}
+                          disabled={manualPartPrice === '' || Number(manualPartPrice) <= 0}
+                          icon={Plus}
+                        >
+                          Tambah
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="text-[11px] text-amber-700 font-medium flex items-center gap-1.5 pt-1 border-t border-amber-100">
+                      <Package className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                      <span>Barang bersumber dari luar bengkel. Item ini masuk ke invoice namun <strong>tidak memotong stok toko</strong>.</span>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <Button 
-                onClick={handleAddManualJasa}
-                disabled={typeof manualJasaPrice !== 'number' || manualJasaPrice <= 0}
-                icon={Plus}
-              >
-                Tambah Jasa
-              </Button>
             </div>
           </div>
 
@@ -583,7 +907,19 @@ export default function NewTransactionClient({
                 {items.map((item, index) => (
                   <div key={`${item.itemId}-${index}`} className="p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 hover:bg-slate-50/50 transition-colors">
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-slate-900 truncate">{item.itemName}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-semibold text-slate-900 truncate">{item.itemName}</p>
+                        {item.itemId?.startsWith('MANUAL_PART_') && (
+                          <span className="text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.2 rounded shrink-0">
+                            Luar Bengkel (Non-Stok)
+                          </span>
+                        )}
+                        {item.itemId?.startsWith('MANUAL_JASA_') && (
+                          <span className="text-[10px] font-bold bg-sky-50 text-sky-700 border border-sky-200 px-1.5 py-0.2 rounded shrink-0">
+                            Jasa Custom
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-slate-500 mt-0.5">{formatCurrency(item.unitPrice)} / {item.itemType === 'SERVICE' ? 'jasa' : 'pcs'}</p>
                     </div>
                     
@@ -738,7 +1074,7 @@ export default function NewTransactionClient({
                 name="mechanic"
                 value={mechanicId}
                 onChange={(e) => setMechanicId(e.target.value)}
-                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 transition-all duration-200 appearance-none hover:border-slate-300 focus:border-primary-500 focus:bg-white focus:ring-2 focus:ring-primary-500/20 outline-none bg-[url('data:image/svg+xml;charset=UTF-8,%3csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2712%27%20height=%2712%27%20viewBox=%270%200%2012%2012%27%3e%3cpath%20fill=%27%2394a3b8%27%20d=%27M2%204l4%204%204-4%27/%3e%3c/svg%3e')] bg-[length:12px] bg-[right_16px_center] bg-no-repeat pr-10"
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 transition-all duration-200 appearance-none hover:border-slate-300 focus:border-primary-500 focus:bg-white focus:ring-2 focus:ring-primary-500/20 outline-none bg-[url('data:image/svg+xml;charset=UTF-8,%3csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2712%27%20height=%2712%27%20viewBox=%270%200%2012%2012%27%3e%3cpath%20fill=%27%2394a3b8%27%20d=%27M2%204l4%204%204-4%27/%3e%3c/svg%3e')] bg-size-[12px] bg-position-[right_16px_center] bg-no-repeat pr-10"
               >
                 <option value="">Tidak ada / Hanya Beli Sparepart</option>
                 {mechanics.map((m) => (
@@ -798,35 +1134,259 @@ export default function NewTransactionClient({
               <span className="text-3xl font-bold text-emerald-400">{formatCurrency(total)}</span>
             </div>
             
-            <div className="space-y-2 mb-6">
+            <div className="space-y-3 mb-6">
               <div className="flex items-center justify-between">
                 <p className="text-xs text-slate-400 font-medium">Metode Pembayaran</p>
                 <span className="text-[10px] px-1.5 py-0.2 font-mono font-bold bg-slate-800 text-pink-400 border border-slate-700 rounded">
                   F7 Ganti
                 </span>
               </div>
-              <div className="grid grid-cols-3 gap-2">
-                {(['CASH', 'TRANSFER', 'QRIS'] as const).map(method => (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {(
+                  [
+                    { key: 'CASH', label: 'Tunai', icon: Banknote },
+                    { key: 'TRANSFER', label: 'Transfer', icon: CreditCard },
+                    { key: 'QRIS', label: 'QRIS', icon: QrCode },
+                    { key: 'SPLIT', label: 'Split / Mix', icon: Layers },
+                  ] as const
+                ).map(({ key, label, icon: Icon }) => (
                   <button
-                    key={method}
-                    onClick={() => setPaymentMethod(method)}
-                    className={`py-2 text-xs font-bold rounded-lg transition-all border ${
-                      paymentMethod === method 
+                    key={key}
+                    type="button"
+                    onClick={() => setPaymentMethod(key)}
+                    className={`py-2 px-1 text-xs font-bold rounded-xl transition-all border flex flex-col items-center justify-center gap-1 ${
+                      paymentMethod === key 
                         ? 'bg-primary-600 border-primary-500 text-white shadow-lg shadow-primary-900/50' 
-                        : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700'
+                        : 'bg-slate-800/80 border-slate-700/80 text-slate-400 hover:bg-slate-700 hover:text-slate-200'
                     }`}
                   >
-                    {method}
+                    <Icon className="w-3.5 h-3.5" />
+                    <span>{label}</span>
                   </button>
                 ))}
               </div>
+
+              {/* Mode CASH (Tunai Tunggal) */}
+              {paymentMethod === 'CASH' && !isCorporate && (
+                <div className="mt-3 pt-3 border-t border-slate-800/80 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs text-slate-300 font-medium">Uang Diterima (Rp)</label>
+                    <button
+                      type="button"
+                      onClick={() => setCashGiven(total)}
+                      className="text-[11px] font-semibold text-emerald-400 hover:text-emerald-300 bg-emerald-950/60 border border-emerald-800 px-2 py-0.5 rounded-lg transition-colors"
+                    >
+                      Uang Pas
+                    </button>
+                  </div>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder={`Contoh: ${total}`}
+                    value={cashGiven}
+                    onChange={(e) => setCashGiven(e.target.value === '' ? '' : Number(e.target.value))}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-base font-bold text-white focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none transition-all"
+                  />
+
+                  {/* Tombol Cepat Pecahan */}
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {[50000, 100000, 200000, 500000]
+                      .filter(denom => denom >= total)
+                      .slice(0, 3)
+                      .map(denom => (
+                        <button
+                          key={denom}
+                          type="button"
+                          onClick={() => setCashGiven(denom)}
+                          className="text-[10px] font-medium bg-slate-800 hover:bg-slate-700 border border-slate-700 px-2 py-1 rounded-md text-slate-300 transition-colors"
+                        >
+                          Rp {denom.toLocaleString('id-ID')}
+                        </button>
+                      ))}
+                  </div>
+
+                  {/* Kembalian / Status */}
+                  {cashReceivedNum > 0 && (
+                    <div className={`p-3 rounded-xl border flex items-center justify-between ${
+                      cashReceivedNum >= total
+                        ? 'bg-emerald-950/40 border-emerald-800/60 text-emerald-300'
+                        : 'bg-red-950/40 border-red-800/60 text-red-300'
+                    }`}>
+                      <span className="text-xs font-semibold">
+                        {cashReceivedNum >= total ? 'Kembalian Tunai' : 'Kurang'}
+                      </span>
+                      <span className="text-sm font-black">
+                        {cashReceivedNum >= total
+                          ? formatCurrency(cashChangeAmount)
+                          : formatCurrency(total - cashReceivedNum)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Mode TRANSFER & QRIS Tunggal */}
+              {(paymentMethod === 'TRANSFER' || paymentMethod === 'QRIS') && !isCorporate && (
+                <div className="mt-3 p-2.5 bg-slate-800/50 rounded-xl border border-slate-700/60 text-center">
+                  <p className="text-xs text-slate-400">
+                    Pembayaran {paymentMethod === 'TRANSFER' ? 'Transfer Bank' : 'QRIS'} lunas pas:
+                  </p>
+                  <p className="text-base font-bold text-primary-400 mt-0.5">
+                    {formatCurrency(total)}
+                  </p>
+                </div>
+              )}
+
+              {/* Mode SPLIT PAYMENT (Kombinasi) */}
+              {paymentMethod === 'SPLIT' && !isCorporate && (
+                <div className="mt-3 space-y-3 bg-slate-950/60 p-3 rounded-2xl border border-slate-800">
+                  <div className="flex items-center justify-between pb-1 border-b border-slate-800">
+                    <span className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                      <Layers className="w-3.5 h-3.5 text-primary-400" />
+                      Rincian Split Payment
+                    </span>
+                    <span className="text-[10px] text-slate-400">
+                      Total Tagihan: <strong className="text-slate-200">{formatCurrency(total)}</strong>
+                    </span>
+                  </div>
+
+                  {/* 1. Porsi Tunai */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-slate-300 font-medium flex items-center gap-1">
+                        <Banknote className="w-3 h-3 text-emerald-400" /> 1. Tunai (Cash)
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const rem = Math.max(0, total - splitTransferNum - splitQrisNum)
+                          setSplitCash(rem)
+                        }}
+                        className="text-[10px] text-primary-400 hover:text-primary-300"
+                      >
+                        Isi Sisa
+                      </button>
+                    </div>
+                    <div className="flex gap-2">
+                      <input
+                        type="number"
+                        min="0"
+                        placeholder="Rp 0"
+                        value={splitCash}
+                        onChange={(e) => setSplitCash(e.target.value === '' ? '' : Number(e.target.value))}
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-bold text-white focus:border-primary-500 outline-none"
+                      />
+                    </div>
+                    {/* Opsional: Uang tunai fisik untuk hitung kembalian */}
+                    {splitCashNum > 0 && (
+                      <div className="flex items-center justify-between pt-1 text-[10px] text-slate-400">
+                        <span>Uang Tunai Diterima:</span>
+                        <input
+                          type="number"
+                          min="0"
+                          placeholder={splitCashNum ? String(splitCashNum) : 'Uang pas'}
+                          value={splitCashGiven}
+                          onChange={(e) => setSplitCashGiven(e.target.value === '' ? '' : Number(e.target.value))}
+                          className="w-24 bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5 text-right text-[10px] font-medium text-white focus:border-primary-500 outline-none"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 2. Porsi Transfer */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-slate-300 font-medium flex items-center gap-1">
+                        <CreditCard className="w-3 h-3 text-blue-400" /> 2. Transfer Bank
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const rem = Math.max(0, total - splitCashNum - splitQrisNum)
+                          setSplitTransfer(rem)
+                        }}
+                        className="text-[10px] text-primary-400 hover:text-primary-300"
+                      >
+                        Isi Sisa
+                      </button>
+                    </div>
+                    <input
+                      type="number"
+                      min="0"
+                      placeholder="Rp 0"
+                      value={splitTransfer}
+                      onChange={(e) => setSplitTransfer(e.target.value === '' ? '' : Number(e.target.value))}
+                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-bold text-white focus:border-primary-500 outline-none"
+                    />
+                  </div>
+
+                  {/* 3. Porsi QRIS */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-slate-300 font-medium flex items-center gap-1">
+                        <QrCode className="w-3 h-3 text-purple-400" /> 3. QRIS
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const rem = Math.max(0, total - splitCashNum - splitTransferNum)
+                          setSplitQris(rem)
+                        }}
+                        className="text-[10px] text-primary-400 hover:text-primary-300"
+                      >
+                        Isi Sisa
+                      </button>
+                    </div>
+                    <input
+                      type="number"
+                      min="0"
+                      placeholder="Rp 0"
+                      value={splitQris}
+                      onChange={(e) => setSplitQris(e.target.value === '' ? '' : Number(e.target.value))}
+                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-bold text-white focus:border-primary-500 outline-none"
+                    />
+                  </div>
+
+                  {/* Ringkasan Status Split */}
+                  <div className="pt-2 border-t border-slate-800 space-y-1.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-slate-400">Total Terbayar:</span>
+                      <span className="font-bold text-white">{formatCurrency(splitTotalPaid)}</span>
+                    </div>
+
+                    {splitTotalPaid < total && (
+                      <div className="flex items-center justify-between text-xs bg-red-950/60 border border-red-800/80 text-red-300 px-2.5 py-1.5 rounded-lg">
+                        <span className="flex items-center gap-1">
+                          <AlertCircle className="w-3.5 h-3.5" /> Masih Kurang
+                        </span>
+                        <span className="font-bold">{formatCurrency(splitDeficit)}</span>
+                      </div>
+                    )}
+
+                    {splitTotalPaid === total && (
+                      <div className="flex items-center justify-between text-xs bg-emerald-950/60 border border-emerald-800/80 text-emerald-300 px-2.5 py-1 rounded-lg">
+                        <span className="flex items-center gap-1">
+                          <Check className="w-3.5 h-3.5" /> Pembayaran Pas (Lunas)
+                        </span>
+                      </div>
+                    )}
+
+                    {splitCashChange > 0 && (
+                      <div className="flex items-center justify-between text-xs bg-emerald-950/40 border border-emerald-800/60 text-emerald-300 px-2.5 py-1 rounded-lg">
+                        <span>Kembalian Tunai:</span>
+                        <span className="font-bold">{formatCurrency(splitCashChange)}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             <Button
               className="w-full py-4 text-base font-bold shadow-xl shadow-primary-900/50 flex items-center justify-center gap-2"
               onClick={handleSubmit}
               loading={isPending}
-              disabled={items.length === 0}
+              disabled={items.length === 0 || (!isCorporate && paymentMethod === 'SPLIT' && splitTotalPaid < total)}
             >
               <span>Simpan Transaksi</span>
               <span className="text-xs font-mono font-normal opacity-75 bg-primary-800 px-2 py-0.5 rounded border border-primary-400/30">

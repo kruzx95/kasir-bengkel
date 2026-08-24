@@ -14,12 +14,20 @@ const transactionItemSchema = z.object({
   unitPrice: z.number().min(0),
 })
 
+const paymentItemSchema = z.object({
+  paymentMethod: z.enum(['CASH', 'TRANSFER', 'QRIS']),
+  amount: z.number().min(0),
+})
+
 const transactionSchema = z.object({
   customerId: z.string().optional().nullable(),
   mechanicId: z.string().optional().nullable(),
   items: z.array(transactionItemSchema).min(1, 'Pilih minimal satu item'),
   discount: z.number().min(0).default(0),
-  paymentMethod: z.enum(['CASH', 'TRANSFER', 'QRIS']).default('CASH'),
+  paymentMethod: z.enum(['CASH', 'TRANSFER', 'QRIS', 'SPLIT']).default('CASH'),
+  payments: z.array(paymentItemSchema).optional(),
+  paidAmount: z.number().min(0).optional().default(0),
+  changeAmount: z.number().min(0).optional().default(0),
   notes: z.string().optional().nullable(),
   isCorporate: z.boolean().optional().default(false),
   odometer: z.number().int().min(0).optional().nullable(),
@@ -101,6 +109,39 @@ export async function createTransaction(payload: TransactionPayload): Promise<Tr
       if (hasService && !hasSparepart) type = 'SERVICE'
       if (!hasService && hasSparepart) type = 'SPAREPART'
 
+      // Prepare payments to record
+      let paymentsToCreate: Array<{ paymentMethod: 'CASH' | 'TRANSFER' | 'QRIS'; amount: number }> = []
+      let effectivePaidAmount = total
+      let effectiveChangeAmount = 0
+
+      if (data.isCorporate) {
+        effectivePaidAmount = 0
+        effectiveChangeAmount = 0
+      } else if (data.paymentMethod === 'SPLIT') {
+        const rawPayments = data.payments || []
+        paymentsToCreate = rawPayments.filter(p => p.amount > 0)
+        
+        const totalPaidInSplit = paymentsToCreate.reduce((sum, p) => sum + p.amount, 0)
+        if (totalPaidInSplit < total) {
+          throw new Error(`Total pembayaran split (Rp ${totalPaidInSplit.toLocaleString('id-ID')}) kurang dari total tagihan (Rp ${total.toLocaleString('id-ID')})`)
+        }
+        
+        effectivePaidAmount = data.paidAmount && data.paidAmount > 0 ? data.paidAmount : totalPaidInSplit
+        effectiveChangeAmount = data.changeAmount || (effectivePaidAmount > total ? effectivePaidAmount - total : 0)
+      } else {
+        // Single payment method
+        const singleMethod = data.paymentMethod as 'CASH' | 'TRANSFER' | 'QRIS'
+        paymentsToCreate = [{ paymentMethod: singleMethod, amount: total }]
+        
+        if (singleMethod === 'CASH') {
+          effectivePaidAmount = data.paidAmount && data.paidAmount >= total ? data.paidAmount : total
+          effectiveChangeAmount = data.changeAmount || (effectivePaidAmount > total ? effectivePaidAmount - total : 0)
+        } else {
+          effectivePaidAmount = total
+          effectiveChangeAmount = 0
+        }
+      }
+
       // 2. Generate Unique Invoice Number (Format: INV-BRGCODE-YYYYMMDD-0001)
       const branch = await tx.branch.findUnique({
         where: { id: branchId },
@@ -155,6 +196,8 @@ export async function createTransaction(payload: TransactionPayload): Promise<Tr
           subtotal,
           discount: data.discount,
           total,
+          paidAmount: effectivePaidAmount,
+          changeAmount: effectiveChangeAmount,
           paymentMethod: data.paymentMethod,
           notes: data.notes,
           odometer: data.odometer ?? null,
@@ -169,7 +212,16 @@ export async function createTransaction(payload: TransactionPayload): Promise<Tr
               unitPrice: item.unitPrice,
               subtotal: item.quantity * item.unitPrice,
             }))
+          },
+          payments: data.isCorporate ? undefined : {
+            create: paymentsToCreate.map(p => ({
+              paymentMethod: p.paymentMethod,
+              amount: p.amount,
+            }))
           }
+        },
+        include: {
+          payments: true
         }
       })
 
@@ -208,11 +260,14 @@ export async function createTransaction(payload: TransactionPayload): Promise<Tr
       action: 'TRANSACTION_CREATE',
       category: 'TRANSACTION',
       level: 'INFO',
-      description: `Membuat transaksi ${result.invoiceNumber} senilai Rp ${result.total.toLocaleString('id-ID')}`,
+      description: `Membuat transaksi ${result.invoiceNumber} senilai Rp ${result.total.toLocaleString('id-ID')} (${result.paymentMethod})`,
       details: {
         invoiceNumber: result.invoiceNumber,
         total: result.total,
         paymentMethod: result.paymentMethod,
+        payments: result.payments,
+        paidAmount: result.paidAmount,
+        changeAmount: result.changeAmount,
         itemCount: data.items.length,
       },
       branchId,
@@ -224,6 +279,7 @@ export async function createTransaction(payload: TransactionPayload): Promise<Tr
     revalidatePath('/kasir/transaksi')
     revalidatePath('/kasir/sparepart')
     revalidatePath('/admin/transaksi')
+    revalidatePath('/admin/laporan')
     return { success: true, message: 'Transaksi berhasil disimpan', invoiceNumber: result.invoiceNumber }
   } catch (error: unknown) {
     console.error('Create Transaction Error:', error)
@@ -257,8 +313,17 @@ export async function getTransactions(branchId?: string, dateStr?: string) {
         type: true,
         status: true,
         total: true,
+        paidAmount: true,
+        changeAmount: true,
         paymentMethod: true,
         createdAt: true,
+        payments: {
+          select: {
+            id: true,
+            paymentMethod: true,
+            amount: true,
+          }
+        },
         customer: {
           select: { name: true, plateNumber: true }
         },
@@ -334,8 +399,17 @@ export async function getPaginatedTransactions(
           type: true,
           status: true,
           total: true,
+          paidAmount: true,
+          changeAmount: true,
           paymentMethod: true,
           createdAt: true,
+          payments: {
+            select: {
+              id: true,
+              paymentMethod: true,
+              amount: true,
+            }
+          },
           customer: { select: { name: true, plateNumber: true } },
           user: { select: { name: true } },
           mechanic: { select: { name: true } },
@@ -379,7 +453,15 @@ export async function getTransactionDetails(id: string) {
         discount: true,
         total: true,
         paidAmount: true,
+        changeAmount: true,
         paymentMethod: true,
+        payments: {
+          select: {
+            id: true,
+            paymentMethod: true,
+            amount: true,
+          }
+        },
         notes: true,
         transactionDate: true,
         odometer: true,

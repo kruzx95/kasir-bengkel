@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition, useMemo, useEffect } from 'react'
+import { useState, useTransition, useMemo, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
@@ -12,8 +12,11 @@ import { Filter, CheckCircle, Users, Printer, UserPlus, UserMinus, Wallet, Histo
 import PaymentModal from './PaymentModal'
 import VehicleFormModal from './VehicleFormModal'
 import ServiceVehicleModal from './ServiceVehicleModal'
+import CorporateServiceHistoryTab from './CorporateServiceHistoryTab'
 import { getCorporatePaymentHistory, voidCorporatePayment } from '@/actions/corporate'
 import { exportProfessionalExcel } from '@/lib/exportExcel'
+
+type PaymentHistoryItem = NonNullable<Awaited<ReturnType<typeof getCorporatePaymentHistory>>>[number]
 
 interface CorporateData {
   id: string
@@ -143,7 +146,8 @@ export default function TagihanClient({ corporate, allCustomers, isAdmin = false
   const router = useRouter()
   const basePath = isAdmin ? '/admin/korporat' : '/kasir/korporat'
   const [isPending, startTransition] = useTransition()
-  const [activeTab, setActiveTab] = useState<'tagihan' | 'kendaraan' | 'riwayat'>('tagihan')
+  const [activeTab, setActiveTab] = useState<'tagihan' | 'kendaraan' | 'riwayat-servis' | 'riwayat'>('tagihan')
+  const [selectedVehicleHistoryId, setSelectedVehicleHistoryId] = useState<string>('')
   const [paymentHistory, setPaymentHistory] = useState<Awaited<ReturnType<typeof getCorporatePaymentHistory>> | null>(null)
   const [historyLoaded, setHistoryLoaded] = useState(false)
 
@@ -171,28 +175,22 @@ export default function TagihanClient({ corporate, allCustomers, isAdmin = false
   // Service vehicle modal state
   const [serviceVehicle, setServiceVehicle] = useState<CorporateData['customers'][0] | null>(null)
 
+  const refreshBilling = useCallback(() => {
+    startTransition(async () => {
+      const res = await getCorporateBilling(corporate.id, startDate, endDate)
+      if (res) {
+        setBillingData(transformBillingData(res))
+        setLoaded(true)
+      }
+    })
+  }, [corporate.id, startDate, endDate])
+
   useEffect(() => {
     refreshBilling()
-  }, [])
+  }, [refreshBilling])
 
   const handleFilter = () => {
-    startTransition(async () => {
-      const res = await getCorporateBilling(corporate.id, startDate, endDate)
-      if (res) {
-        setBillingData(transformBillingData(res))
-        setLoaded(true)
-      }
-    })
-  }
-
-  const refreshBilling = () => {
-    startTransition(async () => {
-      const res = await getCorporateBilling(corporate.id, startDate, endDate)
-      if (res) {
-        setBillingData(transformBillingData(res))
-        setLoaded(true)
-      }
-    })
+    refreshBilling()
   }
 
   // Load payment history
@@ -478,7 +476,7 @@ export default function TagihanClient({ corporate, allCustomers, isAdmin = false
   return (
     <div className="space-y-6">
       {/* Tab */}
-      <div className="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit print:hidden">
+      <div className="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit print:hidden flex-wrap">
         <button
           onClick={() => {
             setActiveTab('tagihan')
@@ -497,6 +495,16 @@ export default function TagihanClient({ corporate, allCustomers, isAdmin = false
           }`}
         >
           <Users className="w-4 h-4" /> Kelola Kendaraan
+        </button>
+        <button
+          onClick={() => {
+            setActiveTab('riwayat-servis')
+          }}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            activeTab === 'riwayat-servis' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          <Wrench className="w-4 h-4 text-violet-600" /> Riwayat Servis Kendaraan
         </button>
         <button
           onClick={() => {
@@ -818,7 +826,19 @@ export default function TagihanClient({ corporate, allCustomers, isAdmin = false
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          icon={History}
+                          className="text-indigo-600 border-indigo-200 hover:bg-indigo-50"
+                          onClick={() => {
+                            setSelectedVehicleHistoryId(c.id)
+                            setActiveTab('riwayat-servis')
+                          }}
+                        >
+                          Riwayat Servis
+                        </Button>
                         <Button
                           size="sm"
                           variant="outline"
@@ -874,6 +894,19 @@ export default function TagihanClient({ corporate, allCustomers, isAdmin = false
         </div>
       )}
 
+      {/* ===== TAB RIWAYAT SERVIS KENDARAAN ===== */}
+      {activeTab === 'riwayat-servis' && (
+        <CorporateServiceHistoryTab
+          corporateId={corporate.id}
+          corporateName={corporate.name}
+          corporateCustomers={corporate.customers}
+          initialVehicleId={selectedVehicleHistoryId}
+          isAdmin={isAdmin}
+          shopName={shopName}
+          branchInfo={corporate.branch}
+        />
+      )}
+
       {/* ===== TAB RIWAYAT PEMBAYARAN ===== */}
       {activeTab === 'riwayat' && (
         <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden print:hidden">
@@ -891,12 +924,12 @@ export default function TagihanClient({ corporate, allCustomers, isAdmin = false
               <p className="text-sm">Belum ada riwayat pembayaran untuk perusahaan ini.</p>
             </div>
           ) : (
-            <Table
+            <Table<PaymentHistoryItem>
               columns={[
                 {
                   key: 'paidAt',
                   header: 'Tanggal Bayar',
-                  render: (row: any) => (
+                  render: (row: PaymentHistoryItem) => (
                     <p className="text-sm font-medium text-slate-900">
                       {new Date(row.paidAt).toLocaleDateString('id-ID', {
                         day: 'numeric',
@@ -909,13 +942,13 @@ export default function TagihanClient({ corporate, allCustomers, isAdmin = false
                 {
                   key: 'vehicles',
                   header: 'Kendaraan / Pelanggan',
-                  render: (row: any) => {
+                  render: (row: PaymentHistoryItem) => {
                     const links = row.transactionLinks || []
                     if (links.length === 0) return <span className="text-xs text-slate-400">—</span>
 
                     return (
-                      <div className="space-y-1 max-w-[220px]">
-                        {links.slice(0, 2).map((l: any, idx: number) => {
+                      <div className="space-y-1 max-w-55">
+                        {links.slice(0, 2).map((l, idx: number) => {
                           const cust = l.transaction?.customer
                           return (
                             <p key={idx} className="text-xs text-slate-800 leading-tight">
@@ -938,21 +971,21 @@ export default function TagihanClient({ corporate, allCustomers, isAdmin = false
                 {
                   key: 'amount',
                   header: 'Jumlah',
-                  render: (row: any) => (
+                  render: (row: PaymentHistoryItem) => (
                     <span className="text-sm font-bold text-emerald-600">{formatCurrency(row.amount)}</span>
                   ),
                 },
                 {
                   key: 'method',
                   header: 'Metode',
-                  render: (row: any) => (
+                  render: (row: PaymentHistoryItem) => (
                     <span className="text-sm text-slate-700">{row.paymentMethod}</span>
                   ),
                 },
                 {
                   key: 'period',
                   header: 'Periode',
-                  render: (row: any) => (
+                  render: (row: PaymentHistoryItem) => (
                     <p className="text-xs text-slate-500">
                       {new Date(row.periodStart).toLocaleDateString('id-ID', { month: 'short', year: 'numeric' })} —{' '}
                       {new Date(row.periodEnd).toLocaleDateString('id-ID', { month: 'short', year: 'numeric' })}
@@ -962,14 +995,14 @@ export default function TagihanClient({ corporate, allCustomers, isAdmin = false
                 {
                   key: 'createdBy',
                   header: 'Admin',
-                  render: (row: any) => (
-                    <p className="text-xs text-slate-600">{row.createdBy.name}</p>
+                  render: (row: PaymentHistoryItem) => (
+                    <p className="text-xs text-slate-600">{row.createdBy?.name || '—'}</p>
                   ),
                 },
                 {
                   key: 'actions',
                   header: 'Aksi',
-                  render: (row: any) => (
+                  render: (row: PaymentHistoryItem) => (
                     <div className="flex gap-2">
                       <a
                         href={`${basePath}/${corporate.id}/pembayaran/${row.id}`}
@@ -989,8 +1022,8 @@ export default function TagihanClient({ corporate, allCustomers, isAdmin = false
                   ),
                 },
               ]}
-              data={paymentHistory}
-              keyExtractor={(row: any) => row.id}
+              data={paymentHistory || []}
+              keyExtractor={(row: PaymentHistoryItem) => row.id}
               emptyMessage="Tidak ada riwayat pembayaran."
             />
           )}

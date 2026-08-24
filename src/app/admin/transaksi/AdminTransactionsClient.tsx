@@ -15,7 +15,10 @@ interface AdminTransactionRow {
   type: string
   status: string
   total: number
+  paidAmount?: number
+  changeAmount?: number
   paymentMethod: string
+  payments?: { paymentMethod: string; amount: number }[]
   createdAt: Date | string
   customer?: { name: string; plateNumber: string | null } | null
   user: { name: string }
@@ -203,9 +206,15 @@ export default function AdminTransactionsClient({ initialData, initialDate, bran
                       </span>
                     </td>
                     <td className="p-4">
-                      <span className="text-xs font-medium px-2 py-1 bg-slate-100 rounded-md text-slate-600">
-                        {tx.paymentMethod}
-                      </span>
+                      {tx.paymentMethod === 'SPLIT' || (tx.payments && tx.payments.length > 1) ? (
+                        <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 bg-violet-50 text-violet-700 border border-violet-200 rounded-md">
+                          SPLIT ({tx.payments && tx.payments.length > 0 ? tx.payments.map(p => p.paymentMethod === 'CASH' ? 'Tunai' : p.paymentMethod === 'TRANSFER' ? 'Trf' : 'QRIS').join('+') : 'Mix'})
+                        </span>
+                      ) : (
+                        <span className="text-xs font-medium px-2 py-1 bg-slate-100 rounded-md text-slate-600">
+                          {tx.paymentMethod === 'CASH' ? 'Tunai' : tx.paymentMethod}
+                        </span>
+                      )}
                     </td>
                     <td className="p-4 text-right">
                       <Link href={`/admin/transaksi/${tx.id}`}>

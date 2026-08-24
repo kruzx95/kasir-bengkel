@@ -26,6 +26,9 @@ import {
   Wrench,
   X,
   Eye,
+  Banknote,
+  CreditCard,
+  QrCode,
 } from 'lucide-react'
 
 import { exportProfessionalExcel } from '@/lib/exportExcel'
@@ -117,6 +120,9 @@ interface TransactionRow {
   subtotal: number
   discount?: number
   paymentMethod?: string
+  paidAmount?: number
+  changeAmount?: number
+  payments?: { paymentMethod: string; amount: number }[]
 }
 
 interface RestockItem {
@@ -160,7 +166,16 @@ interface IndentOrderRow {
 interface ReportClientProps {
   branches: { id: string; name: string }[]
   initialData: TransactionRow[]
-  initialSummary: { total: number; service: number; sparepart: number; pendingCorporate: number }
+  initialSummary: {
+    total: number
+    service: number
+    sparepart: number
+    pendingCorporate: number
+    discount?: number
+    cashTotal?: number
+    transferTotal?: number
+    qrisTotal?: number
+  }
   shopName: string
 }
 
@@ -460,6 +475,18 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
     const rows = data.map((tx: TransactionRow) => {
       const isCorp = tx.status === 'PENDING_CORPORATE' || !!tx.customer?.corporateCustomer || !!tx.customer?.corporateCustomerId
       const corpName = tx.customer?.corporateCustomer?.name
+
+      let paymentText = tx.paymentMethod || 'TUNAI'
+      if (tx.paymentMethod === 'SPLIT' || (tx.payments && tx.payments.length > 1)) {
+        if (tx.payments && tx.payments.length > 0) {
+          paymentText = `SPLIT (${tx.payments.map(p => `${p.paymentMethod === 'CASH' ? 'Tunai' : p.paymentMethod === 'TRANSFER' ? 'Transfer' : 'QRIS'}: Rp ${p.amount.toLocaleString('id-ID')}`).join(', ')})`
+        } else {
+          paymentText = 'SPLIT'
+        }
+      } else if (tx.paymentMethod === 'CASH') {
+        paymentText = 'TUNAI'
+      }
+
       return {
         tanggal:           new Date(tx.transactionDate).toLocaleDateString('id-ID'),
         noInvoice:         tx.invoiceNumber,
@@ -468,7 +495,7 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
         pelanggan:         tx.customer?.name || 'Umum',
         kategoriPelanggan: isCorp ? (corpName ? `Korporat (${corpName})` : 'Korporat') : 'Reguler',
         tipeTransaksi:     tx.type,
-        metodeBayar:       tx.paymentMethod || 'TUNAI',
+        metodeBayar:       paymentText,
         rincianItem:       tx.items.map((i: TransactionItem) => `${i.itemType === 'SERVICE' ? '[JASA]' : '[BARANG]'} ${i.quantity}x ${i.itemName}${i.unitPrice ? ` (@Rp ${i.unitPrice.toLocaleString('id-ID')})` : ''} = Rp ${i.subtotal.toLocaleString('id-ID')}`).join('\n'),
         subtotal:          tx.subtotal,
         diskon:            tx.discount || 0,
@@ -493,7 +520,7 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
         { header: 'Pelanggan',          key: 'pelanggan',         width: 20 },
         { header: 'Kategori Pelanggan', key: 'kategoriPelanggan', width: 22 },
         { header: 'Tipe',               key: 'tipeTransaksi',     width: 12, align: 'center' },
-        { header: 'Metode Bayar',  key: 'metodeBayar',   width: 14, align: 'center' },
+        { header: 'Metode Bayar',  key: 'metodeBayar',   width: 28 },
         { header: 'Rincian Item',  key: 'rincianItem',   width: 42 },
         { header: 'Subtotal (Rp)', key: 'subtotal',      width: 18, numFmt: '"Rp "#,##0', align: 'right' },
         { header: 'Diskon (Rp)',   key: 'diskon',        width: 14, numFmt: '"Rp "#,##0', align: 'right' },
@@ -506,6 +533,9 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
         { label: 'Total Diskon',      value: totalDiskon,    currency: true },
         { label: 'Jasa Servis',       value: summary.service,   currency: true },
         { label: 'Penjualan Sparepart', value: summary.sparepart, currency: true },
+        ...(summary.cashTotal !== undefined ? [{ label: 'Kas Tunai (Fisik Laci)', value: summary.cashTotal, currency: true }] : []),
+        ...(summary.transferTotal !== undefined ? [{ label: 'Transfer Bank (Rekening)', value: summary.transferTotal, currency: true }] : []),
+        ...(summary.qrisTotal !== undefined ? [{ label: 'QRIS', value: summary.qrisTotal, currency: true }] : []),
       ],
     })
   }
@@ -635,6 +665,38 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
           })}
         </div>
       ),
+    },
+    {
+      key: 'payment',
+      header: 'Pembayaran',
+      render: (row: TransactionRow) => {
+        if (row.paymentMethod === 'SPLIT' || (row.payments && row.payments.length > 1)) {
+          return (
+            <div>
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 bg-violet-50 text-violet-700 border border-violet-200 rounded-md">
+                SPLIT
+              </span>
+              <div className="mt-1 text-[10px] text-slate-500 space-y-0.5 font-medium">
+                {row.payments && row.payments.length > 0 ? (
+                  row.payments.map((p, i) => (
+                    <div key={i} className="flex items-center justify-between gap-2">
+                      <span>{p.paymentMethod === 'CASH' ? 'Tunai' : p.paymentMethod === 'TRANSFER' ? 'Trf' : 'QRIS'}:</span>
+                      <span className="font-semibold text-slate-700">{formatCurrency(p.amount)}</span>
+                    </div>
+                  ))
+                ) : (
+                  <span>Kombinasi</span>
+                )}
+              </div>
+            </div>
+          )
+        }
+        return (
+          <span className="text-xs font-medium px-2 py-1 bg-slate-100 rounded-md text-slate-700">
+            {row.paymentMethod === 'CASH' ? 'Tunai' : row.paymentMethod || 'TUNAI'}
+          </span>
+        )
+      },
     },
     {
       key: 'total',
@@ -1112,8 +1174,8 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
               </Button>
             </div>
 
-            {/* Stat Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            {/* Stat Cards - Pendapatan Utama */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
               <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Total Pendapatan</p>
                 <p className="text-2xl font-black text-slate-900">{formatCurrency(summary.total)}</p>
@@ -1133,6 +1195,34 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
               <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Total Transaksi</p>
                 <p className="text-xl font-bold text-slate-700">{data.length} Struk</p>
+              </div>
+            </div>
+
+            {/* Stat Cards - Rekapitulasi Arus Kas / Metode Pembayaran */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="bg-gradient-to-br from-emerald-50 to-white p-4 rounded-2xl border border-emerald-200/80 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold text-emerald-800 uppercase tracking-wider">Kas Tunai (Fisik Laci)</p>
+                  <Banknote className="w-4 h-4 text-emerald-600" />
+                </div>
+                <p className="text-xl font-black text-emerald-700 mt-1">{formatCurrency(summary.cashTotal ?? 0)}</p>
+                <p className="text-[11px] text-emerald-600 mt-0.5">Termasuk porsi tunai dari split payment</p>
+              </div>
+              <div className="bg-gradient-to-br from-blue-50 to-white p-4 rounded-2xl border border-blue-200/80 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold text-blue-800 uppercase tracking-wider">Transfer Bank (Rekening)</p>
+                  <CreditCard className="w-4 h-4 text-blue-600" />
+                </div>
+                <p className="text-xl font-black text-blue-700 mt-1">{formatCurrency(summary.transferTotal ?? 0)}</p>
+                <p className="text-[11px] text-blue-600 mt-0.5">Termasuk porsi transfer dari split payment</p>
+              </div>
+              <div className="bg-gradient-to-br from-purple-50 to-white p-4 rounded-2xl border border-purple-200/80 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold text-purple-800 uppercase tracking-wider">QRIS</p>
+                  <QrCode className="w-4 h-4 text-purple-600" />
+                </div>
+                <p className="text-xl font-black text-purple-700 mt-1">{formatCurrency(summary.qrisTotal ?? 0)}</p>
+                <p className="text-[11px] text-purple-600 mt-0.5">Termasuk porsi QRIS dari split payment</p>
               </div>
             </div>
 
@@ -1167,7 +1257,7 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
             </div>
 
             {/* Ringkasan Stats */}
-            <div className="grid grid-cols-4 gap-2 mb-4 p-2 bg-slate-50 border border-slate-300 rounded text-center">
+            <div className="grid grid-cols-4 gap-2 mb-2 p-2 bg-slate-50 border border-slate-300 rounded text-center">
               <div>
                 <p className="text-[9px] text-slate-500 uppercase font-semibold">Total Pendapatan</p>
                 <p className="text-xs font-bold">{formatCurrency(summary.total)}</p>
@@ -1183,6 +1273,22 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
               <div>
                 <p className="text-[9px] text-slate-500 uppercase font-semibold">Total Transaksi</p>
                 <p className="text-xs font-bold">{data.length} Struk</p>
+              </div>
+            </div>
+
+            {/* Ringkasan Kas Masuk Per Metode */}
+            <div className="grid grid-cols-3 gap-2 mb-4 p-2 bg-slate-50 border border-slate-300 rounded text-center">
+              <div>
+                <p className="text-[9px] text-slate-500 uppercase font-semibold">Kas Fisik Tunai</p>
+                <p className="text-xs font-bold text-emerald-700">{formatCurrency(summary.cashTotal ?? 0)}</p>
+              </div>
+              <div>
+                <p className="text-[9px] text-slate-500 uppercase font-semibold">Transfer Bank</p>
+                <p className="text-xs font-bold text-blue-700">{formatCurrency(summary.transferTotal ?? 0)}</p>
+              </div>
+              <div>
+                <p className="text-[9px] text-slate-500 uppercase font-semibold">QRIS</p>
+                <p className="text-xs font-bold text-purple-700">{formatCurrency(summary.qrisTotal ?? 0)}</p>
               </div>
             </div>
 
@@ -1217,7 +1323,13 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
                       {tx.type}
                     </td>
                     <td className="py-1 px-1.5 border border-slate-300 text-center text-[10px]">
-                      {tx.paymentMethod}
+                      {tx.paymentMethod === 'SPLIT' || (tx.payments && tx.payments.length > 1) ? (
+                        <span>
+                          SPLIT ({tx.payments && tx.payments.length > 0 ? tx.payments.map(p => `${p.paymentMethod === 'CASH' ? 'Tunai' : p.paymentMethod === 'TRANSFER' ? 'Trf' : 'QRIS'}: Rp ${p.amount.toLocaleString('id-ID')}`).join(', ') : 'Mix'})
+                        </span>
+                      ) : (
+                        <span>{tx.paymentMethod === 'CASH' ? 'Tunai' : tx.paymentMethod}</span>
+                      )}
                     </td>
                     <td className="py-1 px-1.5 border border-slate-300 text-right font-bold text-[10px]">
                       {formatCurrency(tx.total)}
