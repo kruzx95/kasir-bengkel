@@ -15,9 +15,11 @@ export default async function StockTokoPage(
   const searchParams = await props.searchParams
   const page = Number(searchParams?.page) || 1
   const search = typeof searchParams?.search === 'string' ? searchParams.search : undefined
+  const sortBy = typeof searchParams?.sortBy === 'string' ? searchParams.sortBy : 'name'
+  const sortOrder = searchParams?.sortOrder === 'desc' ? 'desc' : 'asc'
 
   const result = session 
-    ? await getPaginatedSpareparts(page, 50, session.branchId, search)
+    ? await getPaginatedSpareparts(page, 50, session.branchId, search, sortBy, sortOrder)
     : { data: [], totalCount: 0, totalPages: 0, currentPage: 1 }
 
   return (

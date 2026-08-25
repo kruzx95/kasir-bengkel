@@ -18,8 +18,10 @@ export default async function KasirStockTokoPage(
   const searchParams = await props.searchParams
   const page = Number(searchParams?.page) || 1
   const search = typeof searchParams?.search === 'string' ? searchParams.search : undefined
+  const sortBy = typeof searchParams?.sortBy === 'string' ? searchParams.sortBy : 'name'
+  const sortOrder = searchParams?.sortOrder === 'desc' ? 'desc' : 'asc'
 
-  const result = await getPaginatedSpareparts(page, 50, session.branchId, search)
+  const result = await getPaginatedSpareparts(page, 50, session.branchId, search, sortBy, sortOrder)
 
   return (
     <div className="p-4 sm:p-6 animate-fade-in space-y-4">

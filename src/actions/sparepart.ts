@@ -52,7 +52,9 @@ export async function getPaginatedSpareparts(
   page = 1,
   limit = 50,
   branchId?: string | null,
-  search?: string
+  search?: string,
+  sortBy: string = 'name',
+  sortOrder: 'asc' | 'desc' = 'asc'
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<PaginatedResult<any>> {
   try {
@@ -74,6 +76,14 @@ export async function getPaginatedSpareparts(
       ]
     }
 
+    const validSortFields = ['name', 'stock', 'warehouseStock', 'sellPrice', 'buyPrice', 'createdAt', 'sku', 'sparepartBrand']
+    const safeSortBy = validSortFields.includes(sortBy) ? sortBy : 'name'
+    const safeSortOrder = sortOrder === 'desc' ? 'desc' : 'asc'
+
+    const orderBy: Record<string, 'asc' | 'desc'> = {
+      [safeSortBy]: safeSortOrder,
+    }
+
     const [totalCount, data] = await prisma.$transaction([
       prisma.sparepart.count({ where }),
       prisma.sparepart.findMany({
@@ -81,7 +91,7 @@ export async function getPaginatedSpareparts(
         skip: (page - 1) * limit,
         take: limit,
         include: { branch: true },
-        orderBy: { name: 'asc' },
+        orderBy,
       })
     ])
 
