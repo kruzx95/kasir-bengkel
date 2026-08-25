@@ -201,6 +201,7 @@ model TransactionItem {
   itemName      String      @map("item_name")
   quantity      Int         @default(1)
   unitPrice     Float       @map("unit_price")
+  buyPrice      Float?      @map("buy_price")
   subtotal      Float       @default(0)
   createdAt     DateTime    @default(now())
   service       Service?    @relation(fields: [serviceId], references: [id])

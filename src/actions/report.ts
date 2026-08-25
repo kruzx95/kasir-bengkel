@@ -825,34 +825,36 @@ export async function getProfitLossReportData(
           txServiceRev += item.subtotal
         } else if (item.itemType === 'SPAREPART') {
           txSparepartRev += item.subtotal
-          if (item.sparepart) {
-            itemBuyPrice = item.sparepart.buyPrice || 0
-            itemHpp = item.quantity * itemBuyPrice
-            itemProfit = item.subtotal - itemHpp
-
-            const spKey = item.sparepart.id
-            if (!spProfitMap[spKey]) {
-              spProfitMap[spKey] = {
-                id: item.sparepart.id,
-                name: item.sparepart.name,
-                sku: item.sparepart.sku,
-                brand: item.sparepart.sparepartBrand,
-                soldQty: 0,
-                totalRevenue: 0,
-                totalHpp: 0,
-                totalProfit: 0,
-                buyPrices: [],
-                sellPrices: [],
-              }
-            }
-            spProfitMap[spKey].soldQty += item.quantity
-            spProfitMap[spKey].totalRevenue += item.subtotal
-            spProfitMap[spKey].totalHpp += itemHpp
-            spProfitMap[spKey].totalProfit += itemProfit
-            spProfitMap[spKey].buyPrices.push(itemBuyPrice)
-            spProfitMap[spKey].sellPrices.push(item.unitPrice)
-          }
+          itemBuyPrice = item.buyPrice ?? (item.sparepart?.buyPrice || 0)
+          itemHpp = item.quantity * itemBuyPrice
+          itemProfit = item.subtotal - itemHpp
           txSparepartHpp += itemHpp
+
+          const spKey = item.sparepart ? item.sparepart.id : `MANUAL_${item.itemName}`
+          const spName = item.sparepart ? item.sparepart.name : `[Luar] ${item.itemName}`
+          const spSku = item.sparepart?.sku || 'LUAR'
+          const spBrand = item.sparepart?.sparepartBrand || 'Luar Bengkel'
+
+          if (!spProfitMap[spKey]) {
+            spProfitMap[spKey] = {
+              id: spKey,
+              name: spName,
+              sku: spSku,
+              brand: spBrand,
+              soldQty: 0,
+              totalRevenue: 0,
+              totalHpp: 0,
+              totalProfit: 0,
+              buyPrices: [],
+              sellPrices: [],
+            }
+          }
+          spProfitMap[spKey].soldQty += item.quantity
+          spProfitMap[spKey].totalRevenue += item.subtotal
+          spProfitMap[spKey].totalHpp += itemHpp
+          spProfitMap[spKey].totalProfit += itemProfit
+          spProfitMap[spKey].buyPrices.push(itemBuyPrice)
+          spProfitMap[spKey].sellPrices.push(item.unitPrice)
         }
 
         return {

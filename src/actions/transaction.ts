@@ -12,6 +12,7 @@ const transactionItemSchema = z.object({
   itemName: z.string(),
   quantity: z.number().min(1),
   unitPrice: z.number().min(0),
+  buyPrice: z.number().min(0).optional().nullable(),
 })
 
 const paymentItemSchema = z.object({
@@ -214,7 +215,21 @@ export async function createTransaction(payload: TransactionPayload): Promise<Tr
         })
       }
 
-      // 3. Create Transaction
+      // 3. Look up catalog spareparts buyPrice if needed
+      const catalogSparepartIds = data.items
+        .filter(it => it.itemType === 'SPAREPART' && it.itemId && !it.itemId.startsWith('MANUAL_'))
+        .map(it => it.itemId!)
+
+      const dbSpareparts = catalogSparepartIds.length > 0
+        ? await tx.sparepart.findMany({
+            where: { id: { in: catalogSparepartIds } },
+            select: { id: true, buyPrice: true },
+          })
+        : []
+
+      const sparepartsBuyPriceMap = new Map(dbSpareparts.map(sp => [sp.id, sp.buyPrice]))
+
+      // 4. Create Transaction
       const transaction = await tx.transaction.create({
         data: {
           branchId,
@@ -234,15 +249,26 @@ export async function createTransaction(payload: TransactionPayload): Promise<Tr
           odometer: data.odometer ?? null,
           transactionDate: new Date(),
           items: {
-            create: data.items.map((item) => ({
-              itemType: item.itemType,
-              serviceId: item.itemType === 'SERVICE' && item.itemId && !item.itemId.startsWith('MANUAL_') ? item.itemId : null,
-              sparepartId: item.itemType === 'SPAREPART' && item.itemId && !item.itemId.startsWith('MANUAL_') ? item.itemId : null,
-              itemName: item.itemName,
-              quantity: item.quantity,
-              unitPrice: item.unitPrice,
-              subtotal: item.quantity * item.unitPrice,
-            }))
+            create: data.items.map((item) => {
+              let resolvedBuyPrice: number | null = null
+              if (item.itemType === 'SPAREPART') {
+                if (item.buyPrice !== undefined && item.buyPrice !== null) {
+                  resolvedBuyPrice = item.buyPrice
+                } else if (item.itemId && sparepartsBuyPriceMap.has(item.itemId)) {
+                  resolvedBuyPrice = sparepartsBuyPriceMap.get(item.itemId) ?? null
+                }
+              }
+              return {
+                itemType: item.itemType,
+                serviceId: item.itemType === 'SERVICE' && item.itemId && !item.itemId.startsWith('MANUAL_') ? item.itemId : null,
+                sparepartId: item.itemType === 'SPAREPART' && item.itemId && !item.itemId.startsWith('MANUAL_') ? item.itemId : null,
+                itemName: item.itemName,
+                quantity: item.quantity,
+                unitPrice: item.unitPrice,
+                buyPrice: resolvedBuyPrice,
+                subtotal: item.quantity * item.unitPrice,
+              }
+            })
           },
           payments: data.isCorporate || paymentsToCreate.length === 0 ? undefined : {
             create: paymentsToCreate.map(p => ({
@@ -529,6 +555,7 @@ export async function getTransactionDetails(id: string) {
             itemName: true,
             quantity: true,
             unitPrice: true,
+            buyPrice: true,
             subtotal: true
           }
         }
