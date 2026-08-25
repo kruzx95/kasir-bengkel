@@ -197,7 +197,14 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
               <tr key={item.id} className="group">
                 <td className="py-4 print:py-1.5">
                   <p className="text-sm font-semibold text-slate-900 print:text-xs">{item.itemName}</p>
-                  <p className="text-xs text-slate-400 print:text-[10px]">{item.itemType === 'SERVICE' ? 'Jasa Servis' : 'Sparepart'}</p>
+                  <div className="flex flex-wrap items-center gap-2 mt-0.5">
+                    <p className="text-xs text-slate-400 print:text-[10px]">{item.itemType === 'SERVICE' ? 'Jasa Servis' : 'Sparepart'}</p>
+                    {session?.role === 'ADMIN' && item.itemType === 'SPAREPART' && (
+                      <span className="print:hidden text-[11px] font-mono text-amber-800 bg-amber-50 border border-amber-200/60 px-1.5 py-0.5 rounded-md">
+                        Modal: {formatCurrency(item.buyPrice || 0)} (Laba: <strong className="text-emerald-700 font-bold">+{formatCurrency(item.subtotal - (item.quantity * (item.buyPrice || 0)))}</strong>)
+                      </span>
+                    )}
+                  </div>
                 </td>
                 <td className="text-center py-4 text-sm text-slate-700 print:py-1.5 print:text-xs">{item.quantity}</td>
                 <td className="text-right py-4 text-sm text-slate-700 print:py-1.5 print:text-xs">{formatCurrency(item.unitPrice)}</td>

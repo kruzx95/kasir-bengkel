@@ -56,7 +56,7 @@ interface MechanicReportRow {
     transactionDate: Date | string
     total: number
     customer: { name: string; plateNumber: string | null; vehicleType: string | null } | null
-    items: Array<{ itemName: string; itemType: string; quantity: number; unitPrice: number; subtotal: number }>
+    items: Array<{ itemName: string; itemType: string; quantity: number; unitPrice: number; buyPrice?: number; subtotal: number }>
   }>
 }
 
@@ -87,7 +87,7 @@ interface CorporateTxRow {
     vehicleType?: string | null
     corporateCustomer?: { id: string; name: string } | null
   } | null
-  items: { itemName: string; itemType?: string; quantity: number; unitPrice?: number; subtotal: number }[]
+  items: { itemName: string; itemType?: string; quantity: number; unitPrice?: number; buyPrice?: number; subtotal: number }[]
 }
 
 interface CorporatePaymentRow {
@@ -106,6 +106,7 @@ interface TransactionItem {
   itemName: string
   itemType?: string
   unitPrice?: number
+  buyPrice?: number
   subtotal: number
 }
 
@@ -493,9 +494,14 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
         petugas: tx.user.name,
         rincianItem: tx.items
           .map((i) => {
-            const typeLabel = i.itemType === 'SERVICE' ? '[JASA]' : '[BARANG]'
-            const priceInfo = i.unitPrice ? `@Rp ${i.unitPrice.toLocaleString('id-ID')} ` : ''
-            return `${typeLabel} ${i.quantity}x ${i.itemName} (${priceInfo}= Rp ${i.subtotal.toLocaleString('id-ID')})`
+            const isService = i.itemType === 'SERVICE'
+            if (!isService) {
+              const buy = i.buyPrice || 0
+              const sell = i.unitPrice || 0
+              const profit = i.subtotal - (i.quantity * buy)
+              return `[BARANG] ${i.quantity}x ${i.itemName} (@Beli: Rp ${buy.toLocaleString('id-ID')}, @Jual: Rp ${sell.toLocaleString('id-ID')}) = Rp ${i.subtotal.toLocaleString('id-ID')} [Laba: Rp ${profit.toLocaleString('id-ID')}]`
+            }
+            return `[JASA] ${i.quantity}x ${i.itemName} (@Tarif: Rp ${(i.unitPrice || 0).toLocaleString('id-ID')}) = Rp ${i.subtotal.toLocaleString('id-ID')}`
           })
           .join('\n'),
         total: tx.total,
@@ -626,6 +632,9 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
         paymentText = 'TUNAI'
       }
 
+      const totalHpp = tx.items.reduce((sum, i) => sum + (i.itemType === 'SPAREPART' ? i.quantity * (i.buyPrice || 0) : 0), 0)
+      const totalLaba = tx.total - totalHpp
+
       return {
         tanggal:           new Date(tx.transactionDate).toLocaleDateString('id-ID'),
         noInvoice:         tx.invoiceNumber,
@@ -635,19 +644,31 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
         kategoriPelanggan: isCorp ? (corpName ? `Korporat (${corpName})` : 'Korporat') : 'Reguler',
         tipeTransaksi:     tx.type,
         metodeBayar:       paymentText,
-        rincianItem:       tx.items.map((i: TransactionItem) => `${i.itemType === 'SERVICE' ? '[JASA]' : '[BARANG]'} ${i.quantity}x ${i.itemName}${i.unitPrice ? ` (@Rp ${i.unitPrice.toLocaleString('id-ID')})` : ''} = Rp ${i.subtotal.toLocaleString('id-ID')}`).join('\n'),
+        rincianItem:       tx.items.map((i: TransactionItem) => {
+          if (i.itemType === 'SPAREPART') {
+            const buy = i.buyPrice || 0
+            const sell = i.unitPrice || 0
+            const p = i.subtotal - (i.quantity * buy)
+            return `[BARANG] ${i.quantity}x ${i.itemName} (@Beli: Rp ${buy.toLocaleString('id-ID')}, @Jual: Rp ${sell.toLocaleString('id-ID')}) = Rp ${i.subtotal.toLocaleString('id-ID')} [Laba: Rp ${p.toLocaleString('id-ID')}]`
+          }
+          return `[JASA] ${i.quantity}x ${i.itemName} (@Tarif: Rp ${(i.unitPrice || 0).toLocaleString('id-ID')}) = Rp ${i.subtotal.toLocaleString('id-ID')}`
+        }).join('\n'),
         subtotal:          tx.subtotal,
+        totalHpp:          totalHpp,
         diskon:            tx.discount || 0,
         totalAkhir:        tx.total,
+        labaKotor:         totalLaba,
       }
     })
 
     const totalPenjualan = rows.reduce((sum, r) => sum + (r.totalAkhir as number), 0)
+    const totalHppSemua  = rows.reduce((sum, r) => sum + (r.totalHpp as number), 0)
     const totalDiskon    = rows.reduce((sum, r) => sum + (r.diskon as number), 0)
+    const totalLabaSemua = rows.reduce((sum, r) => sum + (r.labaKotor as number), 0)
 
     await exportProfessionalExcel({
       shopName:  shopName,
-      title:     'LAPORAN TRANSAKSI PENJUALAN',
+      title:     'LAPORAN TRANSAKSI PENJUALAN & LABA',
       period:    `${startDate} s/d ${endDate}`,
       filename:  `Laporan_Transaksi_${startDate}_to_${endDate}.xlsx`,
       sheetName: 'Laporan Transaksi',
@@ -660,15 +681,19 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
         { header: 'Kategori Pelanggan', key: 'kategoriPelanggan', width: 22 },
         { header: 'Tipe',               key: 'tipeTransaksi',     width: 12, align: 'center' },
         { header: 'Metode Bayar',  key: 'metodeBayar',   width: 28 },
-        { header: 'Rincian Item',  key: 'rincianItem',   width: 42 },
+        { header: 'Rincian Item (Beli & Jual)', key: 'rincianItem', width: 50 },
         { header: 'Subtotal (Rp)', key: 'subtotal',      width: 18, numFmt: '"Rp "#,##0', align: 'right' },
+        { header: 'HPP Modal (Rp)', key: 'totalHpp',     width: 18, numFmt: '"Rp "#,##0', align: 'right' },
         { header: 'Diskon (Rp)',   key: 'diskon',        width: 14, numFmt: '"Rp "#,##0', align: 'right' },
-        { header: 'Total (Rp)',    key: 'totalAkhir',    width: 18, numFmt: '"Rp "#,##0', align: 'right' },
+        { header: 'Total Jual (Rp)', key: 'totalAkhir',  width: 18, numFmt: '"Rp "#,##0', align: 'right' },
+        { header: 'Laba Kotor (Rp)', key: 'labaKotor',   width: 18, numFmt: '"Rp "#,##0', align: 'right' },
       ],
       rows,
       summaries: [
         { label: 'Jumlah Transaksi',  value: rows.length },
         { label: 'Total Penjualan',   value: totalPenjualan, currency: true },
+        { label: 'Total Modal HPP',   value: totalHppSemua, currency: true },
+        { label: 'Total Laba Kotor',  value: totalLabaSemua, currency: true },
         { label: 'Total Diskon',      value: totalDiskon,    currency: true },
         { label: 'Jasa Servis',       value: summary.service,   currency: true },
         { label: 'Penjualan Sparepart', value: summary.sparepart, currency: true },
@@ -780,24 +805,52 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
     },
     {
       key: 'items',
-      header: 'Rincian Jasa & Barang',
+      header: 'Rincian Jasa & Barang (Modal & Jual)',
       render: (row: TransactionRow) => (
-        <div className="space-y-1 py-1 max-w-md">
+        <div className="space-y-1.5 py-1 min-w-[280px] max-w-md">
           {row.items.map((item, idx) => {
             const isService = item.itemType === 'SERVICE'
+            const buyPrice = item.buyPrice || 0
+            const unitPrice = item.unitPrice || 0
+            const profit = isService ? item.subtotal : (item.subtotal - (item.quantity * buyPrice))
+
             return (
-              <div key={idx} className="flex items-start justify-between gap-2 text-xs border-b border-slate-100 pb-1 last:border-0 last:pb-0">
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <Badge variant={isService ? 'primary' : 'warning'} size="sm" className="shrink-0 text-[10px] px-1.5 py-0 font-medium">
-                    {isService ? 'JASA' : 'BARANG'}
-                  </Badge>
-                  <span className="font-medium text-slate-800 truncate">
-                    {item.quantity}x {item.itemName}
+              <div key={idx} className="bg-slate-50/80 p-2 rounded-xl border border-slate-200/60 text-xs space-y-1">
+                <div className="flex items-center justify-between gap-1.5">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <Badge variant={isService ? 'primary' : 'warning'} size="sm" className="shrink-0 text-[10px] px-1.5 py-0 font-medium">
+                      {isService ? 'JASA' : 'BARANG'}
+                    </Badge>
+                    <span className="font-semibold text-slate-900 truncate">
+                      {item.quantity}x {item.itemName}
+                    </span>
+                  </div>
+                  <span className="font-black text-slate-900 font-mono text-[11px]">
+                    {formatCurrency(item.subtotal)}
                   </span>
                 </div>
-                <div className="text-right shrink-0 font-mono text-[11px] text-slate-600">
-                  {item.unitPrice ? `@${formatCurrency(item.unitPrice)} ` : ''}
-                  <span className="font-bold text-slate-900">({formatCurrency(item.subtotal)})</span>
+                
+                {/* Breakdown Harga Beli vs Harga Jual */}
+                <div className="flex items-center justify-between text-[10px] text-slate-500 font-mono pt-1 border-t border-slate-200/50">
+                  {!isService ? (
+                    <>
+                      <span>
+                        Beli: <strong className="text-amber-800 font-semibold">{formatCurrency(buyPrice)}</strong> • Jual: <strong className="text-slate-800 font-semibold">{formatCurrency(unitPrice)}</strong>
+                      </span>
+                      <span className="text-emerald-700 font-bold">
+                        +{formatCurrency(profit)}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span>
+                        Tarif Jasa: <strong className="text-slate-800 font-semibold">{formatCurrency(unitPrice)}</strong>
+                      </span>
+                      <span className="text-emerald-700 font-bold">
+                        Margin 100%
+                      </span>
+                    </>
+                  )}
                 </div>
               </div>
             )
@@ -1096,20 +1149,41 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
     },
     {
       key: 'items',
-      header: 'Rincian Item & Harga',
+      header: 'Rincian Item (Beli & Jual)',
       render: (row: CorporateTxRow) => (
-        <div className="space-y-1 py-1 max-w-md">
-          {row.items.map((i, idx) => (
-            <div key={idx} className="flex items-start justify-between gap-2 text-xs border-b border-slate-100 pb-1 last:border-0 last:pb-0">
-              <span className="font-medium text-slate-800">
-                {i.quantity}x {i.itemName}
-              </span>
-              <div className="text-right shrink-0 font-mono text-[11px] text-slate-600">
-                {i.unitPrice ? `@${formatCurrency(i.unitPrice)} = ` : ''}
-                <span className="font-bold text-slate-900">{formatCurrency(i.subtotal)}</span>
+        <div className="space-y-1.5 py-1 min-w-[260px] max-w-md">
+          {row.items.map((i, idx) => {
+            const isService = i.itemType === 'SERVICE'
+            const buyPrice = i.buyPrice || 0
+            const unitPrice = i.unitPrice || 0
+            const profit = isService ? i.subtotal : (i.subtotal - (i.quantity * buyPrice))
+
+            return (
+              <div key={idx} className="bg-slate-50/80 p-2 rounded-xl border border-slate-200/60 text-xs space-y-1">
+                <div className="flex items-center justify-between gap-1.5">
+                  <span className="font-semibold text-slate-900 truncate">
+                    {isService ? '🛠️ [Jasa]' : '📦 [Part]'} {i.quantity}x {i.itemName}
+                  </span>
+                  <span className="font-bold text-slate-900 font-mono text-[11px]">
+                    {formatCurrency(i.subtotal)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-[10px] text-slate-500 font-mono pt-1 border-t border-slate-200/50">
+                  {!isService ? (
+                    <>
+                      <span>Beli: <strong className="text-amber-800 font-semibold">{formatCurrency(buyPrice)}</strong> • Jual: <strong className="text-slate-800 font-semibold">{formatCurrency(unitPrice)}</strong></span>
+                      <span className="text-emerald-700 font-bold">+{formatCurrency(profit)}</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Tarif Jasa: <strong className="text-slate-800 font-semibold">{formatCurrency(unitPrice)}</strong></span>
+                      <span className="text-emerald-700 font-bold">Margin 100%</span>
+                    </>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       ),
     },
@@ -1448,55 +1522,78 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
             <table className="w-full border-collapse border border-slate-300">
               <thead>
                 <tr className="bg-slate-50">
-                  <th className="text-left py-1 px-1.5 border border-slate-300 font-bold uppercase text-[9px] w-20">Tanggal</th>
-                  <th className="text-left py-1 px-1.5 border border-slate-300 font-bold uppercase text-[9px]">No. Invoice</th>
-                  <th className="text-left py-1 px-1.5 border border-slate-300 font-bold uppercase text-[9px]">Cabang / Kasir</th>
-                  <th className="text-left py-1 px-1.5 border border-slate-300 font-bold uppercase text-[9px]">Pelanggan</th>
-                  <th className="text-center py-1 px-1.5 border border-slate-300 font-bold uppercase text-[9px]">Tipe</th>
-                  <th className="text-center py-1 px-1.5 border border-slate-300 font-bold uppercase text-[9px]">Metode</th>
-                  <th className="text-right py-1 px-1.5 border border-slate-300 font-bold uppercase text-[9px] w-24">Total</th>
+                  <th className="text-left py-1 px-1.5 border border-slate-300 font-bold uppercase text-[9px] w-16">Tanggal</th>
+                  <th className="text-left py-1 px-1.5 border border-slate-300 font-bold uppercase text-[9px] w-24">No. Invoice</th>
+                  <th className="text-left py-1 px-1.5 border border-slate-300 font-bold uppercase text-[9px] w-24">Pelanggan</th>
+                  <th className="text-left py-1 px-1.5 border border-slate-300 font-bold uppercase text-[9px]">Rincian Jasa & Barang (Beli / Jual)</th>
+                  <th className="text-center py-1 px-1.5 border border-slate-300 font-bold uppercase text-[9px] w-16">Metode</th>
+                  <th className="text-right py-1 px-1.5 border border-slate-300 font-bold uppercase text-[9px] w-20">Total Jual</th>
+                  <th className="text-right py-1 px-1.5 border border-slate-300 font-bold uppercase text-[9px] w-20">Est. Laba</th>
                 </tr>
               </thead>
               <tbody>
-                {data.map((tx) => (
-                  <tr key={tx.id}>
-                    <td className="py-1 px-1.5 border border-slate-300 text-[10px]">
-                      {new Date(tx.transactionDate).toLocaleDateString('id-ID')}
-                    </td>
-                    <td className="py-1 px-1.5 border border-slate-300 font-mono text-[10px] font-bold">
-                      {tx.invoiceNumber}
-                    </td>
-                    <td className="py-1 px-1.5 border border-slate-300 text-[10px]">
-                      {tx.branch.name} ({tx.user.name})
-                    </td>
-                    <td className="py-1 px-1.5 border border-slate-300 text-[10px]">
-                      {tx.customer?.name || 'Umum'}
-                    </td>
-                    <td className="py-1 px-1.5 border border-slate-300 text-center text-[10px]">
-                      {tx.type}
-                    </td>
-                    <td className="py-1 px-1.5 border border-slate-300 text-center text-[10px]">
-                      {tx.paymentMethod === 'SPLIT' || (tx.payments && tx.payments.length > 1) ? (
-                        <span>
-                          SPLIT ({tx.payments && tx.payments.length > 0 ? tx.payments.map(p => `${p.paymentMethod === 'CASH' ? 'Tunai' : p.paymentMethod === 'TRANSFER' ? 'Trf' : 'QRIS'}: Rp ${p.amount.toLocaleString('id-ID')}`).join(', ') : 'Mix'})
-                        </span>
-                      ) : (
-                        <span>{tx.paymentMethod === 'CASH' ? 'Tunai' : tx.paymentMethod}</span>
-                      )}
-                    </td>
-                    <td className="py-1 px-1.5 border border-slate-300 text-right font-bold text-[10px]">
-                      {formatCurrency(tx.total)}
-                    </td>
-                  </tr>
-                ))}
+                {data.map((tx) => {
+                  const txHpp = tx.items.reduce((sum, it) => sum + (it.itemType === 'SPAREPART' ? it.quantity * (it.buyPrice || 0) : 0), 0)
+                  const txProfit = tx.total - txHpp
+
+                  return (
+                    <tr key={tx.id}>
+                      <td className="py-1 px-1.5 border border-slate-300 text-[10px] align-top">
+                        {new Date(tx.transactionDate).toLocaleDateString('id-ID')}
+                      </td>
+                      <td className="py-1 px-1.5 border border-slate-300 font-mono text-[10px] font-bold align-top">
+                        {tx.invoiceNumber}
+                        <span className="block text-[8px] text-slate-500 font-normal">{tx.branch.name}</span>
+                      </td>
+                      <td className="py-1 px-1.5 border border-slate-300 text-[10px] align-top">
+                        {tx.customer?.name || 'Umum'}
+                        {tx.customer?.plateNumber && <span className="block font-mono text-[9px] text-slate-500">{tx.customer.plateNumber}</span>}
+                      </td>
+                      <td className="py-1 px-1.5 border border-slate-300 text-[9px] align-top">
+                        <div className="space-y-0.5">
+                          {tx.items.map((it, idx) => {
+                            const isService = it.itemType === 'SERVICE'
+                            const buy = it.buyPrice || 0
+                            const sell = it.unitPrice || 0
+                            return (
+                              <div key={idx} className="flex justify-between border-b border-slate-200/40 pb-0.5 last:border-0 last:pb-0">
+                                <span>{isService ? '🛠️' : '📦'} {it.quantity}x {it.itemName} {!isService ? `(Beli: Rp ${buy.toLocaleString('id-ID')} • Jual: Rp ${sell.toLocaleString('id-ID')})` : `(Tarif: Rp ${sell.toLocaleString('id-ID')})`}</span>
+                                <span className="font-semibold font-mono">Rp {it.subtotal.toLocaleString('id-ID')}</span>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </td>
+                      <td className="py-1 px-1.5 border border-slate-300 text-center text-[10px] align-top">
+                        {tx.paymentMethod === 'SPLIT' || (tx.payments && tx.payments.length > 1) ? (
+                          <span>SPLIT</span>
+                        ) : (
+                          <span>{tx.paymentMethod === 'CASH' ? 'Tunai' : tx.paymentMethod}</span>
+                        )}
+                      </td>
+                      <td className="py-1 px-1.5 border border-slate-300 text-right font-bold text-[10px] align-top">
+                        {formatCurrency(tx.total)}
+                      </td>
+                      <td className="py-1 px-1.5 border border-slate-300 text-right font-bold text-emerald-700 text-[10px] align-top">
+                        {formatCurrency(txProfit)}
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
               <tfoot>
                 <tr className="bg-slate-50 font-bold">
-                  <td colSpan={6} className="text-right py-1.5 px-2 border border-slate-300 uppercase text-[10px]">
+                  <td colSpan={5} className="text-right py-1.5 px-2 border border-slate-300 uppercase text-[10px]">
                     Total Keseluruhan ({data.length} Transaksi):
                   </td>
                   <td className="text-right py-1.5 px-2 border border-slate-300 text-[11px]">
                     {formatCurrency(summary.total)}
+                  </td>
+                  <td className="text-right py-1.5 px-2 border border-slate-300 text-emerald-700 text-[11px]">
+                    {formatCurrency(data.reduce((sum, tx) => {
+                      const txHpp = tx.items.reduce((s, it) => s + (it.itemType === 'SPAREPART' ? it.quantity * (it.buyPrice || 0) : 0), 0)
+                      return sum + (tx.total - txHpp)
+                    }, 0))}
                   </td>
                 </tr>
               </tfoot>
@@ -2291,15 +2388,35 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
                           <span className="text-slate-400 ml-1">({tx.customer.vehicleType})</span>
                         )}
                       </p>
-                      <div className="bg-slate-50 rounded-lg p-2 text-xs space-y-1 text-slate-600">
-                        {tx.items.map((it, idx) => (
-                          <div key={idx} className="flex justify-between">
-                            <span>
-                              {it.itemType === 'SERVICE' ? '🛠️ [Jasa]' : '📦 [Part]'} {it.quantity}x {it.itemName}
-                            </span>
-                            <span className="font-medium text-slate-800">{formatCurrency(it.subtotal)}</span>
-                          </div>
-                        ))}
+                      <div className="bg-slate-50 rounded-xl p-2.5 text-xs space-y-1.5 text-slate-600 border border-slate-200/60">
+                        {tx.items.map((it, idx) => {
+                          const isService = it.itemType === 'SERVICE'
+                          const buyPrice = it.buyPrice || 0
+                          const unitPrice = it.unitPrice || 0
+                          const profit = isService ? it.subtotal : (it.subtotal - (it.quantity * buyPrice))
+
+                          return (
+                            <div key={idx} className="space-y-0.5 border-b border-slate-200/50 pb-1.5 last:border-0 last:pb-0">
+                              <div className="flex justify-between font-medium">
+                                <span className="text-slate-800 font-semibold">
+                                  {isService ? '🛠️ [Jasa]' : '📦 [Part]'} {it.quantity}x {it.itemName}
+                                </span>
+                                <span className="font-black text-slate-900 font-mono">{formatCurrency(it.subtotal)}</span>
+                              </div>
+                              {!isService ? (
+                                <div className="flex justify-between text-[10px] text-slate-500 font-mono pt-0.5">
+                                  <span>Beli: <strong className="text-amber-800 font-semibold">{formatCurrency(buyPrice)}</strong> • Jual: <strong className="text-slate-700 font-semibold">{formatCurrency(unitPrice)}</strong></span>
+                                  <span className="text-emerald-700 font-bold">Laba: {formatCurrency(profit)}</span>
+                                </div>
+                              ) : (
+                                <div className="flex justify-between text-[10px] text-slate-500 font-mono pt-0.5">
+                                  <span>Tarif Jasa: <strong className="text-slate-700 font-semibold">{formatCurrency(unitPrice)}</strong></span>
+                                  <span className="text-emerald-700 font-bold">Margin 100%</span>
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })}
                       </div>
                     </div>
                   ))}

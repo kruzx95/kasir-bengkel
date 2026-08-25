@@ -556,10 +556,15 @@ export async function getTransactionDetails(id: string) {
             quantity: true,
             unitPrice: true,
             buyPrice: true,
-            subtotal: true
-          }
-        }
-      }
+            subtotal: true,
+            sparepart: {
+              select: {
+                buyPrice: true,
+              },
+            },
+          },
+        },
+      },
     })
 
     // Security check: Kasir can only see their own branch's transactions
@@ -575,28 +580,34 @@ export async function getTransactionDetails(id: string) {
           customerId: transaction.customer.id,
           odometer: { not: null },
           status: { not: 'CANCELLED' },
-          id: { not: id }
+          id: { not: id },
         },
         select: {
           transactionDate: true,
           odometer: true,
-          invoiceNumber: true
+          invoiceNumber: true,
         },
         orderBy: { transactionDate: 'desc' },
-        take: 5
+        take: 5,
       })
-      
-      odometerHistory = history.map(h => ({
+
+      odometerHistory = history.map((h) => ({
         date: h.transactionDate,
         odometer: h.odometer!,
-        invoiceNumber: h.invoiceNumber
+        invoiceNumber: h.invoiceNumber,
       }))
     }
 
-    return transaction ? {
-      ...transaction,
-      odometerHistory
-    } : null
+    return transaction
+      ? {
+          ...transaction,
+          items: transaction.items.map((it) => ({
+            ...it,
+            buyPrice: it.itemType === 'SPAREPART' ? (it.buyPrice ?? it.sparepart?.buyPrice ?? 0) : 0,
+          })),
+          odometerHistory,
+        }
+      : null
   } catch (error) {
     console.error('Get Transaction Details Error:', error)
     return null

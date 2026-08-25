@@ -84,12 +84,30 @@ export async function getReportData(
             itemType: true,
             quantity: true,
             unitPrice: true,
-            subtotal: true
-          }
-        }
+            buyPrice: true,
+            subtotal: true,
+            sparepart: {
+              select: {
+                buyPrice: true,
+              },
+            },
+          },
+        },
       },
       orderBy: { transactionDate: 'desc' }
     })
+
+    const mappedTransactions = transactions.map(tx => ({
+      ...tx,
+      items: tx.items.map(it => ({
+        itemName: it.itemName,
+        itemType: it.itemType,
+        quantity: it.quantity,
+        unitPrice: it.unitPrice,
+        buyPrice: it.itemType === 'SPAREPART' ? (it.buyPrice ?? it.sparepart?.buyPrice ?? 0) : 0,
+        subtotal: it.subtotal,
+      }))
+    }))
 
     let serviceRev = 0
     let sparepartRev = 0
@@ -101,7 +119,7 @@ export async function getReportData(
     let transferTotal = 0
     let qrisTotal = 0
 
-    transactions.forEach(tx => {
+    mappedTransactions.forEach(tx => {
       grandTotal += tx.total
       totalDiscount += tx.discount
       if (tx.status === 'PENDING_CORPORATE') {
@@ -137,7 +155,7 @@ export async function getReportData(
     })
 
     return {
-      transactions,
+      transactions: mappedTransactions,
       summary: {
         total: grandTotal,
         service: serviceRev,
@@ -395,12 +413,30 @@ export async function getCorporateReportData(
             itemType: true,
             quantity: true,
             unitPrice: true,
+            buyPrice: true,
             subtotal: true,
+            sparepart: {
+              select: {
+                buyPrice: true,
+              },
+            },
           },
         },
       },
       orderBy: { transactionDate: 'desc' },
     })
+
+    const mappedTransactions = transactions.map((tx) => ({
+      ...tx,
+      items: tx.items.map((it) => ({
+        itemName: it.itemName,
+        itemType: it.itemType,
+        quantity: it.quantity,
+        unitPrice: it.unitPrice,
+        buyPrice: it.itemType === 'SPAREPART' ? (it.buyPrice ?? it.sparepart?.buyPrice ?? 0) : 0,
+        subtotal: it.subtotal,
+      })),
+    }))
 
     const corpIdsFilter = corporateCustomerId ? [corporateCustomerId] : targetCorporates.map((c) => c.id)
     const payments = await prisma.corporatePayment.findMany({
@@ -484,7 +520,7 @@ export async function getCorporateReportData(
 
     return {
       corporates,
-      transactions,
+      transactions: mappedTransactions,
       payments,
       ledgers,
       summary: {
@@ -513,12 +549,7 @@ export async function getMechanicReportData(
   mechanicId?: string
 ) {
   const session = await getSession()
-  if (!session) {
-    return {
-      mechanics: [],
-      summary: { totalServiceRevenue: 0, totalMotorHandled: 0, activeMechanicsCount: 0 },
-    }
-  }
+  if (!session) return { mechanics: [], summary: { totalServiceRevenue: 0, totalMotorHandled: 0, activeMechanicsCount: 0 } }
 
   const today = new Date()
   const defaultStart = new Date(today.getFullYear(), today.getMonth(), 1)
@@ -560,7 +591,13 @@ export async function getMechanicReportData(
             itemType: true,
             quantity: true,
             unitPrice: true,
+            buyPrice: true,
             subtotal: true,
+            sparepart: {
+              select: {
+                buyPrice: true,
+              },
+            },
           },
         },
       },
@@ -584,7 +621,7 @@ export async function getMechanicReportData(
           transactionDate: Date
           total: number
           customer: { name: string; plateNumber: string | null; vehicleType: string | null } | null
-          items: Array<{ itemName: string; itemType: string; quantity: number; unitPrice: number; subtotal: number }>
+          items: Array<{ itemName: string; itemType: string; quantity: number; unitPrice: number; buyPrice: number; subtotal: number }>
         }>
       }
     > = {}
@@ -616,7 +653,14 @@ export async function getMechanicReportData(
           transactionDate: tx.transactionDate,
           total: tx.total,
           customer: tx.customer,
-          items: tx.items,
+          items: tx.items.map((it) => ({
+            itemName: it.itemName,
+            itemType: it.itemType,
+            quantity: it.quantity,
+            unitPrice: it.unitPrice,
+            buyPrice: it.itemType === 'SPAREPART' ? (it.buyPrice ?? it.sparepart?.buyPrice ?? 0) : 0,
+            subtotal: it.subtotal,
+          })),
         })
         grandTotalJobs += 1
 
