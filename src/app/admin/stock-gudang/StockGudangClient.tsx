@@ -3,11 +3,17 @@
 import { useTransition, useEffect, useState, useRef, useMemo } from 'react'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Package, AlertTriangle, Warehouse } from 'lucide-react'
+import { ArrowLeft, Package, AlertTriangle, Warehouse, Upload } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
 import Table from '@/components/ui/Table'
 import Badge from '@/components/ui/Badge'
+import ImportWarehouseStockModal from '@/components/admin/ImportWarehouseStockModal'
+
+interface Branch {
+  id: string
+  name: string
+}
 
 interface Sparepart {
   id: string
@@ -31,15 +37,17 @@ interface Sparepart {
 
 interface StockGudangClientProps {
   initialSpareparts: Sparepart[]
+  branches?: Branch[]
   totalCount?: number
 }
 
-export default function StockGudangClient({ initialSpareparts, totalCount }: StockGudangClientProps) {
+export default function StockGudangClient({ initialSpareparts, branches = [], totalCount }: StockGudangClientProps) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const [isPending, startTransition] = useTransition()
 
+  const [importModalOpen, setImportModalOpen] = useState(false)
   const initialSearch = searchParams.get('search') || ''
   const [searchTerm, setSearchTerm] = useState(initialSearch)
   const [sortBy, setSortBy] = useState<'name' | 'stock'>('name')
@@ -219,7 +227,7 @@ export default function StockGudangClient({ initialSpareparts, totalCount }: Sto
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <Link href="/admin">
             <Button variant="ghost" icon={ArrowLeft} className="w-10 h-10 p-0" />
@@ -231,7 +239,25 @@ export default function StockGudangClient({ initialSpareparts, totalCount }: Sto
             </p>
           </div>
         </div>
+
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            icon={Upload}
+            onClick={() => setImportModalOpen(true)}
+            className="border-purple-200 text-purple-700 hover:bg-purple-50"
+          >
+            Import Excel
+          </Button>
+        </div>
       </div>
+
+      {/* Modal Import Stok Gudang */}
+      <ImportWarehouseStockModal
+        open={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
+        branches={branches}
+      />
 
       {/* Statistics */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

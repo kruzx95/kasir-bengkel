@@ -23,7 +23,11 @@ export default async function KasirStockGudangPage(
 
   return (
     <div className="p-4 sm:p-6 animate-fade-in space-y-4">
-      <StockGudangClient initialSpareparts={result.data} totalCount={result.totalCount} />
+      <StockGudangClient
+        initialSpareparts={result.data}
+        branches={session.branchId ? [{ id: session.branchId, name: 'Cabang Kasir' }] : []}
+        totalCount={result.totalCount}
+      />
       <Pagination 
         currentPage={result.currentPage}
         totalPages={result.totalPages}
