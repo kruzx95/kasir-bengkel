@@ -819,7 +819,7 @@ export default function NewTransactionClient({
                             handleAddManualJasa()
                           }
                         }}
-                        className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 hover:border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 outline-none transition-all"
+                        className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 hover:border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 outline-none transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
                     </div>
 
@@ -837,14 +837,14 @@ export default function NewTransactionClient({
 
                   {/* Form Sparepart Luar (Non-Stok) */}
                   <div className={manualTab === 'SPAREPART' ? 'space-y-2.5' : 'hidden'}>
-                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-end">
-                      <div className="sm:col-span-4">
+                    <div className="flex flex-col sm:flex-row gap-2.5 items-end">
+                      <div className="flex-1 min-w-[180px] w-full">
                         <label className="block text-xs font-medium text-slate-600 mb-1">
                           Nama Sparepart Luar
                         </label>
                         <input
                           ref={manualPartNameRef}
-                          placeholder="Contoh: Bearing Koyo..."
+                          placeholder="Contoh: Bearing Koyo, Busi Racing..."
                           type="text"
                           value={manualPartName}
                           onChange={(e) => setManualPartName(e.target.value)}
@@ -858,8 +858,8 @@ export default function NewTransactionClient({
                         />
                       </div>
 
-                      <div className="sm:col-span-1">
-                        <label className="block text-xs font-medium text-slate-600 mb-1">
+                      <div className="w-full sm:w-20 shrink-0">
+                        <label className="block text-xs font-medium text-slate-600 mb-1 text-center">
                           Qty
                         </label>
                         <input
@@ -875,11 +875,11 @@ export default function NewTransactionClient({
                               manualPartBuyPriceRef.current?.focus()
                             }
                           }}
-                          className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 text-center placeholder:text-slate-400 hover:border-slate-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 outline-none transition-all"
+                          className="w-full px-2 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 text-center placeholder:text-slate-400 hover:border-slate-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 outline-none transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         />
                       </div>
 
-                      <div className="sm:col-span-2">
+                      <div className="w-full sm:w-44 shrink-0">
                         <label className="block text-xs font-medium text-slate-600 mb-1">
                           Harga Modal (Rp)
                         </label>
@@ -896,11 +896,11 @@ export default function NewTransactionClient({
                               manualPartPriceRef.current?.focus()
                             }
                           }}
-                          className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 hover:border-slate-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 outline-none transition-all"
+                          className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 hover:border-slate-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 outline-none transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         />
                       </div>
 
-                      <div className="sm:col-span-3">
+                      <div className="w-full sm:w-44 shrink-0">
                         <label className="block text-xs font-medium text-slate-600 mb-1">
                           Harga Jual (Rp)
                         </label>
@@ -917,13 +917,13 @@ export default function NewTransactionClient({
                               handleAddManualSparepart()
                             }
                           }}
-                          className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 hover:border-slate-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 outline-none transition-all"
+                          className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 hover:border-slate-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 outline-none transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         />
                       </div>
 
-                      <div className="sm:col-span-2">
+                      <div className="w-full sm:w-auto shrink-0">
                         <Button 
-                          className="w-full py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold"
+                          className="w-full sm:w-auto px-5 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold"
                           onClick={handleAddManualSparepart}
                           disabled={manualPartPrice === '' || Number(manualPartPrice) <= 0}
                           icon={Plus}
