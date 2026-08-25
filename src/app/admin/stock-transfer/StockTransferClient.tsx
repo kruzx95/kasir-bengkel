@@ -3,10 +3,11 @@
 import { useState, useMemo } from 'react'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Package, ArrowUpCircle, ArrowDownCircle, History } from 'lucide-react'
+import { ArrowLeft, Package, ArrowUpCircle, ArrowDownCircle, History, ArrowRightLeft } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
 import Table from '@/components/ui/Table'
+import TransferStockModal from '@/components/admin/TransferStockModal'
 
 interface TransferItem {
   id: string
@@ -26,12 +27,19 @@ interface TransferItem {
   }
 }
 
-interface StockTransferClientProps {
-  initialTransfers: TransferItem[]
+interface Branch {
+  id: string
+  name: string
 }
 
-export default function StockTransferClient({ initialTransfers }: StockTransferClientProps) {
+interface StockTransferClientProps {
+  initialTransfers: TransferItem[]
+  branches?: Branch[]
+}
+
+export default function StockTransferClient({ initialTransfers, branches = [] }: StockTransferClientProps) {
   const [transfers] = useState(initialTransfers)
+  const [transferModalOpen, setTransferModalOpen] = useState(false)
   const pathname = usePathname()
   const base = pathname.startsWith('/kasir') ? '/kasir' : '/admin'
 
@@ -132,9 +140,13 @@ export default function StockTransferClient({ initialTransfers }: StockTransferC
             <p className="text-sm text-slate-500">Riwayat transfer stock antar gudang dan toko</p>
           </div>
         </div>
-        <Link href={`${base}/stock-toko`}>
-          <Button icon={Package}>Transfer Stok</Button>
-        </Link>
+        <Button
+          variant="primary"
+          icon={ArrowRightLeft}
+          onClick={() => setTransferModalOpen(true)}
+        >
+          Transfer Stok Baru
+        </Button>
       </div>
 
       {/* Stats */}
@@ -185,6 +197,13 @@ export default function StockTransferClient({ initialTransfers }: StockTransferC
           emptyMessage="Belum ada riwayat transfer stock."
         />
       </Card>
+
+      {/* Transfer Modal */}
+      <TransferStockModal
+        open={transferModalOpen}
+        onClose={() => setTransferModalOpen(false)}
+        branches={branches}
+      />
     </div>
   )
 }

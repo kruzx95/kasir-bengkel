@@ -3,11 +3,17 @@
 import { useTransition, useEffect, useState, useRef, useMemo } from 'react'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Package, AlertTriangle, Store, Search, SlidersHorizontal, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react'
+import { ArrowLeft, Package, AlertTriangle, Store, Search, SlidersHorizontal, ArrowUp, ArrowDown, ArrowUpDown, ArrowRightLeft } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
 import Table from '@/components/ui/Table'
 import Badge from '@/components/ui/Badge'
+import TransferStockModal from '@/components/admin/TransferStockModal'
+
+interface Branch {
+  id: string
+  name: string
+}
 
 interface Sparepart {
   id: string
@@ -31,14 +37,18 @@ interface Sparepart {
 
 interface StockTokoClientProps {
   initialSpareparts: Sparepart[]
+  branches?: Branch[]
   totalCount?: number
 }
 
-export default function StockTokoClient({ initialSpareparts, totalCount }: StockTokoClientProps) {
+export default function StockTokoClient({ initialSpareparts, branches = [], totalCount }: StockTokoClientProps) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const [isPending, startTransition] = useTransition()
+
+  const [transferModalOpen, setTransferModalOpen] = useState(false)
+  const [selectedTransferSparepart, setSelectedTransferSparepart] = useState<Sparepart | null>(null)
 
   const initialSearch = searchParams.get('search') || ''
   const initialSortBy = searchParams.get('sortBy') || 'name'
@@ -258,12 +268,30 @@ export default function StockTokoClient({ initialSpareparts, totalCount }: Stock
         <Badge variant="info" size="sm">{row.branch.name}</Badge>
       ),
     },
+    {
+      key: 'actions',
+      header: 'Aksi',
+      render: (row: Sparepart) => (
+        <Button
+          size="sm"
+          variant="outline"
+          icon={ArrowRightLeft}
+          onClick={() => {
+            setSelectedTransferSparepart(row)
+            setTransferModalOpen(true)
+          }}
+          className="text-xs border-blue-200 text-blue-700 hover:bg-blue-50 py-1 px-2.5 h-auto"
+        >
+          Transfer
+        </Button>
+      ),
+    },
   ]
 
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <Link href="/admin">
             <Button variant="ghost" icon={ArrowLeft} className="w-10 h-10 p-0" />
@@ -275,7 +303,33 @@ export default function StockTokoClient({ initialSpareparts, totalCount }: Stock
             </p>
           </div>
         </div>
+
+        <div className="flex items-center gap-2">
+          <Button
+            variant="primary"
+            icon={ArrowRightLeft}
+            onClick={() => {
+              setSelectedTransferSparepart(null)
+              setTransferModalOpen(true)
+            }}
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            Transfer dari Gudang
+          </Button>
+        </div>
       </div>
+
+      {/* Modal Transfer Stok */}
+      <TransferStockModal
+        open={transferModalOpen}
+        onClose={() => {
+          setTransferModalOpen(false)
+          setSelectedTransferSparepart(null)
+        }}
+        initialSparepart={selectedTransferSparepart}
+        initialType="WAREHOUSE_TO_STORE"
+        branches={branches}
+      />
 
       {/* Statistics */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">

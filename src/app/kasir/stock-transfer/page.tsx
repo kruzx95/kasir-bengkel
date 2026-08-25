@@ -23,7 +23,11 @@ export default async function KasirStockTransferPage(
 
   return (
     <div className="p-4 sm:p-6 animate-fade-in space-y-4">
-      <StockTransferClient initialTransfers={result.data as any} />
+      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+      <StockTransferClient
+        initialTransfers={result.data as any}
+        branches={session.branchId ? [{ id: session.branchId, name: 'Cabang Kasir' }] : []}
+      />
       <Pagination 
         currentPage={result.currentPage}
         totalPages={result.totalPages}

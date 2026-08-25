@@ -3,12 +3,13 @@
 import { useTransition, useEffect, useState, useRef, useMemo } from 'react'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Package, AlertTriangle, Warehouse, Upload, Search, SlidersHorizontal, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react'
+import { ArrowLeft, Package, AlertTriangle, Warehouse, Upload, Search, SlidersHorizontal, ArrowUp, ArrowDown, ArrowUpDown, ArrowRightLeft } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
 import Table from '@/components/ui/Table'
 import Badge from '@/components/ui/Badge'
 import ImportWarehouseStockModal from '@/components/admin/ImportWarehouseStockModal'
+import TransferStockModal from '@/components/admin/TransferStockModal'
 
 interface Branch {
   id: string
@@ -48,6 +49,9 @@ export default function StockGudangClient({ initialSpareparts, branches = [], to
   const [isPending, startTransition] = useTransition()
 
   const [importModalOpen, setImportModalOpen] = useState(false)
+  const [transferModalOpen, setTransferModalOpen] = useState(false)
+  const [selectedTransferSparepart, setSelectedTransferSparepart] = useState<Sparepart | null>(null)
+
   const initialSearch = searchParams.get('search') || ''
   const initialSortBy = searchParams.get('sortBy') || 'name'
   const initialSortOrder = (searchParams.get('sortOrder') as 'asc' | 'desc') || 'asc'
@@ -265,6 +269,24 @@ export default function StockGudangClient({ initialSpareparts, branches = [], to
         <Badge variant="info" size="sm">{row.branch.name}</Badge>
       ),
     },
+    {
+      key: 'actions',
+      header: 'Aksi',
+      render: (row: Sparepart) => (
+        <Button
+          size="sm"
+          variant="outline"
+          icon={ArrowRightLeft}
+          onClick={() => {
+            setSelectedTransferSparepart(row)
+            setTransferModalOpen(true)
+          }}
+          className="text-xs border-purple-200 text-purple-700 hover:bg-purple-50 py-1 px-2.5 h-auto"
+        >
+          Transfer
+        </Button>
+      ),
+    },
   ]
 
   return (
@@ -292,6 +314,18 @@ export default function StockGudangClient({ initialSpareparts, branches = [], to
           >
             Import Excel
           </Button>
+
+          <Button
+            variant="primary"
+            icon={ArrowRightLeft}
+            onClick={() => {
+              setSelectedTransferSparepart(null)
+              setTransferModalOpen(true)
+            }}
+            className="bg-purple-600 hover:bg-purple-700 text-white"
+          >
+            Transfer ke Toko
+          </Button>
         </div>
       </div>
 
@@ -299,6 +333,18 @@ export default function StockGudangClient({ initialSpareparts, branches = [], to
       <ImportWarehouseStockModal
         open={importModalOpen}
         onClose={() => setImportModalOpen(false)}
+        branches={branches}
+      />
+
+      {/* Modal Transfer Stok */}
+      <TransferStockModal
+        open={transferModalOpen}
+        onClose={() => {
+          setTransferModalOpen(false)
+          setSelectedTransferSparepart(null)
+        }}
+        initialSparepart={selectedTransferSparepart}
+        initialType="WAREHOUSE_TO_STORE"
         branches={branches}
       />
 

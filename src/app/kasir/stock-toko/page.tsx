@@ -25,7 +25,11 @@ export default async function KasirStockTokoPage(
 
   return (
     <div className="p-4 sm:p-6 animate-fade-in space-y-4">
-      <StockTokoClient initialSpareparts={result.data} totalCount={result.totalCount} />
+      <StockTokoClient
+        initialSpareparts={result.data}
+        branches={session.branchId ? [{ id: session.branchId, name: 'Cabang Kasir' }] : []}
+        totalCount={result.totalCount}
+      />
       <Pagination 
         currentPage={result.currentPage}
         totalPages={result.totalPages}

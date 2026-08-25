@@ -461,3 +461,42 @@ export async function getWarehouseStats(branchId?: string) {
     return null
   }
 }
+
+export async function getSparepartsForTransfer(branchId?: string | null) {
+  try {
+    const session = await getSession()
+    if (!session) return []
+
+    const where: Record<string, unknown> = {
+      isActive: true,
+      ...getBranchFilter(session, branchId),
+    }
+
+    const spareparts = await prisma.sparepart.findMany({
+      where,
+      select: {
+        id: true,
+        name: true,
+        sku: true,
+        stock: true,
+        warehouseStock: true,
+        unit: true,
+        sparepartBrand: true,
+        etalase: true,
+        branchId: true,
+        branch: {
+          select: {
+            id: true,
+            name: true,
+          }
+        }
+      },
+      orderBy: { name: 'asc' },
+    })
+
+    return spareparts
+  } catch (error) {
+    console.error('Get Spareparts For Transfer Error:', error)
+    return []
+  }
+}
