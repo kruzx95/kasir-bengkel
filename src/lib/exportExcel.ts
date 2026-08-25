@@ -485,40 +485,39 @@ export async function exportProfitLossExcel(options: ExportProfitLossOptions) {
   addSectionHeader('1. Pendapatan Penjualan (Inflow Revenue)', BRAND_DARK)
   addLine('Pendapatan Jasa Servis', summary.serviceRevenue, true, false, false, '', 'Margin 100% Jasa')
   addLine('Pendapatan Penjualan Sparepart', summary.sparepartRevenue, true, false, false, '', 'Harga Jual')
-  addLine('Total Omset Penjualan Kotor', summary.grossRevenue, false, true, true, 'FFF8FAFC')
-  addLine('Potongan Diskon Transaksi', -summary.discount, true, false, false, '', 'Diskon yang diberikan')
-  addLine('TOTAL PENDAPATAN BERSIH (NET REVENUE)', summary.netRevenue, false, true, true, 'FFE2E8F0')
+  addLine('TOTAL OMSET PENJUALAN KOTOR (GROSS REVENUE)', summary.grossRevenue, false, true, true, 'FFE2E8F0', 'Omset Jasa + Sparepart')
   curRow++
 
   // 2. HARGA POKOK PENJUALAN (HPP / COGS)
   addSectionHeader('2. Harga Pokok Penjualan (HPP / COGS)', 'C2410C') // orange-700
   addLine('Modal Suku Cadang Terjual (HPP Sparepart)', summary.cogsSparepart, true, false, false, '', 'Σ(Qty Terjual × Harga Beli)')
-  addLine('TOTAL HPP (BIAYA MODAL BARANG)', summary.cogsSparepart, false, true, true, 'FFFFEDD5')
+  addLine('TOTAL HPP (BIAYA MODAL BARANG TERJUAL)', summary.cogsSparepart, false, true, true, 'FFFFEDD5')
   curRow++
 
   // 3. LABA KOTOR (GROSS PROFIT)
   addSectionHeader('3. Laba Kotor Operasional (Gross Profit)', '047857') // emerald-700
   addLine('Laba dari Jasa Servis', summary.serviceProfit, true, false, false, '', 'Margin 100%')
   addLine('Laba dari Penjualan Sparepart', summary.sparepartProfit, true, false, false, '', `Margin: ${summary.sparepartRevenue > 0 ? ((summary.sparepartProfit / summary.sparepartRevenue) * 100).toFixed(1) : '0'}%`)
-  addLine('TOTAL LABA KOTOR (GROSS PROFIT)', summary.grossProfit, false, true, true, 'FFD1FAE5', `Margin Kotor: ${summary.grossMarginPercent.toFixed(1)}%`)
+  if (summary.discount > 0) {
+    addLine('Potongan Diskon Transaksi', -summary.discount, true, false, false, '', 'Diskon yang diberikan')
+  }
+  addLine('TOTAL LABA KOTOR (GROSS PROFIT)', summary.grossProfit, false, true, true, 'FFD1FAE5', `Gross Margin: ${summary.grossMarginPercent.toFixed(1)}%`)
   curRow++
 
-  // 4. ARUS MODAL KELUAR (BELANJA STOK SUPPLIER / RESTOCK)
-  addSectionHeader('4. Pengeluaran Modal Belanja Stok (Restock PO)', '475569') // slate-600
-  addLine('Total Pembelian Stok ke Supplier (PO)', summary.totalRestock, true, false, false, '', 'Faktur Restock')
-  addLine('Realisasi Modal Kas Dibayarkan ke Supplier', summary.restockPaid, true, false, false, '', 'Kas Keluar')
-  addLine('Sisa Hutang ke Supplier Belum Lunas', summary.restockUnpaid, true, false, false, '', 'Hutang Dagang')
-  curRow++
-
-  // 5. REALISASI ARUS KAS & PIUTANG
-  addSectionHeader('5. Realisasi Arus Kas Masuk vs Kas Keluar', '1E40AF') // blue-800
-  addLine('Kas Tunai (Fisik Laci Masuk)', summary.cashInflow, true, false, false, '')
-  addLine('Bank Transfer Masuk', summary.transferInflow, true, false, false, '')
-  addLine('QRIS Masuk', summary.qrisInflow, true, false, false, '')
+  // 4. REALISASI ARUS KAS MASUK VS KAS KELUAR (CASH FLOW)
+  addSectionHeader('4. Realisasi Arus Kas & Modal (Cash Flow Statement)', '1E40AF') // blue-800
+  addLine('Kas Tunai Fisik (Laci Kasir)', summary.cashInflow, true, false, false, 'Pembayaran Tunai')
+  addLine('Bank Transfer Masuk', summary.transferInflow, true, false, false, 'Transfer Rekening')
+  addLine('QRIS Masuk', summary.qrisInflow, true, false, false, 'E-Wallet / QRIS')
   addLine('TOTAL KAS MASUK DITERIMA', summary.totalCashInflow, false, true, true, 'FFDBEAFE')
-  addLine('TOTAL KAS KELUAR (BELANJA SUPPLIER)', summary.restockPaid, false, false, false, '')
-  addLine('ARUS KAS BERSIH (NET CASH FLOW)', summary.netCashFlow, false, true, true, summary.netCashFlow >= 0 ? 'FFD1FAE5' : 'FFFEE2E2', 'Kas Masuk - Kas Keluar Belanja')
-  addLine('Total Piutang Berjalan (Belum Tertagih)', summary.totalReceivable, false, true, true, 'FFFEF3C7', 'Sisa Piutang Konsumen')
+  addLine('Modal Belanja Stok Dibayar ke Supplier', -summary.restockPaid, true, false, false, '', 'Pengeluaran Kulakan')
+  addLine('ARUS KAS BERSIH (NET CASH FLOW)', summary.netCashFlow, false, true, true, summary.netCashFlow >= 0 ? 'FFD1FAE5' : 'FFFEE2E2', 'Kas Masuk − Kas Belanja')
+  curRow++
+
+  // 5. INFORMASI TAMBAHAN (HUTANG & PIUTANG)
+  addSectionHeader('5. Informasi Sisa Hutang & Piutang Berjalan', '475569') // slate-600
+  addLine('Sisa Hutang Belanja Stok (ke Supplier)', summary.restockUnpaid, true, false, false, '', 'Belum Lunas ke Supplier')
+  addLine('Sisa Piutang Berjalan (Konsumen Reguler & Korporat)', summary.totalReceivable, true, false, false, '', 'Belum Tertagih')
 
   // ══════════════════════════════════════════════════════════════════════════════
   // SHEET 2: DETAIL TRANSAKSI & LABA PER NOTA

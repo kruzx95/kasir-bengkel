@@ -2722,124 +2722,176 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
               </button>
             </div>
 
-            {/* SUB-TAB 1: STATEMENT (FORMAT P&L AKUNTANSI) */}
+            {/* SUB-TAB 1: STATEMENT (FORMAT P&L AKUNTANSI & ARUS KAS MANDIRI) */}
             {plSubTab === 'statement' && (
-              <div className="bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-8 shadow-xs space-y-6">
-                <div className="border-b border-slate-200 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <div>
-                    <h3 className="text-lg font-bold text-slate-900">Laporan Laba Rugi & Arus Kas Operasional</h3>
-                    <p className="text-xs text-slate-500">
-                      Periode: {new Date(plStartDate).toLocaleDateString('id-ID', { dateStyle: 'long' })} s/d {new Date(plEndDate).toLocaleDateString('id-ID', { dateStyle: 'long' })}
-                    </p>
+              <div className="space-y-6">
+                {/* CARD 1: LAPORAN LABA RUGI OPERASIONAL (PROFIT & LOSS) */}
+                <div className="bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-8 shadow-xs space-y-6">
+                  <div className="border-b border-slate-200 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                        📊 Laporan Laba Rugi Operasional (Profit & Loss Statement)
+                      </h3>
+                      <p className="text-xs text-slate-500">
+                        Periode: {new Date(plStartDate).toLocaleDateString('id-ID', { dateStyle: 'long' })} s/d {new Date(plEndDate).toLocaleDateString('id-ID', { dateStyle: 'long' })}
+                      </p>
+                    </div>
+                    <span className="text-xs font-mono font-semibold bg-emerald-50 text-emerald-700 px-3 py-1 rounded-lg border border-emerald-200">
+                      Gross Margin: {plSummary.grossMarginPercent.toFixed(1)}%
+                    </span>
                   </div>
-                  <span className="text-xs font-mono font-semibold bg-emerald-50 text-emerald-700 px-3 py-1 rounded-lg border border-emerald-200">
-                    Gross Margin: {plSummary.grossMarginPercent.toFixed(1)}%
-                  </span>
+
+                  <div className="space-y-6 text-sm">
+                    {/* Bagian 1: Pendapatan Penjualan */}
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center py-2 px-3 bg-slate-100 rounded-lg font-bold text-slate-800 text-xs uppercase tracking-wider">
+                        <span>1. Pendapatan Penjualan (Revenue / Inflow)</span>
+                        <span>Nominal (Rp)</span>
+                      </div>
+                      <div className="pl-4 pr-3 space-y-1.5 text-slate-600">
+                        <div className="flex justify-between py-1 border-b border-slate-100">
+                          <span>• Pendapatan Jasa Servis (Margin 100%)</span>
+                          <span className="font-semibold text-slate-800">{formatCurrency(plSummary.serviceRevenue)}</span>
+                        </div>
+                        <div className="flex justify-between py-1 border-b border-slate-100">
+                          <span>• Pendapatan Penjualan Sparepart (Harga Jual)</span>
+                          <span className="font-semibold text-slate-800">{formatCurrency(plSummary.sparepartRevenue)}</span>
+                        </div>
+                        <div className="flex justify-between py-2 px-3 bg-blue-50/70 rounded-lg font-bold text-blue-900">
+                          <span>TOTAL OMSET PENJUALAN KOTOR (GROSS REVENUE)</span>
+                          <span className="text-base">{formatCurrency(plSummary.grossRevenue)}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Bagian 2: HPP (Cost of Goods Sold) */}
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center py-2 px-3 bg-slate-100 rounded-lg font-bold text-slate-800 text-xs uppercase tracking-wider">
+                        <span>2. Harga Pokok Penjualan (HPP / Biaya Modal Barang Terjual)</span>
+                        <span>Nominal (Rp)</span>
+                      </div>
+                      <div className="pl-4 pr-3 space-y-1.5 text-slate-600">
+                        <div className="flex justify-between py-1 border-b border-slate-100">
+                          <span>• Total Modal Suku Cadang Terjual (Σ Qty × Harga Beli/buyPrice)</span>
+                          <span className="font-semibold text-amber-800">{formatCurrency(plSummary.cogsSparepart)}</span>
+                        </div>
+                        <div className="flex justify-between py-2 px-3 bg-amber-50/70 rounded-lg font-bold text-amber-900">
+                          <span>TOTAL HARGA POKOK PENJUALAN (HPP)</span>
+                          <span className="text-base">-{formatCurrency(plSummary.cogsSparepart)}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Bagian 3: Laba Kotor (Gross Profit) */}
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center py-2 px-3 bg-emerald-800 text-white rounded-lg font-bold text-xs uppercase tracking-wider">
+                        <span>3. Laba Kotor Operasional (Gross Profit)</span>
+                        <span>Nominal (Rp)</span>
+                      </div>
+                      <div className="pl-4 pr-3 space-y-1.5 text-slate-600">
+                        <div className="flex justify-between py-1 border-b border-slate-100">
+                          <span>• Keuntungan dari Jasa Servis</span>
+                          <span className="font-semibold text-emerald-700">{formatCurrency(plSummary.serviceProfit)}</span>
+                        </div>
+                        <div className="flex justify-between py-1 border-b border-slate-100">
+                          <span>• Keuntungan dari Penjualan Sparepart (Margin: {plSummary.sparepartMarginPercent.toFixed(1)}%)</span>
+                          <span className="font-semibold text-emerald-700">{formatCurrency(plSummary.sparepartProfit)}</span>
+                        </div>
+                        {plSummary.discount > 0 && (
+                          <div className="flex justify-between py-1 text-red-600 border-b border-slate-100">
+                            <span>• Potongan Diskon Transaksi</span>
+                            <span className="font-semibold">-{formatCurrency(plSummary.discount)}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between py-3 px-3.5 bg-emerald-50 rounded-xl font-black text-emerald-900 border border-emerald-200">
+                          <div>
+                            <span className="text-sm uppercase block">TOTAL LABA KOTOR (GROSS PROFIT)</span>
+                            <span className="text-[11px] font-normal text-slate-500">
+                              (Laba Jasa + Laba Sparepart {plSummary.discount > 0 ? '− Diskon Transaksi' : ''})
+                            </span>
+                          </div>
+                          <span className="text-xl text-emerald-700">{formatCurrency(plSummary.grossProfit)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="space-y-6 text-sm">
-                  {/* Bagian 1: Pendapatan Penjualan */}
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center py-2 px-3 bg-slate-100 rounded-lg font-bold text-slate-800 text-xs uppercase tracking-wider">
-                      <span>1. Pendapatan Penjualan (Revenue / Inflow)</span>
-                      <span>Nominal (Rp)</span>
+                {/* CARD 2: LAPORAN ARUS KAS & MODAL (CASH FLOW STATEMENT) - CARD MANDIRI TERPISAH */}
+                <div className="bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-8 shadow-xs space-y-6">
+                  <div className="border-b border-slate-200 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                        💵 Laporan Realisasi Arus Kas & Modal (Cash Flow Statement)
+                      </h3>
+                      <p className="text-xs text-slate-500">
+                        Realisasi kas masuk pembayaran transaksi vs pengeluaran kas belanja stok ke supplier
+                      </p>
                     </div>
-                    <div className="pl-4 pr-3 space-y-1.5 text-slate-600">
-                      <div className="flex justify-between py-1 border-b border-slate-100">
-                        <span>• Pendapatan Jasa Servis (Margin 100%)</span>
-                        <span className="font-semibold text-slate-800">{formatCurrency(plSummary.serviceRevenue)}</span>
+                    <span className={`text-xs font-mono font-bold px-3 py-1 rounded-lg border ${
+                      plSummary.netCashFlow >= 0 
+                        ? 'bg-indigo-50 text-indigo-700 border-indigo-200' 
+                        : 'bg-red-50 text-red-700 border-red-200'
+                    }`}>
+                      Net Cash Flow: {formatCurrency(plSummary.netCashFlow)}
+                    </span>
+                  </div>
+
+                  <div className="space-y-6 text-sm">
+                    {/* Realisasi Arus Kas */}
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center py-2 px-3 bg-slate-100 rounded-lg font-bold text-slate-800 text-xs uppercase tracking-wider">
+                        <span>Realisasi Kas Masuk vs Kas Keluar</span>
+                        <span>Nominal (Rp)</span>
                       </div>
-                      <div className="flex justify-between py-1 border-b border-slate-100">
-                        <span>• Pendapatan Penjualan Sparepart (Harga Jual)</span>
-                        <span className="font-semibold text-slate-800">{formatCurrency(plSummary.sparepartRevenue)}</span>
-                      </div>
-                      <div className="flex justify-between py-1.5 font-bold text-slate-900">
-                        <span>Total Omset Penjualan Kotor</span>
-                        <span>{formatCurrency(plSummary.grossRevenue)}</span>
-                      </div>
-                      {plSummary.discount > 0 && (
-                        <div className="flex justify-between py-1 text-red-600 border-b border-slate-100">
-                          <span>• Potongan Diskon Transaksi</span>
-                          <span>-{formatCurrency(plSummary.discount)}</span>
+                      <div className="pl-4 pr-3 space-y-1.5 text-slate-600">
+                        <div className="flex justify-between py-1 border-b border-slate-100">
+                          <span>• Kas Tunai Fisik Masuk (Cash Laci)</span>
+                          <span className="font-semibold text-slate-800">{formatCurrency(plSummary.cashInflow)}</span>
                         </div>
-                      )}
-                      <div className="flex justify-between py-2 px-3 bg-blue-50/70 rounded-lg font-bold text-blue-900">
-                        <span>TOTAL PENDAPATAN BERSIH (NET REVENUE)</span>
-                        <span className="text-base">{formatCurrency(plSummary.netRevenue)}</span>
+                        <div className="flex justify-between py-1 border-b border-slate-100">
+                          <span>• Bank Transfer Masuk</span>
+                          <span className="font-semibold text-slate-800">{formatCurrency(plSummary.transferInflow)}</span>
+                        </div>
+                        <div className="flex justify-between py-1 border-b border-slate-100">
+                          <span>• QRIS Masuk</span>
+                          <span className="font-semibold text-slate-800">{formatCurrency(plSummary.qrisInflow)}</span>
+                        </div>
+                        <div className="flex justify-between py-2 px-3 bg-blue-50/70 rounded-lg font-bold text-blue-900">
+                          <span>TOTAL KAS MASUK DITERIMA</span>
+                          <span className="text-base">{formatCurrency(plSummary.totalCashInflow)}</span>
+                        </div>
+                        <div className="flex justify-between py-1 text-slate-700 border-b border-slate-100 pt-2">
+                          <span>• Modal Belanja Stok yang Telah Dibayar ke Supplier</span>
+                          <span className="font-semibold text-slate-900">-{formatCurrency(plSummary.restockPaid)}</span>
+                        </div>
+                        <div className="flex justify-between py-3 px-3.5 bg-indigo-50 rounded-xl font-black text-indigo-900 border border-indigo-200">
+                          <div>
+                            <span className="text-sm uppercase block">ARUS KAS BERSIH (NET CASH FLOW)</span>
+                            <span className="text-[11px] font-normal text-slate-500">(Total Kas Masuk Diterima − Kas Belanja Supplier)</span>
+                          </div>
+                          <span className="text-xl text-indigo-700">{formatCurrency(plSummary.netCashFlow)}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Bagian 2: HPP (Cost of Goods Sold) */}
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center py-2 px-3 bg-slate-100 rounded-lg font-bold text-slate-800 text-xs uppercase tracking-wider">
-                      <span>2. Harga Pokok Penjualan (HPP / Biaya Modal Barang Terjual)</span>
-                      <span>Nominal (Rp)</span>
-                    </div>
-                    <div className="pl-4 pr-3 space-y-1.5 text-slate-600">
-                      <div className="flex justify-between py-1 border-b border-slate-100">
-                        <span>• Total Modal Suku Cadang Terjual (Σ Qty × Harga Beli/buyPrice)</span>
-                        <span className="font-semibold text-amber-800">{formatCurrency(plSummary.cogsSparepart)}</span>
+                    {/* Catatan Hutang Supplier & Piutang Pelanggan */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                      <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+                        <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">
+                          Sisa Hutang ke Supplier
+                        </span>
+                        <p className="text-base font-bold text-slate-800">{formatCurrency(plSummary.restockUnpaid)}</p>
+                        <p className="text-[11px] text-slate-400 mt-0.5">Faktur pembelian stok yang belum lunas</p>
                       </div>
-                      <div className="flex justify-between py-2 px-3 bg-amber-50/70 rounded-lg font-bold text-amber-900">
-                        <span>TOTAL HARGA POKOK PENJUALAN (HPP)</span>
-                        <span className="text-base">-{formatCurrency(plSummary.cogsSparepart)}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Bagian 3: Laba Kotor (Gross Profit) */}
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center py-2 px-3 bg-emerald-800 text-white rounded-lg font-bold text-xs uppercase tracking-wider">
-                      <span>3. Laba Kotor Operasional (Gross Profit)</span>
-                      <span>Nominal (Rp)</span>
-                    </div>
-                    <div className="pl-4 pr-3 space-y-1.5 text-slate-600">
-                      <div className="flex justify-between py-1 border-b border-slate-100">
-                        <span>• Keuntungan dari Jasa Servis</span>
-                        <span className="font-semibold text-emerald-700">{formatCurrency(plSummary.serviceProfit)}</span>
-                      </div>
-                      <div className="flex justify-between py-1 border-b border-slate-100">
-                        <span>• Keuntungan dari Penjualan Sparepart (Margin: {plSummary.sparepartMarginPercent.toFixed(1)}%)</span>
-                        <span className="font-semibold text-emerald-700">{formatCurrency(plSummary.sparepartProfit)}</span>
-                      </div>
-                      <div className="flex justify-between py-3 px-3.5 bg-emerald-50 rounded-xl font-black text-emerald-900 border border-emerald-200">
-                        <span className="text-sm uppercase">TOTAL LABA KOTOR (GROSS PROFIT)</span>
-                        <span className="text-xl text-emerald-700">{formatCurrency(plSummary.grossProfit)}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Bagian 4: Arus Kas & Modal Masuk/Keluar */}
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center py-2 px-3 bg-slate-100 rounded-lg font-bold text-slate-800 text-xs uppercase tracking-wider">
-                      <span>4. Realisasi Arus Kas Masuk vs Kas Keluar (Cash Flow)</span>
-                      <span>Nominal (Rp)</span>
-                    </div>
-                    <div className="pl-4 pr-3 space-y-1.5 text-slate-600">
-                      <div className="flex justify-between py-1 border-b border-slate-100">
-                        <span>• Kas Tunai Fisik Masuk (Cash)</span>
-                        <span className="font-semibold text-slate-800">{formatCurrency(plSummary.cashInflow)}</span>
-                      </div>
-                      <div className="flex justify-between py-1 border-b border-slate-100">
-                        <span>• Bank Transfer Masuk</span>
-                        <span className="font-semibold text-slate-800">{formatCurrency(plSummary.transferInflow)}</span>
-                      </div>
-                      <div className="flex justify-between py-1 border-b border-slate-100">
-                        <span>• QRIS Masuk</span>
-                        <span className="font-semibold text-slate-800">{formatCurrency(plSummary.qrisInflow)}</span>
-                      </div>
-                      <div className="flex justify-between py-1.5 font-bold text-blue-900 border-b border-slate-200">
-                        <span>Total Kas Masuk Diterima</span>
-                        <span>{formatCurrency(plSummary.totalCashInflow)}</span>
-                      </div>
-                      <div className="flex justify-between py-1 text-slate-700 border-b border-slate-100">
-                        <span>• Modal Belanja Stok yang Telah Dibayar ke Supplier</span>
-                        <span className="font-semibold text-slate-900">-{formatCurrency(plSummary.restockPaid)}</span>
-                      </div>
-                      <div className="flex justify-between py-2 px-3 bg-indigo-50/70 rounded-lg font-bold text-indigo-900">
-                        <span>ARUS KAS BERSIH (NET CASH FLOW)</span>
-                        <span className="text-base font-black">{formatCurrency(plSummary.netCashFlow)}</span>
+                      <div className="p-3.5 rounded-xl bg-purple-50/60 border border-purple-200">
+                        <span className="text-xs font-semibold text-purple-700 uppercase tracking-wider block mb-1">
+                          Sisa Piutang Konsumen
+                        </span>
+                        <p className="text-base font-bold text-purple-800">{formatCurrency(plSummary.totalReceivable)}</p>
+                        <p className="text-[11px] text-purple-600 mt-0.5">
+                          Reguler: {formatCurrency(plSummary.regularReceivable)} • Korporat: {formatCurrency(plSummary.corporateReceivable)}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -3085,79 +3137,120 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
             </div>
 
             {/* P&L Statement Table Print */}
-            <table className="w-full text-left text-[10px] border-collapse border border-slate-300">
-              <thead>
-                <tr className="bg-slate-100 font-bold border-b border-slate-300">
-                  <th className="py-1 px-2 border-r border-slate-300">Pos Laporan Keuangan</th>
-                  <th className="py-1 px-2 text-right border-r border-slate-300 w-36">Nominal (Rp)</th>
-                  <th className="py-1 px-2 text-left">Keterangan</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200">
-                <tr className="bg-slate-50 font-bold">
-                  <td colSpan={3} className="py-1 px-2 border border-slate-300 uppercase text-[9px]">1. PENDAPATAN PENJUALAN (REVENUE)</td>
-                </tr>
-                <tr>
-                  <td className="py-0.5 px-3 border border-slate-300">• Pendapatan Jasa Servis</td>
-                  <td className="py-0.5 px-2 text-right border border-slate-300 font-semibold">{formatCurrency(plSummary.serviceRevenue)}</td>
-                  <td className="py-0.5 px-2 border border-slate-300 text-slate-500 text-[9px]">Margin 100%</td>
-                </tr>
-                <tr>
-                  <td className="py-0.5 px-3 border border-slate-300">• Penjualan Sparepart (Harga Jual)</td>
-                  <td className="py-0.5 px-2 text-right border border-slate-300 font-semibold">{formatCurrency(plSummary.sparepartRevenue)}</td>
-                  <td className="py-0.5 px-2 border border-slate-300 text-slate-500 text-[9px]">Omset Suku Cadang</td>
-                </tr>
-                {plSummary.discount > 0 && (
-                  <tr>
-                    <td className="py-0.5 px-3 border border-slate-300">• Potongan Diskon Transaksi</td>
-                    <td className="py-0.5 px-2 text-right border border-slate-300 font-semibold text-red-600">-{formatCurrency(plSummary.discount)}</td>
-                    <td className="py-0.5 px-2 border border-slate-300 text-slate-500 text-[9px]">Diskon Konsumen</td>
+            <div className="space-y-4">
+              <table className="w-full text-left text-[10px] border-collapse border border-slate-300">
+                <thead>
+                  <tr className="bg-slate-100 font-bold border-b border-slate-300">
+                    <th className="py-1 px-2 border-r border-slate-300">I. LAPORAN LABA RUGI OPERASIONAL (INCOME STATEMENT)</th>
+                    <th className="py-1 px-2 text-right border-r border-slate-300 w-36">Nominal (Rp)</th>
+                    <th className="py-1 px-2 text-left w-36">Keterangan</th>
                   </tr>
-                )}
-                <tr className="bg-slate-100 font-bold">
-                  <td className="py-1 px-2 border border-slate-300">TOTAL PENDAPATAN BERSIH</td>
-                  <td className="py-1 px-2 text-right border border-slate-300 font-black">{formatCurrency(plSummary.netRevenue)}</td>
-                  <td className="py-1 px-2 border border-slate-300"></td>
-                </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  <tr className="bg-slate-50 font-bold">
+                    <td colSpan={3} className="py-1 px-2 border border-slate-300 uppercase text-[9px]">1. PENDAPATAN PENJUALAN (REVENUE)</td>
+                  </tr>
+                  <tr>
+                    <td className="py-0.5 px-3 border border-slate-300">• Pendapatan Jasa Servis</td>
+                    <td className="py-0.5 px-2 text-right border border-slate-300 font-semibold">{formatCurrency(plSummary.serviceRevenue)}</td>
+                    <td className="py-0.5 px-2 border border-slate-300 text-slate-500 text-[9px]">Margin 100%</td>
+                  </tr>
+                  <tr>
+                    <td className="py-0.5 px-3 border border-slate-300">• Penjualan Sparepart (Harga Jual)</td>
+                    <td className="py-0.5 px-2 text-right border border-slate-300 font-semibold">{formatCurrency(plSummary.sparepartRevenue)}</td>
+                    <td className="py-0.5 px-2 border border-slate-300 text-slate-500 text-[9px]">Omset Suku Cadang</td>
+                  </tr>
+                  <tr className="bg-slate-100 font-bold">
+                    <td className="py-1 px-2 border border-slate-300">TOTAL OMSET PENJUALAN KOTOR</td>
+                    <td className="py-1 px-2 text-right border border-slate-300 font-black">{formatCurrency(plSummary.grossRevenue)}</td>
+                    <td className="py-1 px-2 border border-slate-300 text-[9px] text-slate-600">Omset Jasa + Sparepart</td>
+                  </tr>
 
-                <tr className="bg-slate-50 font-bold">
-                  <td colSpan={3} className="py-1 px-2 border border-slate-300 uppercase text-[9px]">2. HARGA POKOK PENJUALAN (HPP / COGS)</td>
-                </tr>
-                <tr>
-                  <td className="py-0.5 px-3 border border-slate-300">• Modal Sparepart Terjual</td>
-                  <td className="py-0.5 px-2 text-right border border-slate-300 font-semibold">-{formatCurrency(plSummary.cogsSparepart)}</td>
-                  <td className="py-0.5 px-2 border border-slate-300 text-slate-500 text-[9px]">Σ(Qty Terjual × Harga Beli)</td>
-                </tr>
+                  <tr className="bg-slate-50 font-bold">
+                    <td colSpan={3} className="py-1 px-2 border border-slate-300 uppercase text-[9px]">2. HARGA POKOK PENJUALAN (HPP / COGS)</td>
+                  </tr>
+                  <tr>
+                    <td className="py-0.5 px-3 border border-slate-300">• Modal Suku Cadang Terjual (HPP)</td>
+                    <td className="py-0.5 px-2 text-right border border-slate-300 font-semibold text-amber-900">-{formatCurrency(plSummary.cogsSparepart)}</td>
+                    <td className="py-0.5 px-2 border border-slate-300 text-slate-500 text-[9px]">Σ(Qty Terjual × Harga Beli)</td>
+                  </tr>
+                  <tr className="bg-amber-50/70 font-bold">
+                    <td className="py-1 px-2 border border-slate-300">TOTAL HARGA POKOK PENJUALAN</td>
+                    <td className="py-1 px-2 text-right border border-slate-300 font-bold text-amber-950">-{formatCurrency(plSummary.cogsSparepart)}</td>
+                    <td className="py-1 px-2 border border-slate-300"></td>
+                  </tr>
 
-                <tr className="bg-slate-100 font-bold">
-                  <td colSpan={3} className="py-1 px-2 border border-slate-300 uppercase text-[9px]">3. LABA KOTOR OPERASIONAL (GROSS PROFIT)</td>
-                </tr>
-                <tr className="bg-emerald-50 font-black">
-                  <td className="py-1.5 px-2 border border-slate-300 text-emerald-950">TOTAL LABA KOTOR (GROSS PROFIT)</td>
-                  <td className="py-1.5 px-2 text-right border border-slate-300 text-emerald-800 text-xs font-black">{formatCurrency(plSummary.grossProfit)}</td>
-                  <td className="py-1.5 px-2 border border-slate-300 text-emerald-900 font-bold text-[9px]">Gross Margin: {plSummary.grossMarginPercent.toFixed(1)}%</td>
-                </tr>
+                  <tr className="bg-slate-50 font-bold">
+                    <td colSpan={3} className="py-1 px-2 border border-slate-300 uppercase text-[9px]">3. LABA KOTOR OPERASIONAL (GROSS PROFIT)</td>
+                  </tr>
+                  <tr>
+                    <td className="py-0.5 px-3 border border-slate-300">• Keuntungan dari Jasa Servis</td>
+                    <td className="py-0.5 px-2 text-right border border-slate-300 font-semibold text-emerald-800">{formatCurrency(plSummary.serviceProfit)}</td>
+                    <td className="py-0.5 px-2 border border-slate-300 text-slate-500 text-[9px]">Margin 100%</td>
+                  </tr>
+                  <tr>
+                    <td className="py-0.5 px-3 border border-slate-300">• Keuntungan dari Penjualan Sparepart</td>
+                    <td className="py-0.5 px-2 text-right border border-slate-300 font-semibold text-emerald-800">{formatCurrency(plSummary.sparepartProfit)}</td>
+                    <td className="py-0.5 px-2 border border-slate-300 text-slate-500 text-[9px]">Margin: {plSummary.sparepartMarginPercent.toFixed(1)}%</td>
+                  </tr>
+                  {plSummary.discount > 0 && (
+                    <tr>
+                      <td className="py-0.5 px-3 border border-slate-300">• Potongan Diskon Transaksi</td>
+                      <td className="py-0.5 px-2 text-right border border-slate-300 font-semibold text-red-600">-{formatCurrency(plSummary.discount)}</td>
+                      <td className="py-0.5 px-2 border border-slate-300 text-slate-500 text-[9px]">Diskon Konsumen</td>
+                    </tr>
+                  )}
+                  <tr className="bg-emerald-50 font-black">
+                    <td className="py-1.5 px-2 border border-slate-300 text-emerald-950">TOTAL LABA KOTOR (GROSS PROFIT)</td>
+                    <td className="py-1.5 px-2 text-right border border-slate-300 text-emerald-800 text-xs font-black">{formatCurrency(plSummary.grossProfit)}</td>
+                    <td className="py-1.5 px-2 border border-slate-300 text-emerald-900 font-bold text-[9px]">Gross Margin: {plSummary.grossMarginPercent.toFixed(1)}%</td>
+                  </tr>
+                </tbody>
+              </table>
 
-                <tr className="bg-slate-50 font-bold">
-                  <td colSpan={3} className="py-1 px-2 border border-slate-300 uppercase text-[9px]">4. REALISASI ARUS KAS & MODAL KELUAR</td>
-                </tr>
-                <tr>
-                  <td className="py-0.5 px-3 border border-slate-300">• Kas Masuk Diterima (Tunai, Bank, QRIS)</td>
-                  <td className="py-0.5 px-2 text-right border border-slate-300 font-semibold">{formatCurrency(plSummary.totalCashInflow)}</td>
-                  <td className="py-0.5 px-2 border border-slate-300 text-slate-500 text-[9px]">Pemasukan Riil</td>
-                </tr>
-                <tr>
-                  <td className="py-0.5 px-3 border border-slate-300">• Modal Belanja Restock Dibayar ke Supplier</td>
-                  <td className="py-0.5 px-2 text-right border border-slate-300 font-semibold">-{formatCurrency(plSummary.restockPaid)}</td>
-                  <td className="py-0.5 px-2 border border-slate-300 text-slate-500 text-[9px]">Pengeluaran Kulakan</td>
-                </tr>
-                <tr className="bg-slate-100 font-bold">
-                  <td className="py-1 px-2 border border-slate-300">ARUS KAS BERSIH (NET CASH FLOW)</td>
-                  <td className="py-1 px-2 text-right border border-slate-300 font-black">{formatCurrency(plSummary.netCashFlow)}</td>
-                  <td className="py-1 px-2 border border-slate-300 text-[9px] text-slate-600">Kas Masuk − Kas Belanja</td>
-                </tr>
-              </tbody>
-            </table>
+              {/* Cash Flow Statement Table Print */}
+              <table className="w-full text-left text-[10px] border-collapse border border-slate-300">
+                <thead>
+                  <tr className="bg-slate-100 font-bold border-b border-slate-300">
+                    <th className="py-1 px-2 border-r border-slate-300">II. LAPORAN ARUS KAS & MODAL (CASH FLOW STATEMENT)</th>
+                    <th className="py-1 px-2 text-right border-r border-slate-300 w-36">Nominal (Rp)</th>
+                    <th className="py-1 px-2 text-left w-36">Keterangan</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  <tr>
+                    <td className="py-0.5 px-3 border border-slate-300">• Kas Tunai Fisik Masuk (Cash)</td>
+                    <td className="py-0.5 px-2 text-right border border-slate-300 font-semibold">{formatCurrency(plSummary.cashInflow)}</td>
+                    <td className="py-0.5 px-2 border border-slate-300 text-slate-500 text-[9px]">Uang Fisik Laci</td>
+                  </tr>
+                  <tr>
+                    <td className="py-0.5 px-3 border border-slate-300">• Bank Transfer Masuk</td>
+                    <td className="py-0.5 px-2 text-right border border-slate-300 font-semibold">{formatCurrency(plSummary.transferInflow)}</td>
+                    <td className="py-0.5 px-2 border border-slate-300 text-slate-500 text-[9px]">Rekening Bank</td>
+                  </tr>
+                  <tr>
+                    <td className="py-0.5 px-3 border border-slate-300">• QRIS Masuk</td>
+                    <td className="py-0.5 px-2 text-right border border-slate-300 font-semibold">{formatCurrency(plSummary.qrisInflow)}</td>
+                    <td className="py-0.5 px-2 border border-slate-300 text-slate-500 text-[9px]">E-Wallet / QRIS</td>
+                  </tr>
+                  <tr className="bg-blue-50/70 font-bold">
+                    <td className="py-1 px-2 border border-slate-300">TOTAL KAS MASUK DITERIMA</td>
+                    <td className="py-1 px-2 text-right border border-slate-300 font-black text-blue-900">{formatCurrency(plSummary.totalCashInflow)}</td>
+                    <td className="py-1 px-2 border border-slate-300 text-[9px]">Pemasukan Riil</td>
+                  </tr>
+                  <tr>
+                    <td className="py-0.5 px-3 border border-slate-300">• Modal Belanja Restock Dibayar ke Supplier</td>
+                    <td className="py-0.5 px-2 text-right border border-slate-300 font-semibold text-slate-800">-{formatCurrency(plSummary.restockPaid)}</td>
+                    <td className="py-0.5 px-2 border border-slate-300 text-slate-500 text-[9px]">Pengeluaran Kulakan</td>
+                  </tr>
+                  <tr className="bg-indigo-50 font-black">
+                    <td className="py-1.5 px-2 border border-slate-300 text-indigo-950">ARUS KAS BERSIH (NET CASH FLOW)</td>
+                    <td className="py-1.5 px-2 text-right border border-slate-300 font-black text-indigo-800">{formatCurrency(plSummary.netCashFlow)}</td>
+                    <td className="py-1.5 px-2 border border-slate-300 text-[9px] text-indigo-900 font-bold">Kas Masuk − Kas Belanja</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
 
             {/* Signatures Print */}
             <div className="mt-8 grid grid-cols-2 gap-8 text-center break-inside-avoid text-[10px]">
