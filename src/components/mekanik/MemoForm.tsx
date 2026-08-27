@@ -965,15 +965,27 @@ export default function MemoForm({
                         className="w-full text-xs rounded-lg border border-slate-200 p-2.5 bg-white font-medium focus:border-purple-500 focus:ring-1 focus:ring-purple-200 outline-none transition-all pr-8"
                         value={row.name}
                         onChange={(e) => handleServiceNameInput(idx, e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === 'Tab' || e.key === 'Escape') {
+                            setActiveServiceSearchIdx(null)
+                          }
+                        }}
                         onFocus={() => {
                           setActiveServiceSearchIdx(idx)
                           if (!row.name) setServiceSearchResults(availableServices.slice(0, 10))
                         }}
+                        onBlur={() => {
+                          setTimeout(() => setActiveServiceSearchIdx(null), 200)
+                        }}
                       />
-                      {activeServiceSearchIdx === idx && (
+                      {row.name && (
                         <button
                           type="button"
-                          onClick={() => setActiveServiceSearchIdx(null)}
+                          onClick={() => {
+                            updateServiceRow(idx, 'name', '')
+                            updateServiceRow(idx, 'serviceId', '')
+                            setActiveServiceSearchIdx(null)
+                          }}
                           className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
                         >
                           <X className="w-3.5 h-3.5" />
@@ -982,14 +994,10 @@ export default function MemoForm({
                     </div>
 
                     {/* Popover Hasil Pencarian Master Jasa */}
-                    {activeServiceSearchIdx === idx && (
+                    {activeServiceSearchIdx === idx && serviceSearchResults.length > 0 && (
                       <div className="absolute z-30 left-0 right-0 mt-1 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden max-h-48 overflow-y-auto divide-y divide-slate-100 animate-fade-in">
                         {isSearchingServices ? (
                           <div className="p-3 text-center text-xs text-slate-400">Mencari jasa...</div>
-                        ) : serviceSearchResults.length === 0 ? (
-                          <div className="p-3 text-xs text-slate-500">
-                            Tidak ada kecocokan di master. Lanjutkan mengetik untuk jasa manual / custom.
-                          </div>
                         ) : (
                           serviceSearchResults.map((s) => (
                             <button
@@ -1100,15 +1108,27 @@ export default function MemoForm({
                           className="w-full text-xs rounded-lg border border-slate-200 p-2.5 bg-white font-medium focus:border-purple-500 focus:ring-1 focus:ring-purple-200 outline-none transition-all pr-8"
                           value={row.name}
                           onChange={(e) => handleSparepartNameInput(idx, e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === 'Tab' || e.key === 'Escape') {
+                              setActiveSparepartSearchIdx(null)
+                            }
+                          }}
                           onFocus={() => {
                             setActiveSparepartSearchIdx(idx)
                             if (!row.name) setSparepartSearchResults(availableSpareparts.slice(0, 10))
                           }}
+                          onBlur={() => {
+                            setTimeout(() => setActiveSparepartSearchIdx(null), 200)
+                          }}
                         />
-                        {activeSparepartSearchIdx === idx && (
+                        {row.name && (
                           <button
                             type="button"
-                            onClick={() => setActiveSparepartSearchIdx(null)}
+                            onClick={() => {
+                              updateSparepartRow(idx, 'name', '')
+                              updateSparepartRow(idx, 'sparepartId', '')
+                              setActiveSparepartSearchIdx(null)
+                            }}
                             className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
                           >
                             <X className="w-3.5 h-3.5" />
@@ -1117,16 +1137,12 @@ export default function MemoForm({
                       </div>
 
                       {/* Popover Hasil Pencarian Master Sparepart */}
-                      {activeSparepartSearchIdx === idx && (
+                      {activeSparepartSearchIdx === idx && sparepartSearchResults.length > 0 && (
                         <div className="absolute z-30 left-0 right-0 mt-1 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden max-h-52 overflow-y-auto divide-y divide-slate-100 animate-fade-in">
                           {isSearchingSpareparts ? (
                             <div className="p-3 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
                               <div className="w-3 h-3 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />
                               <span>Mencari di 1.717+ data sparepart...</span>
-                            </div>
-                          ) : sparepartSearchResults.length === 0 ? (
-                            <div className="p-3 text-xs text-slate-500">
-                              Tidak ada kecocokan di master. Lanjutkan mengetik untuk sparepart luar / custom.
                             </div>
                           ) : (
                             sparepartSearchResults.map((sp) => (
