@@ -286,3 +286,32 @@ export async function deleteService(id: string) {
     return { message: 'Gagal menonaktifkan jasa servis' }
   }
 }
+
+export async function searchServices(query: string, branchId?: string | null) {
+  const session = await getSession()
+  if (!session) return []
+
+  const q = query.trim()
+  if (!q) return []
+
+  const where: Record<string, unknown> = {
+    isActive: true,
+    ...getBranchFilter(session, branchId),
+    OR: [
+      { name: { contains: q } },
+      { category: { contains: q } },
+    ],
+  }
+
+  return prisma.service.findMany({
+    where,
+    select: {
+      id: true,
+      name: true,
+      price: true,
+      category: true,
+    },
+    orderBy: { name: 'asc' },
+    take: 30,
+  })
+}

@@ -366,3 +366,38 @@ export async function deleteSparepart(id: string) {
     return { message: 'Gagal menonaktifkan sparepart' }
   }
 }
+
+export async function searchSpareparts(query: string, branchId?: string | null) {
+  const session = await getSession()
+  if (!session) return []
+
+  const q = query.trim()
+  if (!q) return []
+
+  const where: Record<string, unknown> = {
+    isActive: true,
+    ...getBranchFilter(session, branchId),
+    OR: [
+      { name: { contains: q } },
+      { sku: { contains: q } },
+      { sparepartBrand: { contains: q } },
+      { sparepartType: { contains: q } },
+    ],
+  }
+
+  return prisma.sparepart.findMany({
+    where,
+    select: {
+      id: true,
+      name: true,
+      sku: true,
+      sellPrice: true,
+      buyPrice: true,
+      stock: true,
+      unit: true,
+      etalase: true,
+    },
+    orderBy: { name: 'asc' },
+    take: 30,
+  })
+}

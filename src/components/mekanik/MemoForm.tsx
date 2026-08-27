@@ -37,6 +37,8 @@ import {
 } from '@/lib/memo-constants'
 import { createMemo, updateMemo } from '@/actions/memo'
 import { searchCustomers } from '@/actions/customer'
+import { searchSpareparts } from '@/actions/sparepart'
+import { searchServices } from '@/actions/service'
 
 interface MechanicOption {
   id: string
@@ -60,13 +62,15 @@ interface ServiceOption {
   id: string
   name: string
   price: number
+  category?: string | null
 }
 
 interface SparepartOption {
   id: string
   name: string
+  sku?: string | null
   sellPrice: number
-  buyPrice?: number
+  buyPrice?: number | null
   stock: number
   unit: string
 }
@@ -103,6 +107,15 @@ export default function MemoForm({
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false)
   const [selectedCustomerMeta, setSelectedCustomerMeta] = useState<string | null>(null)
   const searchDropdownRef = useRef<HTMLDivElement>(null)
+
+  // Live Row Search States for Services & Spareparts
+  const [activeServiceSearchIdx, setActiveServiceSearchIdx] = useState<number | null>(null)
+  const [serviceSearchResults, setServiceSearchResults] = useState<ServiceOption[]>(availableServices.slice(0, 10))
+  const [isSearchingServices, setIsSearchingServices] = useState(false)
+
+  const [activeSparepartSearchIdx, setActiveSparepartSearchIdx] = useState<number | null>(null)
+  const [sparepartSearchResults, setSparepartSearchResults] = useState<SparepartOption[]>(availableSpareparts.slice(0, 10))
+  const [isSearchingSpareparts, setIsSearchingSpareparts] = useState(false)
 
   // Form states
   const [queueNumber, setQueueNumber] = useState(initialData?.queueNumber || '')
@@ -272,18 +285,44 @@ export default function MemoForm({
     next[index] = { ...next[index], [field]: value }
     setServices(next)
   }
-  const selectMasterService = (index: number, serviceId: string) => {
-    const found = availableServices.find((s) => s.id === serviceId)
-    if (found) {
-      const next = [...services]
-      next[index] = {
-        ...next[index],
-        serviceId: found.id,
-        name: found.name,
-        estimatedPrice: found.price,
-      }
-      setServices(next)
+
+  const handleServiceNameInput = async (idx: number, text: string) => {
+    updateServiceRow(idx, 'name', text)
+    setActiveServiceSearchIdx(idx)
+
+    if (!text.trim()) {
+      setServiceSearchResults(availableServices.slice(0, 10))
+      return
     }
+
+    const q = text.toLowerCase()
+    const local = availableServices.filter((s) => s.name.toLowerCase().includes(q)).slice(0, 15)
+    if (local.length > 0) {
+      setServiceSearchResults(local)
+    }
+
+    try {
+      setIsSearchingServices(true)
+      const remote = await searchServices(text, branchId)
+      setServiceSearchResults(remote as ServiceOption[])
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setIsSearchingServices(false)
+    }
+  }
+
+  const handleSelectServiceItem = (idx: number, s: ServiceOption) => {
+    const next = [...services]
+    next[idx] = {
+      ...next[idx],
+      serviceId: s.id,
+      name: s.name,
+      estimatedPrice: s.price,
+      buyPrice: '',
+    }
+    setServices(next)
+    setActiveServiceSearchIdx(null)
   }
 
   // Sparepart Row helpers
@@ -304,20 +343,49 @@ export default function MemoForm({
     next[index] = { ...next[index], [field]: value }
     setSpareparts(next)
   }
-  const selectMasterSparepart = (index: number, sparepartId: string) => {
-    const found = availableSpareparts.find((sp) => sp.id === sparepartId)
-    if (found) {
-      const next = [...spareparts]
-      next[index] = {
-        ...next[index],
-        sparepartId: found.id,
-        name: found.name,
-        unit: found.unit || 'pcs',
-        estimatedPrice: found.sellPrice,
-        buyPrice: found.buyPrice !== undefined ? found.buyPrice : '',
-      }
-      setSpareparts(next)
+
+  const handleSparepartNameInput = async (idx: number, text: string) => {
+    updateSparepartRow(idx, 'name', text)
+    setActiveSparepartSearchIdx(idx)
+
+    if (!text.trim()) {
+      setSparepartSearchResults(availableSpareparts.slice(0, 10))
+      return
     }
+
+    const q = text.toLowerCase()
+    const local = availableSpareparts
+      .filter(
+        (sp) => sp.name.toLowerCase().includes(q) || (sp.sku && sp.sku.toLowerCase().includes(q))
+      )
+      .slice(0, 15)
+    if (local.length > 0) {
+      setSparepartSearchResults(local)
+    }
+
+    try {
+      setIsSearchingSpareparts(true)
+      const remote = await searchSpareparts(text, branchId)
+      setSparepartSearchResults(remote as SparepartOption[])
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setIsSearchingSpareparts(false)
+    }
+  }
+
+  const handleSelectSparepartItem = (idx: number, sp: SparepartOption) => {
+    const next = [...spareparts]
+    next[idx] = {
+      ...next[idx],
+      sparepartId: sp.id,
+      name: sp.name,
+      unit: sp.unit || 'pcs',
+      estimatedPrice: sp.sellPrice,
+      buyPrice: sp.buyPrice !== undefined && sp.buyPrice !== null ? sp.buyPrice : '',
+    }
+    setSpareparts(next)
+    setActiveSparepartSearchIdx(null)
   }
 
   const handleSubmit = (andPrint = false) => {
@@ -889,29 +957,58 @@ export default function MemoForm({
                   {idx + 1}.
                 </span>
                 <div className="flex-1 space-y-2">
-                  <div className="flex flex-col sm:flex-row gap-2">
-                    {availableServices.length > 0 && (
-                      <select
-                        className="sm:w-2/5 text-xs rounded-lg border border-slate-200 p-2 bg-white"
-                        value={row.serviceId || ''}
-                        onChange={(e) => selectMasterService(idx, e.target.value)}
-                      >
-                        <option value="">-- Pilih Master Jasa --</option>
-                        {availableServices.map((s) => (
-                          <option key={s.id} value={s.id}>
-                            {s.name} (Rp {s.price.toLocaleString('id-ID')})
-                          </option>
-                        ))}
-                      </select>
+                  <div className="relative">
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="🔍 Ketik nama jasa / pilih dari master (atau custom)..."
+                        className="w-full text-xs rounded-lg border border-slate-200 p-2.5 bg-white font-medium focus:border-purple-500 focus:ring-1 focus:ring-purple-200 outline-none transition-all pr-8"
+                        value={row.name}
+                        onChange={(e) => handleServiceNameInput(idx, e.target.value)}
+                        onFocus={() => {
+                          setActiveServiceSearchIdx(idx)
+                          if (!row.name) setServiceSearchResults(availableServices.slice(0, 10))
+                        }}
+                      />
+                      {activeServiceSearchIdx === idx && (
+                        <button
+                          type="button"
+                          onClick={() => setActiveServiceSearchIdx(null)}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Popover Hasil Pencarian Master Jasa */}
+                    {activeServiceSearchIdx === idx && (
+                      <div className="absolute z-30 left-0 right-0 mt-1 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden max-h-48 overflow-y-auto divide-y divide-slate-100 animate-fade-in">
+                        {isSearchingServices ? (
+                          <div className="p-3 text-center text-xs text-slate-400">Mencari jasa...</div>
+                        ) : serviceSearchResults.length === 0 ? (
+                          <div className="p-3 text-xs text-slate-500">
+                            Tidak ada kecocokan di master. Lanjutkan mengetik untuk jasa manual / custom.
+                          </div>
+                        ) : (
+                          serviceSearchResults.map((s) => (
+                            <button
+                              key={s.id}
+                              type="button"
+                              onMouseDown={() => handleSelectServiceItem(idx, s)}
+                              className="w-full text-left p-2.5 hover:bg-purple-50 transition-colors flex items-center justify-between text-xs cursor-pointer group"
+                            >
+                              <span className="font-semibold text-slate-900 group-hover:text-purple-700">{s.name}</span>
+                              <span className="font-mono font-bold text-purple-700 bg-purple-100 px-2 py-0.5 rounded-md">
+                                Rp {s.price.toLocaleString('id-ID')}
+                              </span>
+                            </button>
+                          ))
+                        )}
+                      </div>
                     )}
-                    <input
-                      type="text"
-                      placeholder="Nama jasa / servis (atau ketik manual custom)..."
-                      className="flex-1 text-xs rounded-lg border border-slate-200 p-2 bg-white font-medium"
-                      value={row.name}
-                      onChange={(e) => updateServiceRow(idx, 'name', e.target.value)}
-                    />
                   </div>
+
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                     <div>
                       <label className="block text-[10px] text-slate-500 font-medium mb-0.5">
@@ -954,7 +1051,7 @@ export default function MemoForm({
                 <button
                   type="button"
                   onClick={() => removeServiceRow(idx)}
-                  className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors mt-1"
+                  className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors mt-1 cursor-pointer"
                   title="Hapus baris"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -995,29 +1092,74 @@ export default function MemoForm({
                     {idx + 1}.
                   </span>
                   <div className="flex-1 space-y-2">
-                    <div className="flex flex-col sm:flex-row gap-2">
-                      {availableSpareparts.length > 0 && (
-                        <select
-                          className="sm:w-2/5 text-xs rounded-lg border border-slate-200 p-2 bg-white"
-                          value={row.sparepartId || ''}
-                          onChange={(e) => selectMasterSparepart(idx, e.target.value)}
-                        >
-                          <option value="">-- Pilih Sparepart --</option>
-                          {availableSpareparts.map((sp) => (
-                            <option key={sp.id} value={sp.id}>
-                              {sp.name} (Stok: {sp.stock} {sp.unit})
-                            </option>
-                          ))}
-                        </select>
+                    <div className="relative">
+                      <div className="relative">
+                        <input
+                          type="text"
+                          placeholder="🔍 Ketik nama / SKU sparepart (contoh: oli, busi, 088)..."
+                          className="w-full text-xs rounded-lg border border-slate-200 p-2.5 bg-white font-medium focus:border-purple-500 focus:ring-1 focus:ring-purple-200 outline-none transition-all pr-8"
+                          value={row.name}
+                          onChange={(e) => handleSparepartNameInput(idx, e.target.value)}
+                          onFocus={() => {
+                            setActiveSparepartSearchIdx(idx)
+                            if (!row.name) setSparepartSearchResults(availableSpareparts.slice(0, 10))
+                          }}
+                        />
+                        {activeSparepartSearchIdx === idx && (
+                          <button
+                            type="button"
+                            onClick={() => setActiveSparepartSearchIdx(null)}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Popover Hasil Pencarian Master Sparepart */}
+                      {activeSparepartSearchIdx === idx && (
+                        <div className="absolute z-30 left-0 right-0 mt-1 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden max-h-52 overflow-y-auto divide-y divide-slate-100 animate-fade-in">
+                          {isSearchingSpareparts ? (
+                            <div className="p-3 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
+                              <div className="w-3 h-3 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />
+                              <span>Mencari di 1.717+ data sparepart...</span>
+                            </div>
+                          ) : sparepartSearchResults.length === 0 ? (
+                            <div className="p-3 text-xs text-slate-500">
+                              Tidak ada kecocokan di master. Lanjutkan mengetik untuk sparepart luar / custom.
+                            </div>
+                          ) : (
+                            sparepartSearchResults.map((sp) => (
+                              <button
+                                key={sp.id}
+                                type="button"
+                                onMouseDown={() => handleSelectSparepartItem(idx, sp)}
+                                className="w-full text-left p-2.5 hover:bg-purple-50 transition-colors flex items-center justify-between text-xs cursor-pointer group gap-2"
+                              >
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-1.5">
+                                    {sp.sku && (
+                                      <span className="font-mono text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
+                                        {sp.sku}
+                                      </span>
+                                    )}
+                                    <span className="font-semibold text-slate-900 group-hover:text-purple-700 truncate">{sp.name}</span>
+                                  </div>
+                                  <span className="text-[10px] text-slate-500">
+                                    Stok: <strong>{sp.stock} {sp.unit}</strong>
+                                    {sp.buyPrice ? ` • Modal: Rp ${sp.buyPrice.toLocaleString('id-ID')}` : ''}
+                                  </span>
+                                </div>
+                                <span className="font-mono font-bold text-purple-700 bg-purple-100 px-2 py-0.5 rounded-md shrink-0">
+                                  Rp {sp.sellPrice.toLocaleString('id-ID')}
+                                </span>
+                              </button>
+                            ))
+                          )}
+                        </div>
                       )}
-                      <input
-                        type="text"
-                        placeholder="Nama sparepart (atau ketik part luar custom)..."
-                        className="flex-1 text-xs rounded-lg border border-slate-200 p-2 bg-white font-medium"
-                        value={row.name}
-                        onChange={(e) => updateSparepartRow(idx, 'name', e.target.value)}
-                      />
                     </div>
+
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                       <div>
                         <label className="block text-[10px] text-slate-500 font-medium mb-0.5">
@@ -1089,7 +1231,7 @@ export default function MemoForm({
                   <button
                     type="button"
                     onClick={() => removeSparepartRow(idx)}
-                    className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors mt-1"
+                    className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors mt-1 cursor-pointer"
                     title="Hapus baris"
                   >
                     <Trash2 className="w-4 h-4" />
