@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { getSession } from '@/lib/session'
+import { Role } from '@/generated/prisma/client'
 
 export type LogCategory = 'TRANSACTION' | 'STOCK' | 'MASTER' | 'USER' | 'FINANCE' | 'SYSTEM'
 export type LogLevel = 'INFO' | 'WARNING' | 'CRITICAL'
@@ -13,7 +14,7 @@ export interface CreateLogParams {
   branchId?: string | null
   userId?: string | null
   userName?: string
-  userRole?: 'ADMIN' | 'KASIR'
+  userRole?: Role
   ipAddress?: string | null
   userAgent?: string | null
 }
@@ -121,7 +122,7 @@ export interface CreateDiffLogParams<T extends Record<string, unknown>> {
   branchId?: string | null
   userId?: string | null
   userName?: string
-  userRole?: 'ADMIN' | 'KASIR'
+  userRole?: Role
 }
 
 /**

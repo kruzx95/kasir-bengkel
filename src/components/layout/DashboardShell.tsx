@@ -18,7 +18,7 @@ export function useSidebar() {
 }
 
 interface DashboardShellProps {
-  role: 'ADMIN' | 'KASIR'
+  role: 'ADMIN' | 'KASIR' | 'MEKANIK'
   userName: string
   branchName: string | null
   shopName: string

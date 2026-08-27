@@ -95,6 +95,8 @@ export async function login(state: LoginState, formData: FormData): Promise<Logi
 
   if (user.role === 'ADMIN') {
     redirect('/admin')
+  } else if (user.role === 'MEKANIK') {
+    redirect('/mekanik')
   } else {
     redirect('/kasir')
   }

@@ -31,6 +31,7 @@ model Branch {
   transactions       Transaction[]
   users              User[]
   activityLogs       ActivityLog[]
+  serviceMemos       ServiceMemo[]
 
   @@map("branches")
 }
@@ -49,6 +50,7 @@ model User {
   restocks                 Restock[]
   stockTransfers           StockTransfer[]
   transactions             Transaction[]
+  serviceMemos             ServiceMemo[]
   corporatePaymentsCreated CorporatePayment[] @relation("CorporatePaymentCreatedBy")
   corporatePaymentsVoided  CorporatePayment[] @relation("CorporatePaymentVoidedBy")
   branch                   Branch?            @relation(fields: [branchId], references: [id])
@@ -184,6 +186,7 @@ model Transaction {
   mechanic              Mechanic?                    @relation(fields: [mechanicId], references: [id])
   user                  User                         @relation(fields: [userId], references: [id])
   corporatePaymentLinks CorporatePaymentTransaction[]
+  serviceMemos          ServiceMemo[]
 
   @@index([branchId, transactionDate])
   @@index([customerId], map: "transactions_customer_id_fkey")
@@ -238,6 +241,7 @@ model Mechanic {
   updatedAt    DateTime      @updatedAt
   branch       Branch        @relation(fields: [branchId], references: [id])
   transactions Transaction[]
+  serviceMemos ServiceMemo[]
 
   @@index([branchId], map: "mechanics_branch_id_fkey")
   @@map("mechanics")
@@ -338,6 +342,7 @@ model AppSetting {
 enum Role {
   ADMIN
   KASIR
+  MEKANIK
 }
 
 enum FuelType {
@@ -491,4 +496,102 @@ model ActivityLog {
   @@index([createdAt])
   @@map("activity_logs")
 }
+
+// ============================================
+// SERVICE ADVISOR / MEMO SERVIS (Point 11)
+// Alur Kerja SA/Kepala Mekanik, Kasir & Pengerjaan
+// ============================================
+
+enum MemoStatus {
+  DRAFT
+  ESTIMATED
+  IN_PROGRESS
+  COMPLETED
+  CONVERTED
+  CANCELLED
+}
+
+model ServiceMemo {
+  id                 String              @id @default(cuid())
+  memoNumber         String              @unique @map("memo_number")
+  queueNumber        String?             @map("queue_number")
+  branchId           String              @map("branch_id")
+  userId             String              @map("user_id")
+  mechanicId         String?             @map("mechanic_id")
+  transactionId      String?             @map("transaction_id")
+  
+  // Data Pelanggan & Kendaraan
+  customerName       String              @map("customer_name")
+  customerPhone      String?             @map("customer_phone")
+  customerAddress    String?             @map("customer_address")
+  vehiclePlate       String              @map("vehicle_plate")
+  vehicleModel       String?             @map("vehicle_model")
+  odometer           Int?                @map("odometer")
+  
+  // Diagnosa & Keluhan
+  complaints         String?             @db.Text
+  initialDiagnosis   String?             @map("initial_diagnosis") @db.Text
+  estimatedDuration  String?             @map("estimated_duration")
+  notes              String?             @db.Text
+  status             MemoStatus          @default(DRAFT)
+
+  // Checklist Komponen (Tune Up, Rem, Kaki-Kaki)
+  checklistTuneUp    Json?               @map("checklist_tune_up")
+  checklistBrakes    Json?               @map("checklist_brakes")
+  checklistSuspension Json?              @map("checklist_suspension")
+
+  // Items
+  services           MemoServiceItem[]
+  spareparts         MemoSparepartItem[]
+
+  // Relations
+  branch             Branch              @relation(fields: [branchId], references: [id])
+  user               User                @relation(fields: [userId], references: [id])
+  mechanic           Mechanic?           @relation(fields: [mechanicId], references: [id])
+  transaction        Transaction?        @relation(fields: [transactionId], references: [id])
+
+  createdAt          DateTime            @default(now()) @map("created_at")
+  updatedAt          DateTime            @updatedAt @map("updated_at")
+
+  @@index([branchId])
+  @@index([userId])
+  @@index([mechanicId])
+  @@index([status])
+  @@index([vehiclePlate])
+  @@index([createdAt])
+  @@map("service_memos")
+}
+
+model MemoServiceItem {
+  id             String      @id @default(cuid())
+  memoId         String      @map("memo_id")
+  serviceId      String?     @map("service_id")
+  name           String
+  estimatedPrice Float       @default(0) @map("estimated_price")
+  notes          String?
+  createdAt      DateTime    @default(now()) @map("created_at")
+
+  memo           ServiceMemo @relation(fields: [memoId], references: [id], onDelete: Cascade)
+
+  @@index([memoId])
+  @@map("memo_service_items")
+}
+
+model MemoSparepartItem {
+  id             String      @id @default(cuid())
+  memoId         String      @map("memo_id")
+  sparepartId    String?     @map("sparepart_id")
+  name           String
+  quantity       Int         @default(1)
+  unit           String      @default("pcs")
+  estimatedPrice Float       @default(0) @map("estimated_price")
+  notes          String?
+  createdAt      DateTime    @default(now()) @map("created_at")
+
+  memo           ServiceMemo @relation(fields: [memoId], references: [id], onDelete: Cascade)
+
+  @@index([memoId])
+  @@map("memo_sparepart_items")
+}
+
 

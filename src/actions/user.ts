@@ -75,7 +75,7 @@ export async function createUser(data: {
   name: string
   email: string
   password: string
-  role: 'ADMIN' | 'KASIR'
+  role: 'ADMIN' | 'KASIR' | 'MEKANIK'
   branchId?: string | null
 }) {
   try {
@@ -94,8 +94,8 @@ export async function createUser(data: {
       return { success: false, message: 'Password minimal 6 karakter' }
     }
 
-    if (data.role === 'KASIR' && !data.branchId) {
-      return { success: false, message: 'Kasir wajib memilih cabang' }
+    if ((data.role === 'KASIR' || data.role === 'MEKANIK') && !data.branchId) {
+      return { success: false, message: 'Kasir / Mekanik wajib memilih cabang' }
     }
 
     const existing = await prisma.user.findUnique({ where: { email: data.email } })

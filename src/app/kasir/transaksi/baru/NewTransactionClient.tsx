@@ -1,12 +1,13 @@
 'use client'
 
 import { useState, useMemo, useTransition, useEffect, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import CustomerAutocomplete from '@/components/ui/CustomerAutocomplete'
 import Badge from '@/components/ui/Badge'
 import { createTransaction, type TransactionPayload } from '@/actions/transaction'
+import { getMemoById } from '@/actions/memo'
 import { formatCurrency } from '@/lib/utils'
 import {
   Trash2,
@@ -30,6 +31,7 @@ import {
   Clock,
   Handshake,
   ShoppingCart,
+  FileText,
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -123,6 +125,9 @@ export default function NewTransactionClient({
   branchId: txBranchId,
 }: NewTransactionClientProps) {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const memoIdParam = searchParams.get('memoId')
+  const [activeMemo, setActiveMemo] = useState<any>(null)
   const [isPending, startTransition] = useTransition()
   
   // Load dari draft saat pertama render
@@ -147,6 +152,76 @@ export default function NewTransactionClient({
     if (!raw) return false
     try { return (JSON.parse(raw) as DraftState).items.length > 0 } catch { return false }
   })
+
+  // Load data dari Memo jika param memoId tersedia
+  useEffect(() => {
+    if (!memoIdParam) return
+    let isMounted = true
+
+    async function loadMemoData() {
+      try {
+        const memo = await getMemoById(memoIdParam as string)
+        if (!memo || !isMounted) return
+
+        setActiveMemo(memo)
+        if (memo.odometer) setOdometer(memo.odometer)
+        if (memo.mechanicId) setMechanicId(memo.mechanicId)
+        if (memo.complaints || memo.notes) {
+          setNotes(`[Dari Memo ${memo.memoNumber}] ${memo.complaints || ''} ${memo.notes || ''}`.trim())
+        }
+
+        // Cari atau cocokkan pelanggan dari Plat Nomor
+        const cleanPlate = memo.vehiclePlate.replace(/\s+/g, '').toUpperCase()
+        const matchedCust = customers.find(
+          (c) => c.plateNumber && c.plateNumber.replace(/\s+/g, '').toUpperCase() === cleanPlate
+        )
+        if (matchedCust) {
+          setCustomerId(matchedCust.id)
+        }
+
+        // Konversi Jasa dan Sparepart dari Memo
+        const convertedItems: TransactionPayload['items'] = []
+
+        memo.services.forEach((s, idx) => {
+          const foundService = s.serviceId
+            ? services.find((srv) => srv.id === s.serviceId)
+            : services.find((srv) => srv.name.toLowerCase() === s.name.toLowerCase())
+          convertedItems.push({
+            itemType: 'SERVICE',
+            itemId: foundService ? foundService.id : `MANUAL_JASA_MEMO_${idx}_${Date.now()}`,
+            itemName: s.name,
+            quantity: 1,
+            unitPrice: s.estimatedPrice || foundService?.price || 0,
+          })
+        })
+
+        memo.spareparts.forEach((sp, idx) => {
+          const foundSp = sp.sparepartId
+            ? spareparts.find((item) => item.id === sp.sparepartId)
+            : spareparts.find((item) => item.name.toLowerCase() === sp.name.toLowerCase())
+          convertedItems.push({
+            itemType: 'SPAREPART',
+            itemId: foundSp ? foundSp.id : `MANUAL_PART_MEMO_${idx}_${Date.now()}`,
+            itemName: sp.name,
+            quantity: sp.quantity || 1,
+            unitPrice: sp.estimatedPrice || foundSp?.sellPrice || 0,
+            buyPrice: null,
+          })
+        })
+
+        if (convertedItems.length > 0) {
+          setItems(convertedItems)
+        }
+      } catch (err) {
+        console.error('Failed to load memo data into POS:', err)
+      }
+    }
+
+    loadMemoData()
+    return () => {
+      isMounted = false
+    }
+  }, [memoIdParam, customers, services, spareparts])
 
   // Auto-save ke localStorage setiap kali state berubah
   useEffect(() => {
@@ -476,6 +551,7 @@ export default function NewTransactionClient({
         isDebt: paymentMethod === 'DEBT' && !isActualCorporate,
         dpPaymentMethod: debtDpMethod,
         branchId: txBranchId || null,
+        memoId: activeMemo?.id || null,
       }
       
       const res = await createTransaction(payload)
@@ -519,13 +595,13 @@ export default function NewTransactionClient({
         e.preventDefault()
         mechanicSelectRef.current?.focus()
       } 
-      // Sparepart Luar / Custom (F5, Alt+5, atau F6)
-      else if (e.key === 'F5' || (e.altKey && e.key === '5') || e.key === 'F6' || (e.altKey && e.key === '6')) {
+      // Part Luar (F6 atau Alt+6)
+      else if (e.key === 'F6' || (e.altKey && e.key === '6')) {
         e.preventDefault()
         setManualTab('SPAREPART')
         manualPartNameRef.current?.focus()
         manualPartNameRef.current?.select()
-      } 
+      }
       // Ganti Metode Pembayaran (F7 atau Alt+7)
       else if (e.key === 'F7' || (e.altKey && e.key === '7')) {
         e.preventDefault()
@@ -536,18 +612,18 @@ export default function NewTransactionClient({
           if (prev === 'SPLIT') return 'DEBT'
           return 'CASH'
         })
-      } 
+      }
       // Diskon (F8 atau Alt+8)
       else if (e.key === 'F8' || (e.altKey && e.key === '8')) {
         e.preventDefault()
         discountInputRef.current?.focus()
         discountInputRef.current?.select()
-      } 
+      }
       // Simpan Transaksi (F9, Alt+9, atau Ctrl+Enter)
       else if (e.key === 'F9' || (e.altKey && e.key === '9') || ((e.ctrlKey || e.metaKey) && e.key === 'Enter')) {
         e.preventDefault()
-        handleSubmitRef.current()
-      } 
+        handleSubmitRef.current?.()
+      }
       // Escape untuk bersihkan pencarian
       else if (e.key === 'Escape') {
         setSearchQuery('')
@@ -559,8 +635,9 @@ export default function NewTransactionClient({
   }, [])
 
   return (
-    <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6">
-      <div className="flex items-center gap-3 sm:gap-4">
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center gap-4">
         <Link href={basePath}>
           <Button variant="ghost" icon={ArrowLeft} className="w-10 h-10 p-0" />
         </Link>
@@ -578,6 +655,33 @@ export default function NewTransactionClient({
           </button>
         )}
       </div>
+
+      {/* Banner Konversi Memo Servis */}
+      {activeMemo && (
+        <div className="bg-purple-50 border border-purple-200 p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs animate-fade-in">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-purple-600 text-white flex items-center justify-center font-bold shrink-0 shadow-sm shadow-purple-200">
+              <FileText className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-purple-950 text-sm">
+                  Konversi dari Memo: {activeMemo.memoNumber}
+                </span>
+                <span className="font-mono font-bold text-xs bg-purple-200/80 text-purple-800 px-2 py-0.5 rounded-md">
+                  {activeMemo.vehiclePlate}
+                </span>
+              </div>
+              <p className="text-xs text-purple-700 mt-0.5">
+                Pemilik: <strong>{activeMemo.customerName}</strong> • {activeMemo.vehicleModel || 'Mobil'} • Mekanik: <strong>{activeMemo.mechanic?.name || '-'}</strong>
+              </p>
+            </div>
+          </div>
+          <span className="text-xs text-purple-800 font-mono bg-white/80 border border-purple-200 px-2.5 py-1 rounded-lg self-start sm:self-auto">
+            {activeMemo.services.length} Jasa, {activeMemo.spareparts.length} Part
+          </span>
+        </div>
+      )}
 
       {/* Ribbon Pintasan Keyboard (Fast POS Mode) */}
       <div className="bg-slate-900 text-white rounded-2xl p-3 sm:p-3.5 shadow-md border border-slate-800 flex flex-wrap items-center justify-between gap-2.5">

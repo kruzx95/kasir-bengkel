@@ -26,12 +26,13 @@ import {
   Database,
   ScrollText,
   BookOpen,
+  FileText,
 } from 'lucide-react'
 import { useEffect } from 'react'
 import { logout } from '@/actions/auth'
 
 interface SidebarProps {
-  role: 'ADMIN' | 'KASIR'
+  role: 'ADMIN' | 'KASIR' | 'MEKANIK'
   userName: string
   branchName: string | null
   shopName: string
@@ -44,6 +45,7 @@ interface SidebarProps {
 
 const kasirMenuItems = [
   { href: '/kasir', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/kasir/memo', label: 'Memo Servis (SA)', icon: FileText },
   { href: '/kasir/transaksi', label: 'Transaksi', icon: Receipt },
   { href: '/kasir/pelanggan', label: 'Pelanggan', icon: Users },
   { href: '/kasir/laporan', label: 'Laporan', icon: BarChart3 },
@@ -61,6 +63,7 @@ const kasirMenuItems = [
 
 const adminMenuItems = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/admin/memo', label: 'Memo Servis (SA)', icon: FileText },
   { href: '/admin/transaksi', label: 'Transaksi', icon: Receipt },
   { href: '/admin/pelanggan', label: 'Pelanggan', icon: Users },
   { href: '/admin/laporan', label: 'Laporan', icon: BarChart3 },

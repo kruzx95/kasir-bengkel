@@ -5,7 +5,7 @@ import { logout } from '@/actions/auth'
 import { Eye, LogOut, Loader2, ShieldCheck } from 'lucide-react'
 
 interface DemoBannerProps {
-  role?: 'ADMIN' | 'KASIR'
+  role?: 'ADMIN' | 'KASIR' | 'MEKANIK'
 }
 
 export default function DemoBanner({ role = 'KASIR' }: DemoBannerProps) {

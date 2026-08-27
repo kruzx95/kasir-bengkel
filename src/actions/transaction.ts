@@ -36,6 +36,7 @@ const transactionSchema = z.object({
   dpPaymentMethod: z.enum(['CASH', 'TRANSFER', 'QRIS']).optional().default('CASH'),
   odometer: z.number().int().min(0).optional().nullable(),
   branchId: z.string().optional().nullable(),
+  memoId: z.string().optional().nullable(),
 })
 
 export type TransactionPayload = z.infer<typeof transactionSchema>
@@ -311,6 +312,17 @@ export async function createTransaction(payload: TransactionPayload): Promise<Tr
         })
       }
 
+      // 6. Hubungkan & Update Status ServiceMemo jika transaksi dibuat dari Memo
+      if (data.memoId) {
+        await tx.serviceMemo.update({
+          where: { id: data.memoId },
+          data: {
+            status: 'CONVERTED',
+            transactionId: transaction.id,
+          }
+        })
+      }
+
       return transaction
     })
 
@@ -327,6 +339,7 @@ export async function createTransaction(payload: TransactionPayload): Promise<Tr
         paidAmount: result.paidAmount,
         changeAmount: result.changeAmount,
         itemCount: data.items.length,
+        memoId: data.memoId,
       },
       branchId,
       userId: session.userId,
@@ -336,8 +349,11 @@ export async function createTransaction(payload: TransactionPayload): Promise<Tr
 
     revalidatePath('/kasir/transaksi')
     revalidatePath('/kasir/sparepart')
+    revalidatePath('/kasir/memo')
     revalidatePath('/admin/transaksi')
     revalidatePath('/admin/laporan')
+    revalidatePath('/admin/memo')
+    revalidatePath('/mekanik')
     return { success: true, message: 'Transaksi berhasil disimpan', invoiceNumber: result.invoiceNumber }
   } catch (error: unknown) {
     console.error('Create Transaction Error:', error)
