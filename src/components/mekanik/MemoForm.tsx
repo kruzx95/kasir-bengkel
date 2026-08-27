@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Car,
@@ -17,6 +17,11 @@ import {
   CheckSquare,
   Square,
   RotateCcw,
+  Search,
+  Check,
+  Sparkles,
+  X,
+  Database,
 } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
@@ -31,11 +36,24 @@ import {
   ChecklistSuspension,
 } from '@/lib/memo-constants'
 import { createMemo, updateMemo } from '@/actions/memo'
+import { searchCustomers } from '@/actions/customer'
 
 interface MechanicOption {
   id: string
   name: string
   phone?: string | null
+}
+
+export interface CustomerOption {
+  id: string
+  name: string
+  phone?: string | null
+  address?: string | null
+  plateNumber?: string | null
+  vehicleBrand?: string | null
+  vehicleType?: string | null
+  vehicleYear?: string | null
+  odometer?: number | null
 }
 
 interface ServiceOption {
@@ -58,6 +76,8 @@ interface MemoFormProps {
   mechanics: MechanicOption[]
   availableServices?: ServiceOption[]
   availableSpareparts?: SparepartOption[]
+  availableCustomers?: CustomerOption[]
+  branchId?: string | null
   isEdit?: boolean
   basePath?: string
 }
@@ -67,12 +87,22 @@ export default function MemoForm({
   mechanics = [],
   availableServices = [],
   availableSpareparts = [],
+  availableCustomers = [],
+  branchId,
   isEdit = false,
   basePath = '/mekanik',
 }: MemoFormProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState('')
+
+  // Quick Customer Search from Database
+  const [customerSearchQuery, setCustomerSearchQuery] = useState('')
+  const [customerSearchResults, setCustomerSearchResults] = useState<CustomerOption[]>(availableCustomers.slice(0, 8))
+  const [isSearchingCustomer, setIsSearchingCustomer] = useState(false)
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false)
+  const [selectedCustomerMeta, setSelectedCustomerMeta] = useState<string | null>(null)
+  const searchDropdownRef = useRef<HTMLDivElement>(null)
 
   // Form states
   const [queueNumber, setQueueNumber] = useState(initialData?.queueNumber || '')
@@ -98,6 +128,64 @@ export default function MemoForm({
   const [suspension, setSuspension] = useState<Record<string, boolean>>(
     initialData?.checklistSuspension || {}
   )
+
+  // Debounced search customer
+  useEffect(() => {
+    if (!customerSearchQuery.trim()) {
+      setCustomerSearchResults(availableCustomers.slice(0, 8))
+      return
+    }
+
+    const timer = setTimeout(async () => {
+      setIsSearchingCustomer(true)
+      try {
+        const results = await searchCustomers(customerSearchQuery, branchId)
+        setCustomerSearchResults(results as CustomerOption[])
+      } catch (err) {
+        console.error('Customer search error:', err)
+      } finally {
+        setIsSearchingCustomer(false)
+      }
+    }, 250)
+
+    return () => clearTimeout(timer)
+  }, [customerSearchQuery, branchId, availableCustomers])
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (searchDropdownRef.current && !searchDropdownRef.current.contains(e.target as Node)) {
+        setShowCustomerDropdown(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const handleSelectCustomer = (c: CustomerOption) => {
+    setCustomerName(c.name || '')
+    if (c.phone) setCustomerPhone(c.phone)
+    if (c.address) setCustomerAddress(c.address)
+    if (c.plateNumber) setVehiclePlate(c.plateNumber.toUpperCase())
+
+    const modelParts = [c.vehicleBrand, c.vehicleType, c.vehicleYear].filter(Boolean)
+    if (modelParts.length > 0) {
+      setVehicleModel(modelParts.join(' '))
+    }
+    if (c.odometer !== undefined && c.odometer !== null) {
+      setOdometer(String(c.odometer))
+    }
+
+    setSelectedCustomerMeta(
+      `${c.plateNumber || 'Tanpa Plat'} · ${c.name}${modelParts.length ? ` (${modelParts.join(' ')})` : ''}`
+    )
+    setShowCustomerDropdown(false)
+    setCustomerSearchQuery('')
+  }
+
+  const handleClearSelectedCustomer = () => {
+    setSelectedCustomerMeta(null)
+  }
 
   // Dynamic Service rows (1-10)
   const [services, setServices] = useState<
@@ -348,6 +436,120 @@ export default function MemoForm({
           {error}
         </div>
       )}
+
+      {/* Widget Panggil Data Pelanggan & Kendaraan dari Database Kasir */}
+      <div className="bg-gradient-to-r from-purple-900 via-indigo-900 to-slate-900 text-white rounded-2xl p-4 sm:p-5 shadow-sm space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-purple-500/30 border border-purple-400/40 flex items-center justify-center text-purple-300 shrink-0 shadow-inner">
+              <Database className="w-4 h-4" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-white flex items-center gap-2">
+                Panggil Data Pelanggan / Kendaraan Kasir
+                <span className="text-[10px] font-normal px-2 py-0.5 bg-purple-500/40 border border-purple-400/30 rounded-full text-purple-200">
+                  Otomatis Terisi
+                </span>
+              </h2>
+              <p className="text-xs text-purple-200/80">
+                Ketik Plat Nomor, Nama Pemilik, atau No. HP untuk mengambil riwayat mobil yang sudah terdaftar di kasir
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Input Search + Dropdown */}
+        <div className="relative" ref={searchDropdownRef}>
+          <div className="relative">
+            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-purple-300" />
+            <input
+              type="text"
+              placeholder="🔍 Ketik Plat Nomor (contoh: B 1234) atau Nama Pelanggan..."
+              value={customerSearchQuery}
+              onChange={(e) => {
+                setCustomerSearchQuery(e.target.value)
+                setShowCustomerDropdown(true)
+              }}
+              onFocus={() => setShowCustomerDropdown(true)}
+              className="w-full pl-10 pr-10 py-2.5 bg-purple-950/70 border border-purple-400/40 focus:border-purple-300 focus:bg-purple-950 rounded-xl text-sm text-white placeholder:text-purple-300/60 outline-none transition-all shadow-inner"
+            />
+            {customerSearchQuery && (
+              <button
+                type="button"
+                onClick={() => {
+                  setCustomerSearchQuery('')
+                  setShowCustomerDropdown(false)
+                }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-purple-300 hover:text-white p-1"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+
+          {/* Dropdown Hasil Pencarian */}
+          {showCustomerDropdown && (
+            <div className="absolute z-30 left-0 right-0 mt-1.5 bg-white text-slate-800 rounded-xl shadow-xl border border-slate-200 overflow-hidden max-h-64 overflow-y-auto divide-y divide-slate-100 animate-fade-in">
+              {isSearchingCustomer ? (
+                <div className="p-4 text-center text-xs text-slate-500 flex items-center justify-center gap-2">
+                  <div className="w-3.5 h-3.5 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />
+                  <span>Mencari data di database kasir...</span>
+                </div>
+              ) : customerSearchResults.length === 0 ? (
+                <div className="p-4 text-center text-xs text-slate-500">
+                  Tidak ditemukan data pelanggan dengan kata kunci &quot;<strong>{customerSearchQuery}</strong>&quot;. Anda bisa langsung mengetik manual di kolom bawah.
+                </div>
+              ) : (
+                customerSearchResults.map((c) => {
+                  const car = [c.vehicleBrand, c.vehicleType, c.vehicleYear].filter(Boolean).join(' ')
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => handleSelectCustomer(c)}
+                      className="w-full text-left p-3 hover:bg-purple-50 transition-colors flex items-center justify-between gap-3 group cursor-pointer"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono font-bold text-xs bg-purple-100 text-purple-800 px-2 py-0.5 rounded-md border border-purple-200">
+                            {c.plateNumber || 'TANPA PLAT'}
+                          </span>
+                          <span className="font-semibold text-sm text-slate-900 truncate">
+                            {c.name}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-500 mt-0.5 truncate">
+                          {car ? `🚗 ${car}` : '🚗 Kendaraan umum'} {c.phone ? ` • 📞 ${c.phone}` : ''} {c.odometer ? ` • KM Terakhir: ${c.odometer.toLocaleString('id-ID')}` : ''}
+                        </p>
+                      </div>
+                      <span className="text-xs font-bold text-purple-700 bg-purple-100 group-hover:bg-purple-600 group-hover:text-white px-2.5 py-1 rounded-lg shrink-0 transition-all">
+                        Pilih & Isi ↵
+                      </span>
+                    </button>
+                  )
+                })
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Selected Badge info */}
+        {selectedCustomerMeta && (
+          <div className="flex items-center justify-between bg-emerald-500/20 border border-emerald-400/40 px-3.5 py-2 rounded-xl text-xs text-emerald-200">
+            <span className="flex items-center gap-1.5 font-medium">
+              <Check className="w-4 h-4 text-emerald-300" />
+              Data berhasil diisi dari kasir: <strong className="text-white">{selectedCustomerMeta}</strong>
+            </span>
+            <button
+              type="button"
+              onClick={handleClearSelectedCustomer}
+              className="text-[11px] text-emerald-300 hover:text-white underline cursor-pointer"
+            >
+              Ubah / Reset
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* Section 1: Data Pelanggan & Kendaraan */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

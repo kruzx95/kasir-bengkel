@@ -31,7 +31,7 @@ export default async function EditMemoPage({
 
   const branchFilter = memo.branchId ? { branchId: memo.branchId } : {}
 
-  const [mechanics, services, spareparts] = await Promise.all([
+  const [mechanics, services, spareparts, customers] = await Promise.all([
     prisma.mechanic.findMany({
       where: { isActive: true, ...branchFilter },
       select: { id: true, name: true, phone: true },
@@ -49,6 +49,22 @@ export default async function EditMemoPage({
       orderBy: { name: 'asc' },
       take: 300,
     }),
+    prisma.customer.findMany({
+      where: branchFilter,
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        address: true,
+        plateNumber: true,
+        vehicleBrand: true,
+        vehicleType: true,
+        vehicleYear: true,
+        odometer: true,
+      },
+      orderBy: { updatedAt: 'desc' },
+      take: 100,
+    }),
   ])
 
   return (
@@ -57,6 +73,8 @@ export default async function EditMemoPage({
       mechanics={mechanics}
       availableServices={services}
       availableSpareparts={spareparts}
+      availableCustomers={customers}
+      branchId={memo.branchId}
       isEdit={true}
       basePath="/mekanik"
     />
