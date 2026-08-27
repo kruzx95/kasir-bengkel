@@ -568,6 +568,7 @@ model MemoServiceItem {
   serviceId      String?     @map("service_id")
   name           String
   estimatedPrice Float       @default(0) @map("estimated_price")
+  buyPrice       Float?      @map("buy_price")
   notes          String?
   createdAt      DateTime    @default(now()) @map("created_at")
 
@@ -585,6 +586,7 @@ model MemoSparepartItem {
   quantity       Int         @default(1)
   unit           String      @default("pcs")
   estimatedPrice Float       @default(0) @map("estimated_price")
+  buyPrice       Float?      @map("buy_price")
   notes          String?
   createdAt      DateTime    @default(now()) @map("created_at")
 

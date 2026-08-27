@@ -48,6 +48,7 @@ interface SparepartOption {
   id: string
   name: string
   sellPrice: number
+  buyPrice?: number
   stock: number
   unit: string
 }
@@ -100,21 +101,22 @@ export default function MemoForm({
 
   // Dynamic Service rows (1-10)
   const [services, setServices] = useState<
-    Array<{ serviceId?: string; name: string; estimatedPrice: number; notes: string }>
+    Array<{ serviceId?: string; name: string; estimatedPrice: number; buyPrice: number | ''; notes: string }>
   >(
     initialData?.services?.length
       ? initialData.services.map((s: any) => ({
           serviceId: s.serviceId || '',
           name: s.name,
           estimatedPrice: s.estimatedPrice || 0,
+          buyPrice: s.buyPrice !== undefined && s.buyPrice !== null ? s.buyPrice : '',
           notes: s.notes || '',
         }))
-      : [{ serviceId: '', name: '', estimatedPrice: 0, notes: '' }]
+      : [{ serviceId: '', name: '', estimatedPrice: 0, buyPrice: '', notes: '' }]
   )
 
   // Dynamic Sparepart rows (1-10)
   const [spareparts, setSpareparts] = useState<
-    Array<{ sparepartId?: string; name: string; quantity: number; unit: string; estimatedPrice: number; notes: string }>
+    Array<{ sparepartId?: string; name: string; quantity: number; unit: string; estimatedPrice: number; buyPrice: number | ''; notes: string }>
   >(
     initialData?.spareparts?.length
       ? initialData.spareparts.map((sp: any) => ({
@@ -123,9 +125,10 @@ export default function MemoForm({
           quantity: sp.quantity || 1,
           unit: sp.unit || 'pcs',
           estimatedPrice: sp.estimatedPrice || 0,
+          buyPrice: sp.buyPrice !== undefined && sp.buyPrice !== null ? sp.buyPrice : '',
           notes: sp.notes || '',
         }))
-      : [{ sparepartId: '', name: '', quantity: 1, unit: 'pcs', estimatedPrice: 0, notes: '' }]
+      : [{ sparepartId: '', name: '', quantity: 1, unit: 'pcs', estimatedPrice: 0, buyPrice: '', notes: '' }]
   )
 
   // Handlers for Checklist toggles
@@ -166,14 +169,14 @@ export default function MemoForm({
   // Service Row helpers
   const addServiceRow = () => {
     if (services.length < 10) {
-      setServices([...services, { serviceId: '', name: '', estimatedPrice: 0, notes: '' }])
+      setServices([...services, { serviceId: '', name: '', estimatedPrice: 0, buyPrice: '', notes: '' }])
     }
   }
   const removeServiceRow = (index: number) => {
     if (services.length > 1) {
       setServices(services.filter((_, i) => i !== index))
     } else {
-      setServices([{ serviceId: '', name: '', estimatedPrice: 0, notes: '' }])
+      setServices([{ serviceId: '', name: '', estimatedPrice: 0, buyPrice: '', notes: '' }])
     }
   }
   const updateServiceRow = (index: number, field: string, value: any) => {
@@ -198,14 +201,14 @@ export default function MemoForm({
   // Sparepart Row helpers
   const addSparepartRow = () => {
     if (spareparts.length < 10) {
-      setSpareparts([...spareparts, { sparepartId: '', name: '', quantity: 1, unit: 'pcs', estimatedPrice: 0, notes: '' }])
+      setSpareparts([...spareparts, { sparepartId: '', name: '', quantity: 1, unit: 'pcs', estimatedPrice: 0, buyPrice: '', notes: '' }])
     }
   }
   const removeSparepartRow = (index: number) => {
     if (spareparts.length > 1) {
       setSpareparts(spareparts.filter((_, i) => i !== index))
     } else {
-      setSpareparts([{ sparepartId: '', name: '', quantity: 1, unit: 'pcs', estimatedPrice: 0, notes: '' }])
+      setSpareparts([{ sparepartId: '', name: '', quantity: 1, unit: 'pcs', estimatedPrice: 0, buyPrice: '', notes: '' }])
     }
   }
   const updateSparepartRow = (index: number, field: string, value: any) => {
@@ -223,6 +226,7 @@ export default function MemoForm({
         name: found.name,
         unit: found.unit || 'pcs',
         estimatedPrice: found.sellPrice,
+        buyPrice: found.buyPrice !== undefined ? found.buyPrice : '',
       }
       setSpareparts(next)
     }
@@ -256,8 +260,18 @@ export default function MemoForm({
         checklistTuneUp: tuneUp as ChecklistTuneUp,
         checklistBrakes: brakes as ChecklistBrakes,
         checklistSuspension: suspension as ChecklistSuspension,
-        services: services.filter((s) => s.name.trim().length > 0),
-        spareparts: spareparts.filter((sp) => sp.name.trim().length > 0),
+        services: services
+          .filter((s) => s.name.trim().length > 0)
+          .map((s) => ({
+            ...s,
+            buyPrice: s.buyPrice !== '' ? Number(s.buyPrice) : null,
+          })),
+        spareparts: spareparts
+          .filter((sp) => sp.name.trim().length > 0)
+          .map((sp) => ({
+            ...sp,
+            buyPrice: sp.buyPrice !== '' ? Number(sp.buyPrice) : null,
+          })),
       }
 
       if (isEdit && initialData?.id) {
@@ -668,15 +682,15 @@ export default function MemoForm({
 
           <div className="space-y-3">
             {services.map((row, idx) => (
-              <div key={idx} className="flex items-start gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+              <div key={idx} className="flex items-start gap-2 bg-slate-50/80 p-3 rounded-xl border border-slate-200">
                 <span className="font-mono text-xs font-bold text-slate-400 pt-2 w-5">
                   {idx + 1}.
                 </span>
                 <div className="flex-1 space-y-2">
-                  <div className="flex gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
                     {availableServices.length > 0 && (
                       <select
-                        className="w-1/3 text-xs rounded-lg border border-slate-200 p-2 bg-white"
+                        className="sm:w-2/5 text-xs rounded-lg border border-slate-200 p-2 bg-white"
                         value={row.serviceId || ''}
                         onChange={(e) => selectMasterService(idx, e.target.value)}
                       >
@@ -690,33 +704,55 @@ export default function MemoForm({
                     )}
                     <input
                       type="text"
-                      placeholder="Nama jenis pekerjaan / servis..."
+                      placeholder="Nama jasa / servis (atau ketik manual custom)..."
                       className="flex-1 text-xs rounded-lg border border-slate-200 p-2 bg-white font-medium"
                       value={row.name}
                       onChange={(e) => updateServiceRow(idx, 'name', e.target.value)}
                     />
                   </div>
-                  <div className="flex gap-2">
-                    <input
-                      type="number"
-                      placeholder="Estimasi Biaya (Rp)"
-                      className="w-1/2 text-xs rounded-lg border border-slate-200 p-2 bg-white font-mono"
-                      value={row.estimatedPrice || ''}
-                      onChange={(e) => updateServiceRow(idx, 'estimatedPrice', parseFloat(e.target.value) || 0)}
-                    />
-                    <input
-                      type="text"
-                      placeholder="Catatan pengerjaan..."
-                      className="w-1/2 text-xs rounded-lg border border-slate-200 p-2 bg-white"
-                      value={row.notes}
-                      onChange={(e) => updateServiceRow(idx, 'notes', e.target.value)}
-                    />
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <div>
+                      <label className="block text-[10px] text-slate-500 font-medium mb-0.5">
+                        Harga Modal / Subkon
+                      </label>
+                      <input
+                        type="number"
+                        placeholder="Rp 0"
+                        className="w-full text-xs rounded-lg border border-slate-200 p-2 bg-white font-mono"
+                        value={row.buyPrice === '' ? '' : row.buyPrice}
+                        onChange={(e) => updateServiceRow(idx, 'buyPrice', e.target.value === '' ? '' : parseFloat(e.target.value) || 0)}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-slate-500 font-medium mb-0.5">
+                        Harga Jual / Biaya <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="number"
+                        placeholder="Rp 0"
+                        className="w-full text-xs rounded-lg border border-slate-200 p-2 bg-white font-mono font-bold text-slate-800"
+                        value={row.estimatedPrice || ''}
+                        onChange={(e) => updateServiceRow(idx, 'estimatedPrice', parseFloat(e.target.value) || 0)}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-slate-500 font-medium mb-0.5">
+                        Catatan Pengerjaan
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Catatan teknis..."
+                        className="w-full text-xs rounded-lg border border-slate-200 p-2 bg-white"
+                        value={row.notes}
+                        onChange={(e) => updateServiceRow(idx, 'notes', e.target.value)}
+                      />
+                    </div>
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => removeServiceRow(idx)}
-                  className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                  className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors mt-1"
                   title="Hapus baris"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -746,70 +782,119 @@ export default function MemoForm({
           </div>
 
           <div className="space-y-3">
-            {spareparts.map((row, idx) => (
-              <div key={idx} className="flex items-start gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
-                <span className="font-mono text-xs font-bold text-slate-400 pt-2 w-5">
-                  {idx + 1}.
-                </span>
-                <div className="flex-1 space-y-2">
-                  <div className="flex gap-2">
-                    {availableSpareparts.length > 0 && (
-                      <select
-                        className="w-1/3 text-xs rounded-lg border border-slate-200 p-2 bg-white"
-                        value={row.sparepartId || ''}
-                        onChange={(e) => selectMasterSparepart(idx, e.target.value)}
-                      >
-                        <option value="">-- Pilih Sparepart --</option>
-                        {availableSpareparts.map((sp) => (
-                          <option key={sp.id} value={sp.id}>
-                            {sp.name} (Stok: {sp.stock} {sp.unit})
-                          </option>
-                        ))}
-                      </select>
-                    )}
-                    <input
-                      type="text"
-                      placeholder="Nama sparepart / oli..."
-                      className="flex-1 text-xs rounded-lg border border-slate-200 p-2 bg-white font-medium"
-                      value={row.name}
-                      onChange={(e) => updateSparepartRow(idx, 'name', e.target.value)}
-                    />
+            {spareparts.map((row, idx) => {
+              const buyVal = typeof row.buyPrice === 'number' ? row.buyPrice : 0
+              const sellVal = typeof row.estimatedPrice === 'number' ? row.estimatedPrice : 0
+              const margin = sellVal - buyVal
+
+              return (
+                <div key={idx} className="flex items-start gap-2 bg-slate-50/80 p-3 rounded-xl border border-slate-200">
+                  <span className="font-mono text-xs font-bold text-slate-400 pt-2 w-5">
+                    {idx + 1}.
+                  </span>
+                  <div className="flex-1 space-y-2">
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      {availableSpareparts.length > 0 && (
+                        <select
+                          className="sm:w-2/5 text-xs rounded-lg border border-slate-200 p-2 bg-white"
+                          value={row.sparepartId || ''}
+                          onChange={(e) => selectMasterSparepart(idx, e.target.value)}
+                        >
+                          <option value="">-- Pilih Sparepart --</option>
+                          {availableSpareparts.map((sp) => (
+                            <option key={sp.id} value={sp.id}>
+                              {sp.name} (Stok: {sp.stock} {sp.unit})
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                      <input
+                        type="text"
+                        placeholder="Nama sparepart (atau ketik part luar custom)..."
+                        className="flex-1 text-xs rounded-lg border border-slate-200 p-2 bg-white font-medium"
+                        value={row.name}
+                        onChange={(e) => updateSparepartRow(idx, 'name', e.target.value)}
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      <div>
+                        <label className="block text-[10px] text-slate-500 font-medium mb-0.5">
+                          Jumlah (Qty)
+                        </label>
+                        <div className="flex gap-1">
+                          <input
+                            type="number"
+                            min={1}
+                            placeholder="Qty"
+                            className="w-14 text-xs rounded-lg border border-slate-200 p-2 bg-white font-mono text-center"
+                            value={row.quantity || 1}
+                            onChange={(e) => updateSparepartRow(idx, 'quantity', parseInt(e.target.value, 10) || 1)}
+                          />
+                          <input
+                            type="text"
+                            placeholder="Satuan"
+                            className="w-16 text-xs rounded-lg border border-slate-200 p-2 bg-white text-center"
+                            value={row.unit}
+                            onChange={(e) => updateSparepartRow(idx, 'unit', e.target.value)}
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] text-slate-500 font-medium mb-0.5">
+                          Harga Modal (Beli)
+                        </label>
+                        <input
+                          type="number"
+                          placeholder="Rp 0"
+                          className="w-full text-xs rounded-lg border border-slate-200 p-2 bg-white font-mono"
+                          value={row.buyPrice === '' ? '' : row.buyPrice}
+                          onChange={(e) => updateSparepartRow(idx, 'buyPrice', e.target.value === '' ? '' : parseFloat(e.target.value) || 0)}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] text-slate-500 font-medium mb-0.5">
+                          Harga Jual <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="number"
+                          placeholder="Rp 0"
+                          className="w-full text-xs rounded-lg border border-slate-200 p-2 bg-white font-mono font-bold text-slate-800"
+                          value={row.estimatedPrice || ''}
+                          onChange={(e) => updateSparepartRow(idx, 'estimatedPrice', parseFloat(e.target.value) || 0)}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] text-slate-500 font-medium mb-0.5">
+                          Catatan / Margin
+                        </label>
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="text"
+                            placeholder="Catatan..."
+                            className="w-full text-xs rounded-lg border border-slate-200 p-2 bg-white"
+                            value={row.notes}
+                            onChange={(e) => updateSparepartRow(idx, 'notes', e.target.value)}
+                          />
+                        </div>
+                        {buyVal > 0 && sellVal > 0 && (
+                          <span className={`text-[10px] font-medium block mt-0.5 ${margin >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                            {margin >= 0 ? `Laba: Rp ${(margin * (row.quantity || 1)).toLocaleString('id-ID')}` : `Rugi: Rp ${(Math.abs(margin) * (row.quantity || 1)).toLocaleString('id-ID')}`}
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex gap-2">
-                    <input
-                      type="number"
-                      min={1}
-                      placeholder="Qty"
-                      className="w-20 text-xs rounded-lg border border-slate-200 p-2 bg-white font-mono"
-                      value={row.quantity || 1}
-                      onChange={(e) => updateSparepartRow(idx, 'quantity', parseInt(e.target.value, 10) || 1)}
-                    />
-                    <input
-                      type="text"
-                      placeholder="Satuan"
-                      className="w-20 text-xs rounded-lg border border-slate-200 p-2 bg-white"
-                      value={row.unit}
-                      onChange={(e) => updateSparepartRow(idx, 'unit', e.target.value)}
-                    />
-                    <input
-                      type="number"
-                      placeholder="Est. Harga (Rp)"
-                      className="flex-1 text-xs rounded-lg border border-slate-200 p-2 bg-white font-mono"
-                      value={row.estimatedPrice || ''}
-                      onChange={(e) => updateSparepartRow(idx, 'estimatedPrice', parseFloat(e.target.value) || 0)}
-                    />
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeSparepartRow(idx)}
+                    className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors mt-1"
+                    title="Hapus baris"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => removeSparepartRow(idx)}
-                  className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
-                  title="Hapus baris"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </Card>
       </div>

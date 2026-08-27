@@ -28,7 +28,7 @@ export default async function NewMemoPage() {
     }),
     prisma.sparepart.findMany({
       where: { isActive: true, ...branchFilter },
-      select: { id: true, name: true, sellPrice: true, stock: true, unit: true },
+      select: { id: true, name: true, sellPrice: true, buyPrice: true, stock: true, unit: true },
       orderBy: { name: 'asc' },
       take: 300,
     }),

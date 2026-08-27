@@ -33,6 +33,7 @@ export default async function TransaksiBaruPage() {
           id: sp.id, 
           name: sp.name, 
           sellPrice: sp.sellPrice, 
+          buyPrice: sp.buyPrice ?? null,
           stock: sp.stock,
           sku: sp.sku,
           etalase: sp.etalase

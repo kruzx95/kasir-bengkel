@@ -108,7 +108,7 @@ interface ItemData {
 interface NewTransactionClientProps {
   customers: { id: string; name: string; plateNumber: string | null; corporateCustomerId: string | null; odometer: number | null }[]
   services: { id: string; name: string; price: number }[]
-  spareparts: { id: string; name: string; sellPrice: number; stock: number; sku: string | null; etalase?: string | null }[]
+  spareparts: { id: string; name: string; sellPrice: number; buyPrice?: number | null; stock: number; sku: string | null; etalase?: string | null }[]
   mechanics?: { id: string; name: string }[]
   corporates?: { id: string; name: string }[]
   basePath?: string
@@ -205,7 +205,7 @@ export default function NewTransactionClient({
             itemName: sp.name,
             quantity: sp.quantity || 1,
             unitPrice: sp.estimatedPrice || foundSp?.sellPrice || 0,
-            buyPrice: null,
+            buyPrice: sp.buyPrice !== undefined && sp.buyPrice !== null ? sp.buyPrice : (foundSp?.buyPrice ?? null),
           })
         })
 

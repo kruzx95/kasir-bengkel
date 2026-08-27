@@ -99,6 +99,7 @@ export default function AdminNewTransactionClient({ branches, preloadedData }: A
             id: sp.id, 
             name: sp.name, 
             sellPrice: sp.sellPrice, 
+            buyPrice: sp.buyPrice ?? null,
             stock: sp.stock,
             sku: sp.sku
           }))}

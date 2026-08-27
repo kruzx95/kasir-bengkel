@@ -45,6 +45,7 @@ export interface MemoServiceItemInput {
   serviceId?: string | null
   name: string
   estimatedPrice?: number
+  buyPrice?: number | null
   notes?: string | null
 }
 
@@ -54,6 +55,7 @@ export interface MemoSparepartItemInput {
   quantity: number
   unit: string
   estimatedPrice?: number
+  buyPrice?: number | null
   notes?: string | null
 }
 
@@ -153,6 +155,7 @@ export async function createMemo(input: CreateMemoInput) {
               serviceId: s.serviceId || null,
               name: s.name.trim(),
               estimatedPrice: Number(s.estimatedPrice || 0),
+              buyPrice: s.buyPrice !== undefined && s.buyPrice !== null ? Number(s.buyPrice) : null,
               notes: s.notes?.trim() || null,
             })),
         },
@@ -165,6 +168,7 @@ export async function createMemo(input: CreateMemoInput) {
               quantity: Math.max(1, Number(sp.quantity || 1)),
               unit: sp.unit?.trim() || 'pcs',
               estimatedPrice: Number(sp.estimatedPrice || 0),
+              buyPrice: sp.buyPrice !== undefined && sp.buyPrice !== null ? Number(sp.buyPrice) : null,
               notes: sp.notes?.trim() || null,
             })),
         },
@@ -265,6 +269,7 @@ export async function updateMemo(id: string, input: Partial<CreateMemoInput> & {
               serviceId: s.serviceId || null,
               name: s.name.trim(),
               estimatedPrice: Number(s.estimatedPrice || 0),
+              buyPrice: s.buyPrice !== undefined && s.buyPrice !== null ? Number(s.buyPrice) : null,
               notes: s.notes?.trim() || null,
             })),
         }
@@ -280,6 +285,7 @@ export async function updateMemo(id: string, input: Partial<CreateMemoInput> & {
               quantity: Math.max(1, Number(sp.quantity || 1)),
               unit: sp.unit?.trim() || 'pcs',
               estimatedPrice: Number(sp.estimatedPrice || 0),
+              buyPrice: sp.buyPrice !== undefined && sp.buyPrice !== null ? Number(sp.buyPrice) : null,
               notes: sp.notes?.trim() || null,
             })),
         }
