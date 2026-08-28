@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo, useTransition, useRef } from 'react'
-import Modal, { ModalFooter } from '@/components/ui/Modal'
+import Modal from '@/components/ui/Modal'
 import Button from '@/components/ui/Button'
 import Select from '@/components/ui/Select'
 import { 
@@ -19,7 +19,8 @@ import {
   Plus,
   Minus,
   Check,
-  X
+  X,
+  Sparkles
 } from 'lucide-react'
 import { createBulkStockTransfer, getSparepartsForTransfer } from '@/actions/stock-transfer'
 
@@ -123,7 +124,7 @@ export default function TransferStockModal({
         (sp.sku && sp.sku.toLowerCase().includes(term)) ||
         (sp.sparepartBrand && sp.sparepartBrand.toLowerCase().includes(term)) ||
         (sp.etalase && sp.etalase.toLowerCase().includes(term))
-    ).slice(0, 30)
+    ).slice(0, 35)
   }, [spareparts, searchTerm])
 
   const handleAddItemToCart = (sp: TransferSparepart) => {
@@ -246,86 +247,90 @@ export default function TransferStockModal({
       open={open}
       onClose={onClose}
       title="Transfer Stok Antar Gudang & Toko"
-      className="max-w-3xl"
+      description="Pindahkan stok satu atau banyak item sparepart sekaligus secara cepat & aman"
+      size="2xl"
     >
-      <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-5">
+      <form onSubmit={handleSubmit} className="space-y-5 pb-2">
         
-        {/* Step 1: Direction Switcher */}
-        <div>
-          <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-            Arah Perpindahan Stok
-          </label>
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              onClick={() => {
-                setType('WAREHOUSE_TO_STORE')
-                setStatus(null)
-              }}
-              className={`p-3.5 rounded-2xl border text-left transition-all flex items-center gap-3 cursor-pointer ${
-                type === 'WAREHOUSE_TO_STORE'
-                  ? 'border-blue-500 bg-blue-50/80 ring-2 ring-blue-500/20 shadow-xs'
-                  : 'border-slate-200 bg-white hover:bg-slate-50'
-              }`}
-            >
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                type === 'WAREHOUSE_TO_STORE' ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-100 text-slate-500'
-              }`}>
-                <ArrowUpCircle className="w-5 h-5" />
-              </div>
-              <div className="min-w-0">
-                <p className={`text-xs sm:text-sm font-bold ${type === 'WAREHOUSE_TO_STORE' ? 'text-blue-900' : 'text-slate-800'}`}>
-                  Gudang ➔ Toko
-                </p>
-                <p className="text-[11px] text-slate-500 truncate">Keluarkan stok untuk display kasir</p>
-              </div>
-            </button>
+        {/* Top Bar: Direction & Branch */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
+          {/* Direction Switcher (8 cols) */}
+          <div className={`${branches.length > 1 ? 'lg:col-span-8' : 'lg:col-span-12'}`}>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+              Arah Perpindahan Stok
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setType('WAREHOUSE_TO_STORE')
+                  setStatus(null)
+                }}
+                className={`p-3 rounded-xl border text-left transition-all flex items-center gap-3 cursor-pointer ${
+                  type === 'WAREHOUSE_TO_STORE'
+                    ? 'border-blue-500 bg-blue-50/90 ring-2 ring-blue-500/20 shadow-xs'
+                    : 'border-slate-200 bg-white hover:bg-slate-50'
+                }`}
+              >
+                <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
+                  type === 'WAREHOUSE_TO_STORE' ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-100 text-slate-500'
+                }`}>
+                  <ArrowUpCircle className="w-5 h-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className={`text-xs sm:text-sm font-bold ${type === 'WAREHOUSE_TO_STORE' ? 'text-blue-900' : 'text-slate-800'}`}>
+                    Gudang ➔ Toko
+                  </p>
+                  <p className="text-[11px] text-slate-500 truncate">Keluarkan untuk display kasir</p>
+                </div>
+              </button>
 
-            <button
-              type="button"
-              onClick={() => {
-                setType('STORE_TO_WAREHOUSE')
-                setStatus(null)
-              }}
-              className={`p-3.5 rounded-2xl border text-left transition-all flex items-center gap-3 cursor-pointer ${
-                type === 'STORE_TO_WAREHOUSE'
-                  ? 'border-purple-500 bg-purple-50/80 ring-2 ring-purple-500/20 shadow-xs'
-                  : 'border-slate-200 bg-white hover:bg-slate-50'
-              }`}
-            >
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                type === 'STORE_TO_WAREHOUSE' ? 'bg-purple-600 text-white shadow-xs' : 'bg-slate-100 text-slate-500'
-              }`}>
-                <ArrowDownCircle className="w-5 h-5" />
-              </div>
-              <div className="min-w-0">
-                <p className={`text-xs sm:text-sm font-bold ${type === 'STORE_TO_WAREHOUSE' ? 'text-purple-900' : 'text-slate-800'}`}>
-                  Toko ➔ Gudang
-                </p>
-                <p className="text-[11px] text-slate-500 truncate">Retur / simpan kembali ke gudang</p>
-              </div>
-            </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setType('STORE_TO_WAREHOUSE')
+                  setStatus(null)
+                }}
+                className={`p-3 rounded-xl border text-left transition-all flex items-center gap-3 cursor-pointer ${
+                  type === 'STORE_TO_WAREHOUSE'
+                    ? 'border-purple-500 bg-purple-50/90 ring-2 ring-purple-500/20 shadow-xs'
+                    : 'border-slate-200 bg-white hover:bg-slate-50'
+                }`}
+              >
+                <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
+                  type === 'STORE_TO_WAREHOUSE' ? 'bg-purple-600 text-white shadow-xs' : 'bg-slate-100 text-slate-500'
+                }`}>
+                  <ArrowDownCircle className="w-5 h-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className={`text-xs sm:text-sm font-bold ${type === 'STORE_TO_WAREHOUSE' ? 'text-purple-900' : 'text-slate-800'}`}>
+                    Toko ➔ Gudang
+                  </p>
+                  <p className="text-[11px] text-slate-500 truncate">Retur / simpan ke gudang</p>
+                </div>
+              </button>
+            </div>
           </div>
+
+          {/* Branch Selector (if multiple branches) (4 cols) */}
+          {branches.length > 1 && (
+            <div className="lg:col-span-4 flex flex-col justify-end">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                Pilih Cabang
+              </label>
+              <Select
+                value={selectedBranchId}
+                onChange={(e) => setSelectedBranchId(e.target.value)}
+                options={branches.map((b) => ({ value: b.id, label: b.name }))}
+              />
+            </div>
+          )}
         </div>
 
-        {/* Branch Selector (if multiple branches) */}
-        {branches.length > 1 && (
-          <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-              Cabang
-            </label>
-            <Select
-              value={selectedBranchId}
-              onChange={(e) => setSelectedBranchId(e.target.value)}
-              options={branches.map((b) => ({ value: b.id, label: b.name }))}
-            />
-          </div>
-        )}
-
-        {/* Step 2: Search & Add to Transfer Cart */}
+        {/* Search & Autocomplete Bar */}
         <div className="relative" ref={dropdownRef}>
           <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 flex items-center justify-between">
-            <span>Cari &amp; Tambahkan Sparepart</span>
+            <span>Cari &amp; Tambahkan Barang ke Antrean</span>
             <span className="text-[11px] font-normal text-slate-500 lowercase">
               (tersedia {spareparts.length} master barang)
             </span>
@@ -335,20 +340,20 @@ export default function TransferStockModal({
             <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
-              placeholder="Ketik nama sparepart, SKU, merk, atau etalase..."
+              placeholder="Ketik nama sparepart, kode SKU, merk, atau lokasi etalase..."
               value={searchTerm}
               onFocus={() => setShowDropdown(true)}
               onChange={(e) => {
                 setSearchTerm(e.target.value)
                 setShowDropdown(true)
               }}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 py-2.5 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white transition-all shadow-2xs"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 py-2.5 text-xs sm:text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white transition-all shadow-2xs"
             />
           </div>
 
-          {/* Autocomplete Dropdown */}
+          {/* Autocomplete Dropdown List */}
           {showDropdown && (
-            <div className="absolute z-20 top-full left-0 right-0 mt-1.5 bg-white rounded-2xl border border-slate-200 shadow-xl max-h-64 overflow-y-auto divide-y divide-slate-100 animate-fade-in">
+            <div className="absolute z-20 top-full left-0 right-0 mt-1.5 bg-white rounded-2xl border border-slate-200 shadow-xl max-h-72 overflow-y-auto divide-y divide-slate-100 animate-fade-in">
               {loadingSpareparts ? (
                 <div className="p-6 text-center text-xs text-slate-400">Memuat data sparepart...</div>
               ) : filteredSpareparts.length === 0 ? (
@@ -368,7 +373,7 @@ export default function TransferStockModal({
                       type="button"
                       disabled={isOutOfStock}
                       onClick={() => handleAddItemToCart(sp)}
-                      className={`w-full p-3 text-left flex items-center justify-between gap-3 transition-colors ${
+                      className={`w-full p-3 text-left flex items-center justify-between gap-4 transition-colors cursor-pointer ${
                         isOutOfStock
                           ? 'opacity-40 bg-slate-50/60 cursor-not-allowed'
                           : isInCart
@@ -383,12 +388,12 @@ export default function TransferStockModal({
                           </p>
                           {isInCart && (
                             <span className="text-[10px] bg-blue-100 text-blue-700 font-bold px-1.5 py-0.2 rounded shrink-0">
-                              Di Antrean
+                              ✓ Di Antrean
                             </span>
                           )}
                         </div>
                         <div className="flex items-center gap-2 text-[11px] text-slate-400 mt-0.5 flex-wrap">
-                          {sp.sku && <span>SKU: {sp.sku}</span>}
+                          {sp.sku && <span className="font-mono">SKU: {sp.sku}</span>}
                           {sp.sparepartBrand && <span>• Merk: {sp.sparepartBrand}</span>}
                           {sp.etalase && <span>• Rak: {sp.etalase}</span>}
                         </div>
@@ -397,12 +402,12 @@ export default function TransferStockModal({
                       <div className="text-right shrink-0">
                         <div className="text-xs font-mono font-bold text-slate-800">
                           {type === 'WAREHOUSE_TO_STORE' ? (
-                            <span>Gudang: <strong>{sp.warehouseStock}</strong> {sp.unit}</span>
+                            <span>Stok Gudang: <strong className="text-blue-700">{sp.warehouseStock}</strong> {sp.unit}</span>
                           ) : (
-                            <span>Toko: <strong>{sp.stock}</strong> {sp.unit}</span>
+                            <span>Stok Toko: <strong className="text-purple-700">{sp.stock}</strong> {sp.unit}</span>
                           )}
                         </div>
-                        <div className="text-[10px] text-slate-400">
+                        <div className="text-[10px] text-slate-400 mt-0.5">
                           {type === 'WAREHOUSE_TO_STORE' ? `(Toko saat ini: ${destStock})` : `(Gudang saat ini: ${destStock})`}
                         </div>
                       </div>
@@ -414,11 +419,11 @@ export default function TransferStockModal({
           )}
         </div>
 
-        {/* Step 3: Transfer Cart / Table of Items */}
+        {/* Transfer Queue Table (Multi-Item Cart) */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
-              <span>Daftar Barang yang Akan Dipindahkan</span>
+              <span>Daftar Barang yang Dipindahkan</span>
               <span className="text-xs font-normal text-slate-500">
                 ({cart.length} item dipilih)
               </span>
@@ -427,7 +432,7 @@ export default function TransferStockModal({
               <button
                 type="button"
                 onClick={handleClearCart}
-                className="text-xs text-red-500 hover:text-red-700 font-medium cursor-pointer"
+                className="text-xs text-red-500 hover:text-red-700 font-medium cursor-pointer transition-colors"
               >
                 Kosongkan Daftar
               </button>
@@ -436,15 +441,15 @@ export default function TransferStockModal({
 
           {cart.length === 0 ? (
             <div className="border-2 border-dashed border-slate-200 rounded-2xl p-8 text-center bg-slate-50/50 space-y-2">
-              <Package className="w-8 h-8 text-slate-300 mx-auto" />
-              <p className="text-xs font-semibold text-slate-600">Belum ada barang di antrean transfer</p>
-              <p className="text-[11px] text-slate-400 max-w-sm mx-auto">
-                Cari dan klik sparepart pada kolom pencarian di atas untuk memasukkannya ke daftar transfer multi-barang.
+              <Package className="w-10 h-10 text-slate-300 mx-auto" />
+              <p className="text-sm font-semibold text-slate-700">Belum ada barang di antrean transfer</p>
+              <p className="text-xs text-slate-400 max-w-md mx-auto">
+                Gunakan kolom pencarian di atas untuk memilih dan memasukkan barang ke daftar transfer massal.
               </p>
             </div>
           ) : (
             <div className="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-2xs">
-              <div className="max-h-72 overflow-y-auto divide-y divide-slate-100">
+              <div className="max-h-80 overflow-y-auto divide-y divide-slate-100">
                 {cart.map((item, index) => {
                   const sp = item.sparepart
                   const sourceStock = type === 'WAREHOUSE_TO_STORE' ? sp.warehouseStock : sp.stock
@@ -456,9 +461,9 @@ export default function TransferStockModal({
                   return (
                     <div
                       key={sp.id}
-                      className="p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/50 transition-colors"
+                      className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/50 transition-colors"
                     >
-                      {/* Left: Item Info */}
+                      {/* Left: Item Details */}
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
                           <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-600 font-bold text-[10px] flex items-center justify-center shrink-0">
@@ -468,18 +473,26 @@ export default function TransferStockModal({
                             {sp.name}
                           </p>
                         </div>
-                        <div className="flex items-center gap-3 text-[11px] text-slate-500 mt-1 pl-7 flex-wrap">
+                        
+                        <div className="flex items-center gap-3 text-xs text-slate-500 mt-1 pl-7 flex-wrap">
                           <span>
-                            Stok Asal: <strong className="text-slate-800">{sourceStock} {sp.unit}</strong>
+                            Stok Asal: <strong className="text-slate-800 font-mono">{sourceStock} {sp.unit}</strong>
                           </span>
                           <span>•</span>
-                          <span className="text-slate-400">
-                            Setelah Transfer: {type === 'WAREHOUSE_TO_STORE' ? 'Gudang' : 'Toko'} <strong>{afterSource}</strong> ➔ {type === 'WAREHOUSE_TO_STORE' ? 'Toko' : 'Gudang'} <strong>{afterDest}</strong>
+                          <span className="text-slate-500">
+                            Simulasi Mutasi:{' '}
+                            <span className="font-mono text-slate-700">
+                              {type === 'WAREHOUSE_TO_STORE' ? 'Gudang' : 'Toko'} ({sourceStock} ➔ <strong>{afterSource}</strong>)
+                            </span>
+                            {' ➔ '}
+                            <span className="font-mono text-blue-700 font-bold">
+                              {type === 'WAREHOUSE_TO_STORE' ? 'Toko' : 'Gudang'} ({destStock} ➔ {afterDest})
+                            </span>
                           </span>
                         </div>
                       </div>
 
-                      {/* Right: Quantity Controls & Delete */}
+                      {/* Right: Quantity Controls & Quick Actions */}
                       <div className="flex items-center justify-between sm:justify-end gap-2 pl-7 sm:pl-0 shrink-0">
                         <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
                           <button
@@ -497,7 +510,7 @@ export default function TransferStockModal({
                             max={sourceStock}
                             value={item.quantity}
                             onChange={(e) => handleUpdateQuantity(index, parseInt(e.target.value) || 0)}
-                            className={`w-14 text-center font-bold font-mono text-xs sm:text-sm bg-transparent outline-none ${
+                            className={`w-16 text-center font-bold font-mono text-xs sm:text-sm bg-transparent outline-none ${
                               isInvalid ? 'text-red-600 font-black' : 'text-slate-900'
                             }`}
                           />
@@ -515,7 +528,7 @@ export default function TransferStockModal({
                         <button
                           type="button"
                           onClick={() => handleSetMaxQuantity(index)}
-                          className="text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 px-2 py-1.5 rounded-lg cursor-pointer transition-colors shrink-0"
+                          className="text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 px-2.5 py-1.5 rounded-xl cursor-pointer transition-colors shrink-0"
                           title="Transfer semua stok yang tersedia"
                         >
                           Maks ({sourceStock})
@@ -524,7 +537,7 @@ export default function TransferStockModal({
                         <button
                           type="button"
                           onClick={() => handleRemoveItem(index)}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors cursor-pointer"
+                          className="p-2 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors cursor-pointer"
                           title="Hapus dari antrean"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -536,12 +549,12 @@ export default function TransferStockModal({
               </div>
 
               {/* Cart Summary Bar */}
-              <div className="bg-slate-50 p-3 sm:px-4 sm:py-3 border-t border-slate-200 flex items-center justify-between text-xs">
+              <div className="bg-slate-50 p-3.5 sm:px-5 sm:py-3 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
                 <span className="font-semibold text-slate-600">
-                  Total Perpindahan:
+                  Ringkasan Pemindahan:
                 </span>
                 <span className="font-bold text-slate-900">
-                  <strong className="text-blue-600">{cart.length}</strong> Jenis Barang • <strong className="text-blue-600">{totalUnits}</strong> Unit
+                  <strong className="text-blue-700 font-mono text-sm">{cart.length}</strong> Jenis Sparepart • <strong className="text-blue-700 font-mono text-sm">{totalUnits}</strong> Total Unit
                 </span>
               </div>
             </div>
@@ -581,13 +594,13 @@ export default function TransferStockModal({
         )}
 
         {/* Footer Actions */}
-        <div className="pt-2 border-t border-slate-100 flex flex-col-reverse sm:flex-row items-center justify-end gap-2">
+        <div className="pt-3 border-t border-slate-100 flex flex-col-reverse sm:flex-row items-center justify-end gap-3">
           <Button
             type="button"
             variant="outline"
             onClick={onClose}
             disabled={isPending}
-            className="w-full sm:w-auto text-xs"
+            className="w-full sm:w-auto text-xs sm:text-sm"
           >
             Batal
           </Button>
@@ -597,10 +610,10 @@ export default function TransferStockModal({
             loading={isPending}
             disabled={cart.length === 0 || hasInvalidItems}
             icon={ArrowRightLeft}
-            className="w-full sm:w-auto text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white"
+            className="w-full sm:w-auto text-xs sm:text-sm font-bold bg-blue-600 hover:bg-blue-700 text-white"
           >
             {isPending
-              ? 'Memproses Transfer...'
+              ? 'Memproses Mutasi...'
               : `Proses Transfer (${cart.length} Barang / ${totalUnits} Unit)`}
           </Button>
         </div>
