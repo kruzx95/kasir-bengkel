@@ -15,10 +15,12 @@ const stockTransferSchema = z.object({
 })
 
 const bulkTransferSchema = z.object({
+  type: z.enum(['WAREHOUSE_TO_STORE', 'STORE_TO_WAREHOUSE']).default('WAREHOUSE_TO_STORE'),
   items: z.array(z.object({
-    sparepartId: z.string(),
-    quantity: z.number().int().min(1)
-  })).min(1, 'Minimal 1 item'),
+    sparepartId: z.string().min(1, 'Sparepart harus dipilih'),
+    quantity: z.number().int().min(1, 'Jumlah minimal 1 unit')
+  })).min(1, 'Minimal 1 item yang ditransfer'),
+  notes: z.string().optional().nullable(),
   branchId: z.string().optional().nullable(),
 })
 
@@ -141,9 +143,12 @@ export async function createStockTransfer(payload: StockTransferPayload): Promis
     })
 
     revalidatePath('/admin/stock-transfer')
+    revalidatePath('/kasir/stock-transfer')
     revalidatePath('/admin/master/spareparts')
     revalidatePath('/kasir/sparepart')
+    revalidatePath('/admin/stock-toko')
     revalidatePath('/kasir/stock-toko')
+    revalidatePath('/admin/stock-gudang')
     revalidatePath('/kasir/stock-gudang')
 
     const action = data.type === 'WAREHOUSE_TO_STORE' ? 'dari gudang ke toko' : 'dari toko ke gudang'
@@ -155,11 +160,11 @@ export async function createStockTransfer(payload: StockTransferPayload): Promis
   }
 }
 
-export async function bulkTransferToStore(payload: BulkTransferPayload): Promise<StockTransferState> {
+export async function createBulkStockTransfer(payload: BulkTransferPayload): Promise<StockTransferState> {
   try {
     const session = await getSession()
     if (!session) {
-      return { success: false, message: 'Unauthorized' }
+      return { success: false, message: 'Unauthorized.' }
     }
 
     if (isDemoUser(session)) {
@@ -168,14 +173,14 @@ export async function bulkTransferToStore(payload: BulkTransferPayload): Promise
 
     const isSuperAdmin = session.role === 'ADMIN' && !session.branchId
     if (isSuperAdmin && !payload.branchId) {
-      return { success: false, message: 'Admin harus memilih cabang' }
+      return { success: false, message: 'Admin harus memilih cabang untuk transfer.' }
     }
 
     const validated = bulkTransferSchema.safeParse(payload)
     if (!validated.success) {
       return {
         success: false,
-        message: 'Validasi form gagal',
+        message: 'Validasi form transfer gagal',
         errors: validated.error.flatten().fieldErrors,
       }
     }
@@ -183,85 +188,123 @@ export async function bulkTransferToStore(payload: BulkTransferPayload): Promise
     const data = validated.data
     const branchId = isSuperAdmin ? payload.branchId! : session.branchId!
 
-    let successCount = 0
-    const errors: string[] = []
+    const sparepartIds = data.items.map((i) => i.sparepartId)
+    const dbSpareparts = await prisma.sparepart.findMany({
+      where: { id: { in: sparepartIds }, branchId },
+      select: {
+        id: true,
+        name: true,
+        stock: true,
+        warehouseStock: true,
+        unit: true,
+      },
+    })
 
+    const sparepartsMap = new Map(dbSpareparts.map((sp) => [sp.id, sp]))
+
+    // Validate all items before making any modifications
+    for (const item of data.items) {
+      const sp = sparepartsMap.get(item.sparepartId)
+      if (!sp) {
+        return { success: false, message: `Sparepart ID ${item.sparepartId} tidak ditemukan di cabang ini.` }
+      }
+
+      if (data.type === 'WAREHOUSE_TO_STORE') {
+        if (sp.warehouseStock < item.quantity) {
+          return {
+            success: false,
+            message: `Stok gudang untuk "${sp.name}" tidak mencukupi (${sp.warehouseStock} ${sp.unit} tersedia, diminta ${item.quantity} ${sp.unit}).`,
+          }
+        }
+      } else {
+        if (sp.stock < item.quantity) {
+          return {
+            success: false,
+            message: `Stok toko untuk "${sp.name}" tidak mencukupi (${sp.stock} ${sp.unit} tersedia, diminta ${item.quantity} ${sp.unit}).`,
+          }
+        }
+      }
+    }
+
+    let totalUnits = 0
+
+    // Execute atomic transaction
     await prisma.$transaction(async (tx) => {
       for (const item of data.items) {
-        try {
-          const sparepart = await tx.sparepart.findUnique({
-            where: { id: item.sparepartId },
-            select: { 
-              name: true, 
-              warehouseStock: true,
-              branchId: true
-            }
-          })
+        totalUnits += item.quantity
 
-          if (!sparepart || sparepart.branchId !== branchId) {
-            errors.push(`${sparepart?.name || 'Unknown'}: Tidak ditemukan di cabang ini`)
-            continue
-          }
-
-          if (sparepart.warehouseStock < item.quantity) {
-            errors.push(`${sparepart.name}: Stock gudang tidak mencukupi (${sparepart.warehouseStock} < ${item.quantity})`)
-            continue
-          }
-
+        if (data.type === 'WAREHOUSE_TO_STORE') {
           await tx.sparepart.update({
             where: { id: item.sparepartId },
             data: {
               warehouseStock: { decrement: item.quantity },
-              stock: { increment: item.quantity }
-            }
+              stock: { increment: item.quantity },
+            },
           })
-
-          await tx.stockTransfer.create({
+        } else {
+          await tx.sparepart.update({
+            where: { id: item.sparepartId },
             data: {
-              branchId,
-              userId: session.userId,
-              sparepartId: item.sparepartId,
-              type: 'WAREHOUSE_TO_STORE',
-              quantity: item.quantity,
-              notes: 'Bulk transfer'
-            }
+              stock: { decrement: item.quantity },
+              warehouseStock: { increment: item.quantity },
+            },
           })
-
-          successCount++
-        } catch (error) {
-          console.error(`Error transferring item ${item.sparepartId}:`, error)
-          errors.push(`Item error: ${error instanceof Error ? error.message : 'Unknown error'}`)
         }
+
+        await tx.stockTransfer.create({
+          data: {
+            branchId,
+            userId: session.userId,
+            sparepartId: item.sparepartId,
+            type: data.type,
+            quantity: item.quantity,
+            notes: data.notes || null,
+          },
+        })
       }
     })
 
+    const actionText = data.type === 'WAREHOUSE_TO_STORE' ? 'Gudang ➔ Toko' : 'Toko ➔ Gudang'
+    createActivityLog({
+      action: 'STOCK_TRANSFER',
+      category: 'STOCK',
+      level: 'INFO',
+      description: `Transfer stok massal (${actionText}): ${data.items.length} jenis item (${totalUnits} unit)`,
+      details: {
+        itemsCount: data.items.length,
+        totalUnits,
+        type: data.type,
+        notes: data.notes || null,
+      },
+      branchId,
+      userId: session.userId,
+      userName: session.name,
+      userRole: session.role,
+    })
+
     revalidatePath('/admin/stock-transfer')
+    revalidatePath('/kasir/stock-transfer')
     revalidatePath('/admin/master/spareparts')
+    revalidatePath('/kasir/sparepart')
+    revalidatePath('/admin/stock-toko')
+    revalidatePath('/kasir/stock-toko')
+    revalidatePath('/admin/stock-gudang')
+    revalidatePath('/kasir/stock-gudang')
 
-    if (successCount === 0) {
-      return { 
-        success: false, 
-        message: `Gagal transfer semua item. Errors: ${errors.join(', ')}` 
-      }
-    }
-
-    if (errors.length > 0) {
-      return { 
-        success: true, 
-        message: `Berhasil transfer ${successCount} item. ${errors.length} gagal: ${errors.join(', ')}` 
-      }
-    }
-
-    return { 
-      success: true, 
-      message: `Berhasil transfer ${successCount} item dari gudang ke toko` 
+    const actionDesc = data.type === 'WAREHOUSE_TO_STORE' ? 'gudang ke toko' : 'toko ke gudang'
+    return {
+      success: true,
+      message: `Berhasil memindahkan ${data.items.length} jenis barang (${totalUnits} unit) dari ${actionDesc}!`,
     }
   } catch (error: unknown) {
-    console.error('Bulk Transfer Error:', error)
-    const message = error instanceof Error ? error.message : 'Gagal melakukan bulk transfer'
+    console.error('Create Bulk Stock Transfer Error:', error)
+    const message = error instanceof Error ? error.message : 'Gagal melakukan transfer stock massal'
     return { success: false, message }
   }
 }
+
+// Alias for backwards compatibility
+export const bulkTransferToStore = createBulkStockTransfer
 
 export async function getStockTransfers(branchId?: string, dateStr?: string) {
   try {
