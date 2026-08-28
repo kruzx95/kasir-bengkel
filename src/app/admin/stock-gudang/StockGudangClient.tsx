@@ -3,7 +3,7 @@
 import { useTransition, useEffect, useState, useRef, useMemo } from 'react'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Package, AlertTriangle, Warehouse, Upload, Search, SlidersHorizontal, ArrowUp, ArrowDown, ArrowUpDown, ArrowRightLeft } from 'lucide-react'
+import { ArrowLeft, Package, AlertTriangle, Warehouse, Upload, Search, SlidersHorizontal, ArrowUp, ArrowDown, ArrowUpDown, ArrowRightLeft, History } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
 import Table from '@/components/ui/Table'
@@ -305,7 +305,17 @@ export default function StockGudangClient({ initialSpareparts, branches = [], to
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Link href={pathname.startsWith('/kasir') ? '/kasir/stock-transfer' : '/admin/stock-transfer'}>
+            <Button
+              variant="outline"
+              icon={History}
+              className="border-slate-200 text-slate-700 hover:bg-slate-50"
+            >
+              Riwayat Transfer
+            </Button>
+          </Link>
+
           <Button
             variant="outline"
             icon={Upload}
