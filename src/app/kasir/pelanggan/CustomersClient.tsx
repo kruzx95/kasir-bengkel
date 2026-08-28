@@ -6,7 +6,8 @@ import Table from '@/components/ui/Table'
 import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
 import CustomerFormModal from '@/components/kasir/CustomerFormModal'
-import { Plus, Pencil, Users, Search, Bike } from 'lucide-react'
+import CustomerServiceHistoryModal from '@/components/customer/CustomerServiceHistoryModal'
+import { Plus, Pencil, Users, Search, Bike, Wrench } from 'lucide-react'
 
 interface CustomerRow {
   id: string
@@ -44,6 +45,10 @@ export default function CustomersClient({ initialCustomers, branchId, totalCount
 
   const [modalOpen, setModalOpen] = useState(false)
   const [editData, setEditData] = useState<CustomerRow | null>(null)
+
+  // Service History Modal State
+  const [historyModalOpen, setHistoryModalOpen] = useState(false)
+  const [selectedHistoryCustomer, setSelectedHistoryCustomer] = useState<CustomerRow | null>(null)
   
   const initialSearch = searchParams.get('search') || ''
   const [searchQuery, setSearchQuery] = useState(initialSearch)
@@ -132,14 +137,30 @@ export default function CustomersClient({ initialCustomers, branchId, totalCount
     {
       key: 'actions',
       header: '',
-      className: 'text-right w-16',
+      className: 'text-right w-36',
       render: (row: CustomerRow) => (
-        <Button
-          size="sm"
-          variant="ghost"
-          icon={Pencil}
-          onClick={() => handleEdit(row)}
-        />
+        <div className="flex items-center justify-end gap-1.5">
+          <Button
+            size="sm"
+            variant="outline"
+            icon={Wrench}
+            onClick={() => {
+              setSelectedHistoryCustomer(row)
+              setHistoryModalOpen(true)
+            }}
+            className="text-xs px-2.5 py-1 text-blue-600 border-blue-200 hover:bg-blue-50 font-medium"
+            title="Lihat Riwayat Servis Kendaraan"
+          >
+            Riwayat
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            icon={Pencil}
+            onClick={() => handleEdit(row)}
+            title="Edit Data Pelanggan"
+          />
+        </div>
       ),
     },
   ]
@@ -190,7 +211,7 @@ export default function CustomersClient({ initialCustomers, branchId, totalCount
         />
       </div>
 
-      {/* Modal */}
+      {/* Modal Edit/Tambah Pelanggan */}
       <CustomerFormModal
         key={modalOpen ? `customer-modal-${editData?.id || 'new'}` : 'customer-modal-closed'}
         open={modalOpen}
@@ -198,6 +219,19 @@ export default function CustomersClient({ initialCustomers, branchId, totalCount
         branchId={branchId}
         editData={editData}
         corporateList={corporateList}
+      />
+
+      {/* Modal Riwayat Servis Kendaraan Pelanggan */}
+      <CustomerServiceHistoryModal
+        isOpen={historyModalOpen}
+        onClose={() => {
+          setHistoryModalOpen(false)
+          setSelectedHistoryCustomer(null)
+        }}
+        customerId={selectedHistoryCustomer?.id || null}
+        customerName={selectedHistoryCustomer?.name}
+        plateNumber={selectedHistoryCustomer?.plateNumber}
+        isAdmin={false}
       />
     </>
   )

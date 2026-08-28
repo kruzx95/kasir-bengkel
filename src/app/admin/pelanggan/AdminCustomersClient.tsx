@@ -7,8 +7,9 @@ import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
 import CustomerFormModal from '@/components/kasir/CustomerFormModal'
 import BulkAddCustomerModal from '@/components/admin/BulkAddCustomerModal'
+import CustomerServiceHistoryModal from '@/components/customer/CustomerServiceHistoryModal'
 import { deleteCustomer } from '@/actions/customer'
-import { Plus, Pencil, Users, Search, Bike, FlaskConical, Trash2, AlertTriangle } from 'lucide-react'
+import { Plus, Pencil, Users, Search, Bike, FlaskConical, Trash2, AlertTriangle, Wrench, History } from 'lucide-react'
 
 interface CustomerRow {
   id: string
@@ -51,6 +52,10 @@ export default function AdminCustomersClient({ initialCustomers, branches, initi
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
   const [deleteMsg, setDeleteMsg] = useState<{ success: boolean; text: string } | null>(null)
+
+  // Service History Modal State
+  const [historyModalOpen, setHistoryModalOpen] = useState(false)
+  const [selectedHistoryCustomer, setSelectedHistoryCustomer] = useState<CustomerRow | null>(null)
   
   const initialSearch = searchParams.get('search') || ''
   const [searchQuery, setSearchQuery] = useState(initialSearch)
@@ -160,14 +165,28 @@ export default function AdminCustomersClient({ initialCustomers, branches, initi
     {
       key: 'actions',
       header: '',
-      className: 'text-right w-24',
+      className: 'text-right w-44',
       render: (row: CustomerRow) => (
-        <div className="flex items-center justify-end gap-1">
+        <div className="flex items-center justify-end gap-1.5">
+          <Button
+            size="sm"
+            variant="outline"
+            icon={Wrench}
+            onClick={() => {
+              setSelectedHistoryCustomer(row)
+              setHistoryModalOpen(true)
+            }}
+            className="text-xs px-2.5 py-1 text-blue-600 border-blue-200 hover:bg-blue-50 font-medium"
+            title="Lihat Riwayat Servis Kendaraan"
+          >
+            Riwayat Servis
+          </Button>
           <Button
             size="sm"
             variant="ghost"
             icon={Pencil}
             onClick={() => handleEdit(row)}
+            title="Edit Data Pelanggan"
           />
           <Button
             size="sm"
@@ -178,6 +197,7 @@ export default function AdminCustomersClient({ initialCustomers, branches, initi
               setDeleteMsg(null)
             }}
             className="text-slate-400 hover:text-red-500 hover:bg-red-50"
+            title="Hapus Pelanggan"
           />
         </div>
       ),
@@ -273,6 +293,19 @@ export default function AdminCustomersClient({ initialCustomers, branches, initi
         onClose={() => setBulkModalOpen(false)}
         branches={branches}
         corporateList={corporateList || []}
+      />
+
+      {/* ── Modal Riwayat Servis Kendaraan Pelanggan ── */}
+      <CustomerServiceHistoryModal
+        isOpen={historyModalOpen}
+        onClose={() => {
+          setHistoryModalOpen(false)
+          setSelectedHistoryCustomer(null)
+        }}
+        customerId={selectedHistoryCustomer?.id || null}
+        customerName={selectedHistoryCustomer?.name}
+        plateNumber={selectedHistoryCustomer?.plateNumber}
+        isAdmin
       />
 
       {/* ── Delete Confirmation Dialog ── */}
