@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useMemo } from 'react'
+import Link from 'next/link'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
@@ -145,8 +146,13 @@ interface RestockRow {
   date: string | Date
   supplierName: string
   branch: { name: string }
+  user?: { name: string }
   items: RestockItem[]
   total: number
+  source?: 'RESTOCK' | 'MANUAL_OUTSIDE'
+  invoiceNumber?: string
+  customerName?: string | null
+  plateNumber?: string | null
 }
 
 interface IndentOrderItem {
@@ -269,8 +275,25 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
   const [buyStartDate, setBuyStartDate] = useState(firstDayStr)
   const [buyEndDate, setBuyEndDate] = useState(todayStr)
   const [buyBranchId, setBuyBranchId] = useState('')
+  const [buyCategoryFilter, setBuyCategoryFilter] = useState<'ALL' | 'RESTOCK' | 'MANUAL'>('ALL')
   const [buyData, setBuyData] = useState<RestockRow[]>([])
-  const [buySummary, setBuySummary] = useState({ total: 0, count: 0, topSparepart: null as string | null })
+  const [buySummary, setBuySummary] = useState<{
+    total: number
+    totalRestock?: number
+    totalManual?: number
+    count: number
+    restockCount?: number
+    manualCount?: number
+    topSparepart: string | null
+  }>({
+    total: 0,
+    totalRestock: 0,
+    totalManual: 0,
+    count: 0,
+    restockCount: 0,
+    manualCount: 0,
+    topSparepart: null,
+  })
   const [buyLoaded, setBuyLoaded] = useState(false)
 
   // Indent state
@@ -708,9 +731,16 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
     window.print()
   }
 
+  const filteredBuyData = useMemo(() => {
+    if (buyCategoryFilter === 'RESTOCK') return buyData.filter(r => r.source !== 'MANUAL_OUTSIDE')
+    if (buyCategoryFilter === 'MANUAL') return buyData.filter(r => r.source === 'MANUAL_OUTSIDE')
+    return buyData
+  }, [buyData, buyCategoryFilter])
+
   const handleExportBuyExcel = async () => {
-    const rows = buyData.map((r: RestockRow) => ({
+    const rows = filteredBuyData.map((r: RestockRow) => ({
       tanggal:      new Date(r.date).toLocaleDateString('id-ID'),
+      kategori:     r.source === 'MANUAL_OUTSIDE' ? 'Pembelian Luar (Non-Stok)' : 'PO Restock Supplier',
       supplier:     r.supplierName,
       cabang:       r.branch.name,
       rincianItem:  r.items.map((i: RestockItem) => `${i.quantity}x ${i.sparepart.name}${i.sparepart.sparepartBrand ? ` (${i.sparepart.sparepartBrand})` : ''} (@Rp ${i.buyPrice.toLocaleString('id-ID')} = Rp ${(i.quantity * i.buyPrice).toLocaleString('id-ID')})`).join('\n'),
@@ -718,8 +748,9 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
       total:        r.total,
     }))
 
-    const grandTotal = rows.reduce((s, r) => s + (r.total as number), 0)
-    const jumlahPO   = rows.length
+    const grandTotal = rows.reduce((s: number, r: { total: unknown }) => s + (r.total as number), 0)
+    const restockSubtotal = filteredBuyData.filter(r => r.source !== 'MANUAL_OUTSIDE').reduce((s: number, r: RestockRow) => s + r.total, 0)
+    const manualSubtotal = filteredBuyData.filter(r => r.source === 'MANUAL_OUTSIDE').reduce((s: number, r: RestockRow) => s + r.total, 0)
 
     await exportProfessionalExcel({
       shopName:  shopName,
@@ -729,16 +760,19 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
       sheetName: 'Laporan Pembelian',
       columns: [
         { header: 'Tanggal',         key: 'tanggal',     width: 14 },
-        { header: 'Supplier',         key: 'supplier',    width: 24 },
+        { header: 'Kategori',        key: 'kategori',    width: 24 },
+        { header: 'Supplier / Sumber', key: 'supplier',  width: 28 },
         { header: 'Cabang',           key: 'cabang',      width: 18 },
-        { header: 'Rincian Item',     key: 'rincianItem', width: 45 },
+        { header: 'Rincian Item & Modal Beli', key: 'rincianItem', width: 50 },
         { header: 'Jml. Item',        key: 'jumlahItem',  width: 12, align: 'right' },
         { header: 'Total (Rp)',       key: 'total',       width: 18, numFmt: '"Rp "#,##0', align: 'right' },
       ],
       rows,
       summaries: [
-        { label: 'Total PO Pembelian',   value: jumlahPO },
-        { label: 'Total Pengeluaran',    value: grandTotal, currency: true },
+        { label: 'Total Transaksi',         value: rows.length },
+        { label: 'Total PO Restock Supplier', value: restockSubtotal, currency: true },
+        { label: 'Total Beli Luar (Manual)', value: manualSubtotal, currency: true },
+        { label: 'Grand Total Pengeluaran', value: grandTotal, currency: true },
         ...(buySummary.topSparepart ? [{ label: 'Sparepart Terbanyak Dibeli', value: buySummary.topSparepart }] : []),
       ],
     })
@@ -904,24 +938,44 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
       key: 'date',
       header: 'Tanggal',
       render: (row: RestockRow) => (
-        <p className="text-sm text-slate-700">
-          {new Date(row.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
-        </p>
+        <div>
+          <p className="text-sm font-semibold text-slate-900">
+            {new Date(row.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+          </p>
+          {row.source === 'MANUAL_OUTSIDE' ? (
+            <Badge variant="warning" size="sm" className="mt-1 font-bold text-[10px]">
+              BELI LUAR
+            </Badge>
+          ) : (
+            <Badge variant="primary" size="sm" className="mt-1 font-bold text-[10px]">
+              PO RESTOCK
+            </Badge>
+          )}
+        </div>
       ),
     },
     {
       key: 'supplier',
-      header: 'Supplier / Cabang',
+      header: 'Supplier / Sumber / Nota',
       render: (row: RestockRow) => (
         <div>
           <p className="text-sm font-medium text-slate-900">{row.supplierName}</p>
-          <p className="text-xs text-slate-400">{row.branch.name}</p>
+          {row.invoiceNumber && (
+            <Link
+              href={`/admin/transaksi/${row.id.replace('tx-', '')}`}
+              target="_blank"
+              className="text-xs text-blue-600 hover:underline font-mono inline-flex items-center gap-1 mt-0.5"
+            >
+              Nota: {row.invoiceNumber} ↗
+            </Link>
+          )}
+          <p className="text-xs text-slate-400 mt-0.5">{row.branch.name}</p>
         </div>
       ),
     },
     {
       key: 'items',
-      header: 'Rincian Barang & Harga Beli',
+      header: 'Rincian Barang & Modal Beli',
       render: (row: RestockRow) => (
         <div className="space-y-1 py-1 max-w-md">
           {row.items.map((item: RestockItem, i: number) => {
@@ -945,7 +999,7 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
       key: 'total',
       header: 'Total Pengeluaran',
       render: (row: RestockRow) => (
-        <span className="text-sm font-bold text-slate-900">{formatCurrency(row.total)}</span>
+        <span className="text-sm font-bold text-slate-900 font-mono">{formatCurrency(row.total)}</span>
       ),
     },
   ]
@@ -1629,7 +1683,7 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
                 <Input label="Sampai Tanggal" type="date" value={buyEndDate} onChange={(e) => setBuyEndDate(e.target.value)} />
               </div>
               {branches.length > 0 && (
-                <div className="w-full md:w-64">
+                <div className="w-full md:w-56">
                   <Select
                     label="Pilih Cabang"
                     options={[{ label: 'Semua Cabang', value: '' }, ...branches.map(b => ({ label: b.name, value: b.id }))]}
@@ -1638,11 +1692,23 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
                   />
                 </div>
               )}
+              <div className="w-full md:w-56">
+                <Select
+                  label="Kategori Pembelian"
+                  options={[
+                    { label: 'Semua (PO + Beli Luar)', value: 'ALL' },
+                    { label: 'PO Restock Supplier Saja', value: 'RESTOCK' },
+                    { label: 'Pembelian Luar / Manual Saja', value: 'MANUAL' },
+                  ]}
+                  value={buyCategoryFilter}
+                  onChange={(e) => setBuyCategoryFilter(e.target.value as 'ALL' | 'RESTOCK' | 'MANUAL')}
+                />
+              </div>
               <Button onClick={handleBuyFilter} loading={isPending} icon={Filter}>Filter</Button>
-              <Button onClick={handleExportBuyExcel} variant="outline" icon={Download} disabled={buyData.length === 0}>
+              <Button onClick={handleExportBuyExcel} variant="outline" icon={Download} disabled={filteredBuyData.length === 0}>
                 Ekspor Excel
               </Button>
-              <Button onClick={handlePrintBuy} variant="outline" icon={Printer} disabled={buyData.length === 0}>
+              <Button onClick={handlePrintBuy} variant="outline" icon={Printer} disabled={filteredBuyData.length === 0}>
                 Cetak
               </Button>
             </div>
@@ -1655,34 +1721,77 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
             ) : (
               <>
                 {/* Stat Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Total Pengeluaran</p>
-                    <p className="text-2xl font-black text-slate-900">{formatCurrency(buySummary.total)}</p>
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Total Pengeluaran Beli</p>
+                    <p className="text-2xl font-black text-slate-900 font-mono">{formatCurrency(buySummary.total)}</p>
+                    <p className="text-xs text-slate-400 mt-1">{buySummary.count} Total Transaksi</p>
+                  </div>
+                  <div className="bg-white p-5 rounded-2xl border border-blue-100 shadow-sm bg-blue-50/20">
+                    <p className="text-xs font-semibold text-blue-700 uppercase tracking-wider mb-1">PO Restock Supplier</p>
+                    <p className="text-xl font-bold text-blue-900 font-mono">{formatCurrency(buySummary.totalRestock || 0)}</p>
+                    <p className="text-xs text-blue-600 mt-1">{buySummary.restockCount || 0} Faktur PO Supplier</p>
+                  </div>
+                  <div className="bg-white p-5 rounded-2xl border border-amber-100 shadow-sm bg-amber-50/20">
+                    <p className="text-xs font-semibold text-amber-700 uppercase tracking-wider mb-1">Pembelian Luar (Manual)</p>
+                    <p className="text-xl font-bold text-amber-900 font-mono">{formatCurrency(buySummary.totalManual || 0)}</p>
+                    <p className="text-xs text-amber-600 mt-1">{buySummary.manualCount || 0} Transaksi Non-Stok</p>
                   </div>
                   <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Jumlah Restock</p>
-                    <p className="text-xl font-bold text-primary-600">{buySummary.count} Transaksi</p>
-                  </div>
-                  <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Sparepart Terbanyak Dibeli</p>
-                    <p className="text-sm font-bold text-slate-700 truncate">{buySummary.topSparepart || '—'}</p>
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Sparepart Terbanyak</p>
+                    <p className="text-sm font-bold text-slate-800 truncate mt-1">{buySummary.topSparepart || '—'}</p>
+                    <p className="text-xs text-slate-400 mt-1">Item paling sering dibeli</p>
                   </div>
                 </div>
 
                 {/* Data Table */}
                 <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
-                  <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+                  <div className="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                       <ShoppingCart className="w-5 h-5 text-amber-500" />
-                      Data Pembelian Sparepart
+                      Data Pembelian Sparepart (PO &amp; Pembelian Luar)
                     </h3>
+                    <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl">
+                      <button
+                        type="button"
+                        onClick={() => setBuyCategoryFilter('ALL')}
+                        className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-all ${
+                          buyCategoryFilter === 'ALL'
+                            ? 'bg-white text-slate-900 shadow-xs'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        Semua ({buyData.length})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setBuyCategoryFilter('RESTOCK')}
+                        className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-all ${
+                          buyCategoryFilter === 'RESTOCK'
+                            ? 'bg-white text-blue-700 shadow-xs'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        PO Restock ({buyData.filter(r => r.source !== 'MANUAL_OUTSIDE').length})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setBuyCategoryFilter('MANUAL')}
+                        className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-all ${
+                          buyCategoryFilter === 'MANUAL'
+                            ? 'bg-white text-amber-700 shadow-xs'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        Beli Luar ({buyData.filter(r => r.source === 'MANUAL_OUTSIDE').length})
+                      </button>
+                    </div>
                   </div>
                   <Table
                     columns={restockColumns}
-                    data={buyData}
+                    data={filteredBuyData}
                     keyExtractor={(row: RestockRow) => row.id}
-                    emptyMessage="Tidak ada data pembelian pada rentang tanggal tersebut."
+                    emptyMessage="Tidak ada data pembelian pada kategori dan rentang tanggal tersebut."
                   />
                 </div>
               </>
@@ -1711,28 +1820,29 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
             </div>
             
             {Object.entries(
-              buyData.reduce((acc, row) => {
-                if (!acc[row.supplierName]) {
-                  acc[row.supplierName] = { rows: [], total: 0 }
+              filteredBuyData.reduce((acc: Record<string, { rows: RestockRow[]; total: number }>, row: RestockRow) => {
+                const groupKey = row.source === 'MANUAL_OUTSIDE' ? 'Pembelian Luar (Non-Stok Kasir)' : `Supplier: ${row.supplierName}`
+                if (!acc[groupKey]) {
+                  acc[groupKey] = { rows: [], total: 0 }
                 }
-                acc[row.supplierName].rows.push(row)
-                acc[row.supplierName].total += row.total
+                acc[groupKey].rows.push(row)
+                acc[groupKey].total += row.total
                 return acc
-              }, {} as Record<string, { rows: RestockRow[], total: number }>)
-            ).map(([supplier, data]) => (
-              <div key={supplier} className="mb-5 break-inside-avoid">
+              }, {})
+            ).map(([groupTitle, data]) => (
+              <div key={groupTitle} className="mb-5 break-inside-avoid">
                 <div className="bg-slate-100 py-1 px-3 border-l-4 border-slate-900 mb-2 flex justify-between items-center">
-                  <h3 className="text-xs font-bold uppercase">Supplier: {supplier}</h3>
-                  <span className="text-[10px] font-semibold">{data.rows.length} Transaksi</span>
+                  <h3 className="text-xs font-bold uppercase">{groupTitle}</h3>
+                  <span className="text-[10px] font-semibold">{data.rows.length} Transaksi (Subtotal: {formatCurrency(data.total)})</span>
                 </div>
                 <table className="w-full border-collapse border border-slate-300">
                   <thead>
                     <tr className="bg-slate-50">
                       <th className="text-left py-1.5 px-2 border border-slate-300 font-bold uppercase text-[10px] w-20">Tanggal</th>
                       <th className="text-left py-1.5 px-2 border border-slate-300 font-bold uppercase text-[10px] w-24">Cabang</th>
-                      <th className="text-left py-1.5 px-2 border border-slate-300 font-bold uppercase text-[10px]">Barang</th>
+                      <th className="text-left py-1.5 px-2 border border-slate-300 font-bold uppercase text-[10px]">Barang &amp; Keterangan</th>
                       <th className="text-right py-1.5 px-2 border border-slate-300 font-bold uppercase text-[10px] w-28">Harga Satuan</th>
-                      <th className="text-right py-1.5 px-2 border border-slate-300 font-bold uppercase text-[10px] w-28">Total</th>
+                      <th className="text-right py-1.5 px-2 border border-slate-300 font-bold uppercase text-[10px] w-28">Total Beli</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1740,6 +1850,7 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
                       <tr key={row.id}>
                         <td className="py-1.5 px-2 border border-slate-300 align-top">
                           {new Date(row.date).toLocaleDateString('id-ID')}
+                          {row.invoiceNumber && <div className="text-[9px] font-mono text-slate-500 font-semibold">{row.invoiceNumber}</div>}
                         </td>
                         <td className="py-1.5 px-2 border border-slate-300 align-top">
                           {row.branch.name}
@@ -1765,19 +1876,23 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
                     ))}
                   </tbody>
                   <tfoot>
-                    <tr className="bg-slate-50">
-                      <td colSpan={4} className="text-right font-black py-1.5 px-2 border border-slate-300 uppercase text-[10px]">Subtotal {supplier}:</td>
-                      <td className="text-right font-black py-1.5 px-2 border border-slate-300">{formatCurrency(data.total)}</td>
+                    <tr className="bg-slate-50 font-bold">
+                      <td colSpan={4} className="text-right py-1.5 px-2 border border-slate-300 text-[10px]">
+                        Subtotal:
+                      </td>
+                      <td className="text-right py-1.5 px-2 border border-slate-300 text-[10px]">
+                        {formatCurrency(data.total)}
+                      </td>
                     </tr>
                   </tfoot>
                 </table>
               </div>
             ))}
-            
+
             {/* Grand Total */}
             <div className="bg-slate-900 text-white rounded-lg py-3 px-4 flex justify-between items-center break-inside-avoid mt-4">
               <span className="text-sm font-bold uppercase tracking-wider">Total Pengeluaran Keseluruhan</span>
-              <span className="text-base font-black">{formatCurrency(buySummary.total)}</span>
+              <span className="text-base font-black font-mono">{formatCurrency(filteredBuyData.reduce((s: number, r: RestockRow) => s + r.total, 0))}</span>
             </div>
 
             {/* Signatures */}

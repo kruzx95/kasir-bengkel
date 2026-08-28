@@ -189,7 +189,18 @@ export async function getReportData(
 export async function getRestockReportData(startDateStr?: string, endDateStr?: string, branchId?: string) {
   const session = await getSession()
   if (!session) {
-    return { restocks: [], summary: { total: 0, count: 0, topSparepart: null as string | null } }
+    return {
+      restocks: [],
+      summary: {
+        total: 0,
+        totalRestock: 0,
+        totalManual: 0,
+        count: 0,
+        restockCount: 0,
+        manualCount: 0,
+        topSparepart: null as string | null,
+      },
+    }
   }
 
   const today = new Date()
@@ -202,9 +213,12 @@ export async function getRestockReportData(startDateStr?: string, endDateStr?: s
   endDate.setHours(23, 59, 59, 999)
 
   try {
-    const restocks = await prisma.restock.findMany({
+    const branchFilter = getBranchFilter(session, branchId)
+
+    // 1. Fetch Restocks (Kulakan PO Supplier / Stok Masuk Toko & Gudang)
+    const rawRestocks = await prisma.restock.findMany({
       where: {
-        ...getBranchFilter(session, branchId),
+        ...branchFilter,
         date: { gte: startDate, lte: endDate },
       },
       include: {
@@ -212,18 +226,54 @@ export async function getRestockReportData(startDateStr?: string, endDateStr?: s
         user: { select: { name: true } },
         items: {
           include: {
-            sparepart: { select: { name: true, sku: true } },
+            sparepart: { select: { name: true, sku: true, sparepartBrand: true } },
           },
         },
       },
       orderBy: { date: 'desc' },
     })
 
-    let grandTotal = 0
+    // 2. Fetch Transactions with Outside / Manual Sparepart Purchases
+    const rawTransactions = await prisma.transaction.findMany({
+      where: {
+        ...branchFilter,
+        transactionDate: { gte: startDate, lte: endDate },
+        status: { in: ['COMPLETED', 'PENDING_PAYMENT', 'PENDING_CORPORATE'] },
+        items: {
+          some: {
+            itemType: 'SPAREPART',
+            sparepartId: null,
+          },
+        },
+      },
+      include: {
+        branch: { select: { name: true } },
+        user: { select: { name: true } },
+        customer: { select: { name: true, plateNumber: true } },
+        items: {
+          where: {
+            itemType: 'SPAREPART',
+            sparepartId: null,
+          },
+          select: {
+            itemName: true,
+            quantity: true,
+            buyPrice: true,
+            unitPrice: true,
+            subtotal: true,
+          },
+        },
+      },
+      orderBy: { transactionDate: 'desc' },
+    })
+
+    let totalRestock = 0
+    let totalManual = 0
     const sparepartTotals: Record<string, { name: string; total: number }> = {}
 
-    restocks.forEach((r) => {
-      grandTotal += r.total
+    // Format Restocks (PO Supplier)
+    const formattedRestocks = rawRestocks.map((r) => {
+      totalRestock += r.total
       r.items.forEach((item) => {
         const key = item.sparepartId
         if (!sparepartTotals[key]) {
@@ -231,20 +281,102 @@ export async function getRestockReportData(startDateStr?: string, endDateStr?: s
         }
         sparepartTotals[key].total += item.subtotal
       })
+
+      return {
+        id: r.id,
+        date: r.date,
+        supplierName: r.supplierName,
+        branch: r.branch,
+        user: r.user,
+        items: r.items.map((it) => ({
+          quantity: it.quantity,
+          sparepart: {
+            name: it.sparepart.name,
+            sparepartBrand: it.sparepart.sparepartBrand || undefined,
+          },
+          buyPrice: it.buyPrice,
+        })),
+        total: r.total,
+        source: 'RESTOCK' as const,
+        invoiceNumber: undefined,
+        customerName: null,
+        plateNumber: null,
+      }
     })
 
+    // Format Manual Outside Purchases (Pembelian Luar)
+    const formattedManualPurchases = rawTransactions.map((tx) => {
+      const txManualBuyTotal = tx.items.reduce((sum, it) => sum + it.quantity * (it.buyPrice || 0), 0)
+      totalManual += txManualBuyTotal
+
+      tx.items.forEach((item) => {
+        const key = `MANUAL_${item.itemName}`
+        if (!sparepartTotals[key]) {
+          sparepartTotals[key] = { name: `[Luar] ${item.itemName}`, total: 0 }
+        }
+        sparepartTotals[key].total += item.quantity * (item.buyPrice || 0)
+      })
+
+      const customerLabel = tx.customer
+        ? `${tx.customer.name}${tx.customer.plateNumber ? ` (${tx.customer.plateNumber})` : ''}`
+        : 'Pelanggan Umum'
+
+      return {
+        id: `tx-${tx.id}`,
+        date: tx.transactionDate,
+        supplierName: `Pembelian Luar (${customerLabel})`,
+        branch: tx.branch,
+        user: tx.user,
+        items: tx.items.map((it) => ({
+          quantity: it.quantity,
+          sparepart: {
+            name: `[Luar] ${it.itemName}`,
+            sparepartBrand: 'Beli Luar / Non-Stok',
+          },
+          buyPrice: it.buyPrice || 0,
+        })),
+        total: txManualBuyTotal,
+        source: 'MANUAL_OUTSIDE' as const,
+        invoiceNumber: tx.invoiceNumber,
+        customerName: tx.customer?.name || null,
+        plateNumber: tx.customer?.plateNumber || null,
+      }
+    })
+
+    // Combine all purchases and sort chronologically descending
+    const combinedPurchases = [...formattedRestocks, ...formattedManualPurchases].sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    )
+
+    const grandTotal = totalRestock + totalManual
     const topSparepart = Object.values(sparepartTotals).sort((a, b) => b.total - a.total)[0]?.name ?? null
 
     return {
-      restocks,
+      restocks: combinedPurchases,
       summary: {
         total: grandTotal,
-        count: restocks.length,
+        totalRestock,
+        totalManual,
+        count: combinedPurchases.length,
+        restockCount: formattedRestocks.length,
+        manualCount: formattedManualPurchases.length,
         topSparepart,
       },
     }
-  } catch {
-    return { restocks: [], summary: { total: 0, count: 0, topSparepart: null as string | null } }
+  } catch (error) {
+    console.error('getRestockReportData error:', error)
+    return {
+      restocks: [],
+      summary: {
+        total: 0,
+        totalRestock: 0,
+        totalManual: 0,
+        count: 0,
+        restockCount: 0,
+        manualCount: 0,
+        topSparepart: null as string | null,
+      },
+    }
   }
 }
 
