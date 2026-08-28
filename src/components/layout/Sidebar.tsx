@@ -43,9 +43,17 @@ interface SidebarProps {
   onCollapseChange?: (collapsed: boolean) => void
 }
 
-const kasirMenuItems = [
+interface MenuItem {
+  href: string
+  label: string
+  icon: any
+  disabled?: boolean
+  badge?: string
+}
+
+const kasirMenuItems: MenuItem[] = [
   { href: '/kasir', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/kasir/memo', label: 'Memo Servis (SA)', icon: FileText },
+  { href: '/kasir/memo', label: 'Memo Servis (SA)', icon: FileText, disabled: true, badge: 'Segera' },
   { href: '/kasir/transaksi', label: 'Transaksi', icon: Receipt },
   { href: '/kasir/pelanggan', label: 'Pelanggan', icon: Users },
   { href: '/kasir/laporan', label: 'Laporan', icon: BarChart3 },
@@ -61,9 +69,9 @@ const kasirMenuItems = [
   { href: '/kasir/panduan', label: 'Panduan Kasir', icon: BookOpen },
 ]
 
-const adminMenuItems = [
+const adminMenuItems: MenuItem[] = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/admin/memo', label: 'Memo Servis (SA)', icon: FileText },
+  { href: '/admin/memo', label: 'Memo Servis (SA)', icon: FileText, disabled: true, badge: 'Segera' },
   { href: '/admin/transaksi', label: 'Transaksi', icon: Receipt },
   { href: '/admin/pelanggan', label: 'Pelanggan', icon: Users },
   { href: '/admin/laporan', label: 'Laporan', icon: BarChart3 },
@@ -196,6 +204,31 @@ export default function Sidebar({
           {menuItems.map((item) => {
             const Icon = item.icon
             const active = isActive(item.href)
+
+            if (item.disabled) {
+              return (
+                <div
+                  key={item.href}
+                  className={cn(
+                    'flex items-center justify-between px-3 py-3 rounded-xl text-sm font-medium opacity-40 cursor-not-allowed text-slate-400 select-none hover:bg-transparent'
+                  )}
+                  title="Fitur ini dinonaktifkan sementara"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <Icon className="w-5 h-5 shrink-0 text-slate-500" />
+                    {(!collapsed || mobileOpen) && (
+                      <span className="truncate">{item.label}</span>
+                    )}
+                  </div>
+                  {(!collapsed || mobileOpen) && item.badge && (
+                    <span className="text-[10px] font-semibold bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded border border-slate-700 shrink-0">
+                      {item.badge}
+                    </span>
+                  )}
+                </div>
+              )
+            }
+
             return (
               <Link
                 key={item.href}
