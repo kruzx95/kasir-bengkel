@@ -54,7 +54,7 @@ interface MenuItem {
 
 const kasirMenuItems: MenuItem[] = [
   { href: '/kasir', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/kasir/memo', label: 'Memo Servis (SA)', icon: FileText, disabled: true, badge: 'Segera' },
+  { href: '/kasir/memo', label: 'Memo Servis (SA)', icon: FileText },
   { href: '/kasir/transaksi', label: 'Transaksi', icon: Receipt },
   { href: '/kasir/pelanggan', label: 'Pelanggan', icon: Users },
   { href: '/kasir/laporan', label: 'Laporan', icon: BarChart3 },
@@ -73,7 +73,7 @@ const kasirMenuItems: MenuItem[] = [
 
 const adminMenuItems: MenuItem[] = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/admin/memo', label: 'Memo Servis (SA)', icon: FileText, disabled: true, badge: 'Segera' },
+  { href: '/admin/memo', label: 'Memo Servis (SA)', icon: FileText },
   { href: '/admin/transaksi', label: 'Transaksi', icon: Receipt },
   { href: '/admin/pelanggan', label: 'Pelanggan', icon: Users },
   { href: '/admin/laporan', label: 'Laporan', icon: BarChart3 },
