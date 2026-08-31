@@ -50,9 +50,46 @@ export default async function CetakMemoPage({
   const brakes = (memo.checklistBrakes as Record<string, boolean>) || {}
   const suspension = (memo.checklistSuspension as Record<string, boolean>) || {}
 
-  // Fill up to 10 rows for tables
-  const serviceRows = Array.from({ length: 10 }, (_, i) => memo.services[i] || null)
-  const sparepartRows = Array.from({ length: 10 }, (_, i) => memo.spareparts[i] || null)
+  // List items in JENIS PEKERJAAN (Keluhan, Diagnosa, & Services)
+  interface WorkItem {
+    name: string
+    estimatedPrice?: number
+    badge?: string
+  }
+
+  const workItems: WorkItem[] = []
+
+  if (memo.complaints && memo.complaints.trim()) {
+    const lines = memo.complaints.split('\n').map((l) => l.trim()).filter(Boolean)
+    lines.forEach((line, idx) => {
+      workItems.push({
+        name: idx === 0 ? `Keluhan: ${line}` : `  ${line}`,
+        badge: idx === 0 ? 'KELUHAN' : undefined,
+      })
+    })
+  }
+
+  if (memo.initialDiagnosis && memo.initialDiagnosis.trim()) {
+    const lines = memo.initialDiagnosis.split('\n').map((l) => l.trim()).filter(Boolean)
+    lines.forEach((line, idx) => {
+      workItems.push({
+        name: idx === 0 ? `Diagnosa: ${line}` : `  ${line}`,
+        badge: idx === 0 ? 'DIAGNOSA' : undefined,
+      })
+    })
+  }
+
+  memo.services.forEach((s) => {
+    workItems.push({
+      name: s.name,
+      estimatedPrice: s.estimatedPrice || undefined,
+    })
+  })
+
+  // Fill up to minimum 10 rows for tables so lines match
+  const maxRows = Math.max(10, workItems.length, memo.spareparts.length)
+  const serviceRows = Array.from({ length: maxRows }, (_, i) => workItems[i] || null)
+  const sparepartRows = Array.from({ length: maxRows }, (_, i) => memo.spareparts[i] || null)
 
   return (
     <div className="cetak-page">
@@ -175,7 +212,9 @@ export default async function CetakMemoPage({
               <thead>
                 <tr className="bg-neutral-200">
                   <th className="w-7 text-center font-bold text-[9pt]">NO</th>
-                  <th className="text-center font-bold text-[9pt]">JENIS PEKERJAAN</th>
+                  <th className="text-center font-bold text-[9pt]">
+                    JENIS PEKERJAAN <span className="text-[7.5pt] font-normal text-neutral-600">(Keluhan & Diagnosa)</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -185,12 +224,14 @@ export default async function CetakMemoPage({
                     <td className="text-[8.5pt] pl-1.5 font-medium">
                       {row ? (
                         <div className="flex justify-between items-center">
-                          <span>{row.name}</span>
-                          {row.estimatedPrice > 0 && (
+                          <span className={row.badge ? 'font-semibold text-neutral-900' : ''}>
+                            {row.name}
+                          </span>
+                          {row.estimatedPrice && row.estimatedPrice > 0 ? (
                             <span className="font-mono text-[7.5pt] text-neutral-600">
                               Rp {row.estimatedPrice.toLocaleString('id-ID')}
                             </span>
-                          )}
+                          ) : null}
                         </div>
                       ) : (
                         ''
@@ -208,7 +249,9 @@ export default async function CetakMemoPage({
               <thead>
                 <tr className="bg-neutral-200">
                   <th className="w-7 text-center font-bold text-[9pt]">NO</th>
-                  <th className="text-center font-bold text-[9pt]">JENIS SPAREPART</th>
+                  <th className="text-center font-bold text-[9pt]">
+                    JENIS SPAREPART <span className="text-[7.5pt] font-normal text-neutral-600">(+ Jasa)</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -356,13 +399,11 @@ export default async function CetakMemoPage({
             </div>
           </div>
 
-          {/* Kolom 3: Kotak Catatan */}
+          {/* Kolom 3: Kotak Catatan Tambahan */}
           <div className="col-span-5 border border-black p-1.5 rounded-xs min-h-[50px]">
             <span className="font-bold text-[8pt] block mb-0.5">CATATAN :</span>
             <p className="text-[8pt] leading-tight font-sans whitespace-pre-line text-neutral-800">
-              {memo.complaints ? `Keluhan: ${memo.complaints}\n` : ''}
-              {memo.initialDiagnosis ? `Diagnosa: ${memo.initialDiagnosis}\n` : ''}
-              {memo.notes || ''}
+              {memo.notes || '-'}
             </p>
           </div>
         </div>
