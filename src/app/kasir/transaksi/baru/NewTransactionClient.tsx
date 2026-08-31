@@ -192,6 +192,7 @@ export default function NewTransactionClient({
             itemName: s.name,
             quantity: 1,
             unitPrice: s.estimatedPrice || foundService?.price || 0,
+            buyPrice: s.buyPrice !== undefined && s.buyPrice !== null ? s.buyPrice : null,
           })
         })
 
@@ -249,9 +250,9 @@ export default function NewTransactionClient({
   const handleResetDraft = () => {
     if (!confirm('Hapus semua item dan mulai transaksi baru?')) return
     clearDraft()
+    setItems([])
     setCustomerId('')
     setIsCorporate(false)
-    setItems([])
     setDiscount(0)
     setPaymentMethod('CASH')
     setCashGiven('')
@@ -274,6 +275,7 @@ export default function NewTransactionClient({
   // Manual / Custom Input State (Jasa & Sparepart Luar)
   const [manualTab, setManualTab] = useState<'SERVICE' | 'SPAREPART'>('SERVICE')
   const [manualJasaName, setManualJasaName] = useState('')
+  const [manualJasaBuyPrice, setManualJasaBuyPrice] = useState<number | ''>('')
   const [manualJasaPrice, setManualJasaPrice] = useState<number | ''>('')
   const [manualPartName, setManualPartName] = useState('')
   const [manualPartQty, setManualPartQty] = useState<number | ''>(1)
@@ -284,6 +286,7 @@ export default function NewTransactionClient({
   const customerInputRef = useRef<HTMLInputElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const manualJasaNameRef = useRef<HTMLInputElement>(null)
+  const manualJasaBuyPriceRef = useRef<HTMLInputElement>(null)
   const manualJasaPriceRef = useRef<HTMLInputElement>(null)
   const manualPartNameRef = useRef<HTMLInputElement>(null)
   const manualPartQtyRef = useRef<HTMLInputElement>(null)
@@ -398,6 +401,7 @@ export default function NewTransactionClient({
 
   const handleAddManualJasa = () => {
     const finalPrice = typeof manualJasaPrice === 'number' ? manualJasaPrice : Number(manualJasaPrice)
+    const finalBuyPrice = typeof manualJasaBuyPrice === 'number' ? manualJasaBuyPrice : (manualJasaBuyPrice ? Number(manualJasaBuyPrice) : 0)
     if (isNaN(finalPrice) || finalPrice <= 0) {
       alert('Masukkan nominal biaya jasa yang valid (lebih dari Rp 0)')
       manualJasaPriceRef.current?.focus()
@@ -411,9 +415,11 @@ export default function NewTransactionClient({
       itemId: 'MANUAL_JASA_' + Date.now(),
       itemName: finalName,
       quantity: 1,
-      unitPrice: finalPrice
+      unitPrice: finalPrice,
+      buyPrice: finalBuyPrice > 0 ? finalBuyPrice : null,
     }])
     setManualJasaName('')
+    setManualJasaBuyPrice('')
     setManualJasaPrice('')
     manualJasaNameRef.current?.focus()
   }
@@ -887,7 +893,7 @@ export default function NewTransactionClient({
                   {/* Form Jasa Manual */}
                   <div className={manualTab === 'SERVICE' ? 'space-y-2.5' : 'hidden'}>
                     <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-end">
-                      <div className="sm:col-span-7">
+                      <div className="sm:col-span-5">
                         <label className="block text-xs font-medium text-slate-600 mb-1">
                           Nama / Keterangan Jasa
                         </label>
@@ -900,7 +906,7 @@ export default function NewTransactionClient({
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') {
                               e.preventDefault()
-                              manualJasaPriceRef.current?.focus()
+                              manualJasaBuyPriceRef.current?.focus()
                             }
                           }}
                           className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 hover:border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 outline-none transition-all"
@@ -908,6 +914,27 @@ export default function NewTransactionClient({
                       </div>
 
                       <div className="sm:col-span-3">
+                        <label className="block text-xs font-medium text-slate-600 mb-1">
+                          Harga Modal Jasa (Rp)
+                        </label>
+                        <input
+                          ref={manualJasaBuyPriceRef}
+                          placeholder="0 (Opsional)"
+                          type="number"
+                          min="0"
+                          value={manualJasaBuyPrice === '' ? '' : manualJasaBuyPrice}
+                          onChange={(e) => setManualJasaBuyPrice(e.target.value ? Number(e.target.value) : '')}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault()
+                              manualJasaPriceRef.current?.focus()
+                            }
+                          }}
+                          className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 hover:border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 outline-none transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-2">
                         <label className="block text-xs font-medium text-slate-600 mb-1">
                           Biaya Jasa (Rp)
                         </label>
@@ -1080,7 +1107,7 @@ export default function NewTransactionClient({
                         )}
                         {item.itemId?.startsWith('MANUAL_JASA_') && (
                           <span className="text-[10px] font-bold bg-sky-50 text-sky-700 border border-sky-200 px-1.5 py-0.5 rounded shrink-0">
-                            Jasa Custom
+                            Jasa Custom {item.buyPrice && item.buyPrice > 0 ? `(Modal: ${formatCurrency(item.buyPrice)})` : ''}
                           </span>
                         )}
                       </div>

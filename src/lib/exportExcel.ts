@@ -354,10 +354,13 @@ export interface ExportProfitLossOptions {
     grossRevenue: number
     discount: number
     netRevenue: number
+    cogsService?: number
     cogsSparepart: number
+    totalCogs?: number
     grossProfit: number
     grossMarginPercent: number
     serviceProfit: number
+    serviceMarginPercent?: number
     sparepartProfit: number
     sparepartMarginPercent: number
     cashInflow: number
@@ -481,9 +484,11 @@ export async function exportProfitLossExcel(options: ExportProfitLossOptions) {
     curRow++
   }
 
+  const totalCogs = summary.totalCogs ?? (summary.cogsSparepart + (summary.cogsService ?? 0))
+
   // 1. PENDAPATAN (REVENUE)
   addSectionHeader('1. Pendapatan Penjualan (Inflow Revenue)', BRAND_DARK)
-  addLine('Pendapatan Jasa Servis', summary.serviceRevenue, true, false, false, '', 'Margin 100% Jasa')
+  addLine('Pendapatan Jasa Servis', summary.serviceRevenue, true, false, false, '', 'Tarif Jasa')
   addLine('Pendapatan Penjualan Sparepart', summary.sparepartRevenue, true, false, false, '', 'Harga Jual')
   addLine('TOTAL OMSET PENJUALAN KOTOR (GROSS REVENUE)', summary.grossRevenue, false, true, true, 'FFE2E8F0', 'Omset Jasa + Sparepart')
   curRow++
@@ -491,12 +496,15 @@ export async function exportProfitLossExcel(options: ExportProfitLossOptions) {
   // 2. HARGA POKOK PENJUALAN (HPP / COGS)
   addSectionHeader('2. Harga Pokok Penjualan (HPP / COGS)', 'C2410C') // orange-700
   addLine('Modal Suku Cadang Terjual (HPP Sparepart)', summary.cogsSparepart, true, false, false, '', 'Σ(Qty Terjual × Harga Beli)')
-  addLine('TOTAL HPP (BIAYA MODAL BARANG TERJUAL)', summary.cogsSparepart, false, true, true, 'FFFFEDD5')
+  if ((summary.cogsService ?? 0) > 0) {
+    addLine('Biaya Pokok Jasa Custom / Subcon (HPP Jasa)', summary.cogsService ?? 0, true, false, false, '', 'Biaya Jasa Pihak Ketiga / Rekanan')
+  }
+  addLine('TOTAL HPP (BIAYA MODAL POKOK TERJUAL)', totalCogs, false, true, true, 'FFFFEDD5', 'HPP Sparepart + HPP Jasa')
   curRow++
 
   // 3. LABA KOTOR (GROSS PROFIT)
   addSectionHeader('3. Laba Kotor Operasional (Gross Profit)', '047857') // emerald-700
-  addLine('Laba dari Jasa Servis', summary.serviceProfit, true, false, false, '', 'Margin 100%')
+  addLine('Laba dari Jasa Servis', summary.serviceProfit, true, false, false, '', `Margin: ${summary.serviceRevenue > 0 ? ((summary.serviceProfit / summary.serviceRevenue) * 100).toFixed(1) : '100'}%`)
   addLine('Laba dari Penjualan Sparepart', summary.sparepartProfit, true, false, false, '', `Margin: ${summary.sparepartRevenue > 0 ? ((summary.sparepartProfit / summary.sparepartRevenue) * 100).toFixed(1) : '0'}%`)
   if (summary.discount > 0) {
     addLine('Potongan Diskon Transaksi', -summary.discount, true, false, false, '', 'Diskon yang diberikan')

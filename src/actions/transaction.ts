@@ -258,6 +258,10 @@ export async function createTransaction(payload: TransactionPayload): Promise<Tr
                 } else if (item.itemId && sparepartsBuyPriceMap.has(item.itemId)) {
                   resolvedBuyPrice = sparepartsBuyPriceMap.get(item.itemId) ?? null
                 }
+              } else if (item.itemType === 'SERVICE') {
+                if (item.buyPrice !== undefined && item.buyPrice !== null) {
+                  resolvedBuyPrice = item.buyPrice
+                }
               }
               return {
                 itemType: item.itemType,
@@ -619,7 +623,7 @@ export async function getTransactionDetails(id: string) {
           ...transaction,
           items: transaction.items.map((it) => ({
             ...it,
-            buyPrice: it.itemType === 'SPAREPART' ? (it.buyPrice ?? it.sparepart?.buyPrice ?? 0) : 0,
+            buyPrice: it.buyPrice ?? (it.itemType === 'SPAREPART' ? it.sparepart?.buyPrice : null) ?? 0,
           })),
           odometerHistory,
         }

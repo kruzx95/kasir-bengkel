@@ -104,7 +104,7 @@ export async function getReportData(
         itemType: it.itemType,
         quantity: it.quantity,
         unitPrice: it.unitPrice,
-        buyPrice: it.itemType === 'SPAREPART' ? (it.buyPrice ?? it.sparepart?.buyPrice ?? 0) : 0,
+        buyPrice: it.buyPrice ?? (it.itemType === 'SPAREPART' ? it.sparepart?.buyPrice ?? 0 : 0),
         subtotal: it.subtotal,
       }))
     }))
@@ -565,7 +565,7 @@ export async function getCorporateReportData(
         itemType: it.itemType,
         quantity: it.quantity,
         unitPrice: it.unitPrice,
-        buyPrice: it.itemType === 'SPAREPART' ? (it.buyPrice ?? it.sparepart?.buyPrice ?? 0) : 0,
+        buyPrice: it.buyPrice ?? (it.itemType === 'SPAREPART' ? it.sparepart?.buyPrice ?? 0 : 0),
         subtotal: it.subtotal,
       })),
     }))
@@ -790,7 +790,7 @@ export async function getMechanicReportData(
             itemType: it.itemType,
             quantity: it.quantity,
             unitPrice: it.unitPrice,
-            buyPrice: it.itemType === 'SPAREPART' ? (it.buyPrice ?? it.sparepart?.buyPrice ?? 0) : 0,
+            buyPrice: it.buyPrice ?? (it.itemType === 'SPAREPART' ? it.sparepart?.buyPrice ?? 0 : 0),
             subtotal: it.subtotal,
           })),
         })
@@ -847,10 +847,13 @@ export async function getProfitLossReportData(
         grossRevenue: 0,
         discount: 0,
         netRevenue: 0,
+        cogsService: 0,
         cogsSparepart: 0,
+        totalCogs: 0,
         grossProfit: 0,
         grossMarginPercent: 0,
         serviceProfit: 0,
+        serviceMarginPercent: 0,
         sparepartProfit: 0,
         sparepartMarginPercent: 0,
         cashInflow: 0,
@@ -962,6 +965,7 @@ export async function getProfitLossReportData(
     let sparepartRevenue = 0
     let totalDiscount = 0
     let cogsSparepart = 0
+    let cogsService = 0
 
     let cashInflow = 0
     let transferInflow = 0
@@ -990,6 +994,7 @@ export async function getProfitLossReportData(
     const transactions = rawTransactions.map((tx) => {
       let txServiceRev = 0
       let txSparepartRev = 0
+      let txServiceHpp = 0
       let txSparepartHpp = 0
 
       const processedItems = tx.items.map((item) => {
@@ -999,6 +1004,12 @@ export async function getProfitLossReportData(
 
         if (item.itemType === 'SERVICE') {
           txServiceRev += item.subtotal
+          if (item.buyPrice && item.buyPrice > 0) {
+            itemBuyPrice = item.buyPrice
+            itemHpp = item.quantity * itemBuyPrice
+            itemProfit = item.subtotal - itemHpp
+            txServiceHpp += itemHpp
+          }
         } else if (item.itemType === 'SPAREPART') {
           txSparepartRev += item.subtotal
           itemBuyPrice = item.buyPrice ?? (item.sparepart?.buyPrice || 0)
@@ -1050,6 +1061,7 @@ export async function getProfitLossReportData(
       sparepartRevenue += txSparepartRev
       totalDiscount += tx.discount
       cogsSparepart += txSparepartHpp
+      cogsService += txServiceHpp
 
       // Calculate Cash Inflows
       if (tx.status === 'PENDING_CORPORATE') {
@@ -1079,7 +1091,8 @@ export async function getProfitLossReportData(
         }
       }
 
-      const txGrossProfit = (txServiceRev + txSparepartRev - tx.discount) - txSparepartHpp
+      const txTotalHpp = txSparepartHpp + txServiceHpp
+      const txGrossProfit = (txServiceRev + txSparepartRev - tx.discount) - txTotalHpp
       const txGrossMarginPercent = tx.total > 0 ? (txGrossProfit / tx.total) * 100 : 0
 
       return {
@@ -1102,7 +1115,9 @@ export async function getProfitLossReportData(
         corporateName: tx.customer?.corporateCustomer?.name || null,
         serviceRevenue: txServiceRev,
         sparepartRevenue: txSparepartRev,
+        serviceHpp: txServiceHpp,
         sparepartHpp: txSparepartHpp,
+        totalHpp: txTotalHpp,
         grossProfit: txGrossProfit,
         grossMarginPercent: txGrossMarginPercent,
         items: processedItems,
@@ -1157,10 +1172,12 @@ export async function getProfitLossReportData(
     // Final P&L Computations
     const grossRevenue = serviceRevenue + sparepartRevenue
     const netRevenue = Math.max(0, grossRevenue - totalDiscount)
-    const grossProfit = netRevenue - cogsSparepart
+    const totalCogs = cogsSparepart + cogsService
+    const grossProfit = netRevenue - totalCogs
     const grossMarginPercent = netRevenue > 0 ? (grossProfit / netRevenue) * 100 : 0
 
-    const serviceProfit = serviceRevenue
+    const serviceProfit = serviceRevenue - cogsService
+    const serviceMarginPercent = serviceRevenue > 0 ? (serviceProfit / serviceRevenue) * 100 : 0
     const sparepartProfit = sparepartRevenue - cogsSparepart
     const sparepartMarginPercent = sparepartRevenue > 0 ? (sparepartProfit / sparepartRevenue) * 100 : 0
 
@@ -1201,10 +1218,13 @@ export async function getProfitLossReportData(
         grossRevenue,
         discount: totalDiscount,
         netRevenue,
+        cogsService,
         cogsSparepart,
+        totalCogs,
         grossProfit,
         grossMarginPercent,
         serviceProfit,
+        serviceMarginPercent,
         sparepartProfit,
         sparepartMarginPercent,
         cashInflow,
@@ -1219,8 +1239,8 @@ export async function getProfitLossReportData(
         regularReceivable,
         corporateReceivable,
         totalReceivable,
-        totalTransactions: rawTransactions.length,
-        totalRestockCount: rawRestocks.length,
+        totalTransactions: transactions.length,
+        totalRestockCount: restocks.length,
       },
     }
   } catch (error) {
@@ -1236,10 +1256,13 @@ export async function getProfitLossReportData(
         grossRevenue: 0,
         discount: 0,
         netRevenue: 0,
+        cogsService: 0,
         cogsSparepart: 0,
+        totalCogs: 0,
         grossProfit: 0,
         grossMarginPercent: 0,
         serviceProfit: 0,
+        serviceMarginPercent: 0,
         sparepartProfit: 0,
         sparepartMarginPercent: 0,
         cashInflow: 0,

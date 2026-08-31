@@ -353,10 +353,13 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
     grossRevenue: 0,
     discount: 0,
     netRevenue: 0,
+    cogsService: 0,
     cogsSparepart: 0,
+    totalCogs: 0,
     grossProfit: 0,
     grossMarginPercent: 0,
     serviceProfit: 0,
+    serviceMarginPercent: 0,
     sparepartProfit: 0,
     sparepartMarginPercent: 0,
     cashInflow: 0,
@@ -655,7 +658,7 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
         paymentText = 'TUNAI'
       }
 
-      const totalHpp = tx.items.reduce((sum, i) => sum + (i.itemType === 'SPAREPART' ? i.quantity * (i.buyPrice || 0) : 0), 0)
+      const totalHpp = tx.items.reduce((sum, i) => sum + i.quantity * (i.buyPrice || 0), 0)
       const totalLaba = tx.total - totalHpp
 
       return {
@@ -668,13 +671,16 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
         tipeTransaksi:     tx.type,
         metodeBayar:       paymentText,
         rincianItem:       tx.items.map((i: TransactionItem) => {
+          const buy = i.buyPrice || 0
+          const sell = i.unitPrice || 0
+          const p = i.subtotal - (i.quantity * buy)
           if (i.itemType === 'SPAREPART') {
-            const buy = i.buyPrice || 0
-            const sell = i.unitPrice || 0
-            const p = i.subtotal - (i.quantity * buy)
             return `[BARANG] ${i.quantity}x ${i.itemName} (@Beli: Rp ${buy.toLocaleString('id-ID')}, @Jual: Rp ${sell.toLocaleString('id-ID')}) = Rp ${i.subtotal.toLocaleString('id-ID')} [Laba: Rp ${p.toLocaleString('id-ID')}]`
           }
-          return `[JASA] ${i.quantity}x ${i.itemName} (@Tarif: Rp ${(i.unitPrice || 0).toLocaleString('id-ID')}) = Rp ${i.subtotal.toLocaleString('id-ID')}`
+          if (buy > 0) {
+            return `[JASA] ${i.quantity}x ${i.itemName} (@Modal: Rp ${buy.toLocaleString('id-ID')}, @Tarif: Rp ${sell.toLocaleString('id-ID')}) = Rp ${i.subtotal.toLocaleString('id-ID')} [Laba: Rp ${p.toLocaleString('id-ID')}]`
+          }
+          return `[JASA] ${i.quantity}x ${i.itemName} (@Tarif: Rp ${sell.toLocaleString('id-ID')}) = Rp ${i.subtotal.toLocaleString('id-ID')}`
         }).join('\n'),
         subtotal:          tx.subtotal,
         totalHpp:          totalHpp,
@@ -1587,7 +1593,7 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
               </thead>
               <tbody>
                 {data.map((tx) => {
-                  const txHpp = tx.items.reduce((sum, it) => sum + (it.itemType === 'SPAREPART' ? it.quantity * (it.buyPrice || 0) : 0), 0)
+                  const txHpp = tx.items.reduce((sum, it) => sum + it.quantity * (it.buyPrice || 0), 0)
                   const txProfit = tx.total - txHpp
 
                   return (
@@ -1611,7 +1617,7 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
                             const sell = it.unitPrice || 0
                             return (
                               <div key={idx} className="flex justify-between border-b border-slate-200/40 pb-0.5 last:border-0 last:pb-0">
-                                <span>{isService ? '🛠️' : '📦'} {it.quantity}x {it.itemName} {!isService ? `(Beli: Rp ${buy.toLocaleString('id-ID')} • Jual: Rp ${sell.toLocaleString('id-ID')})` : `(Tarif: Rp ${sell.toLocaleString('id-ID')})`}</span>
+                                <span>{isService ? '🛠️' : '📦'} {it.quantity}x {it.itemName} {buy > 0 ? `(Beli/Modal: Rp ${buy.toLocaleString('id-ID')} • Jual: Rp ${sell.toLocaleString('id-ID')})` : `(Tarif: Rp ${sell.toLocaleString('id-ID')})`}</span>
                                 <span className="font-semibold font-mono">Rp {it.subtotal.toLocaleString('id-ID')}</span>
                               </div>
                             )
@@ -1645,7 +1651,7 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
                   </td>
                   <td className="text-right py-1.5 px-2 border border-slate-300 text-emerald-700 text-[11px]">
                     {formatCurrency(data.reduce((sum, tx) => {
-                      const txHpp = tx.items.reduce((s, it) => s + (it.itemType === 'SPAREPART' ? it.quantity * (it.buyPrice || 0) : 0), 0)
+                      const txHpp = tx.items.reduce((s, it) => s + it.quantity * (it.buyPrice || 0), 0)
                       return sum + (tx.total - txHpp)
                     }, 0))}
                   </td>
@@ -2822,22 +2828,25 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
                 </div>
               </div>
 
-              {/* 2. Total HPP Sparepart (Modal) */}
+              {/* 2. Total HPP (Modal Terjual) */}
               <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                    HPP Sparepart Terjual
+                    Total HPP Terjual
                   </span>
                   <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
                     <ShoppingCart className="w-4 h-4" />
                   </div>
                 </div>
                 <p className="text-xl sm:text-2xl font-black text-amber-700">
-                  {formatCurrency(plSummary.cogsSparepart)}
+                  {formatCurrency(plSummary.totalCogs ?? (plSummary.cogsSparepart + (plSummary.cogsService ?? 0)))}
                 </p>
-                <p className="text-[11px] text-slate-500 pt-1 border-t border-slate-100">
-                  Modal harga beli suku cadang yang telah laku terjual
-                </p>
+                <div className="text-[11px] text-slate-500 flex justify-between pt-1 border-t border-slate-100">
+                  <span>HPP Part: <strong className="text-amber-800">{formatCurrency(plSummary.cogsSparepart)}</strong></span>
+                  {(plSummary.cogsService ?? 0) > 0 && (
+                    <span>HPP Jasa: <strong className="text-sky-800">{formatCurrency(plSummary.cogsService ?? 0)}</strong></span>
+                  )}
+                </div>
               </div>
 
               {/* 3. Laba Kotor (Gross Profit) */}
@@ -2999,17 +3008,23 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
                     {/* Bagian 2: HPP (Cost of Goods Sold) */}
                     <div className="space-y-2">
                       <div className="flex justify-between items-center py-2 px-3 bg-slate-100 rounded-lg font-bold text-slate-800 text-xs uppercase tracking-wider">
-                        <span>2. Harga Pokok Penjualan (HPP / Biaya Modal Barang Terjual)</span>
+                        <span>2. Harga Pokok Penjualan (HPP / Biaya Modal Terjual)</span>
                         <span>Nominal (Rp)</span>
                       </div>
                       <div className="pl-4 pr-3 space-y-1.5 text-slate-600">
                         <div className="flex justify-between py-1 border-b border-slate-100">
-                          <span>• Total Modal Suku Cadang Terjual (Σ Qty × Harga Beli/buyPrice)</span>
+                          <span>• Modal Suku Cadang Terjual (HPP Sparepart)</span>
                           <span className="font-semibold text-amber-800">{formatCurrency(plSummary.cogsSparepart)}</span>
                         </div>
+                        {(plSummary.cogsService ?? 0) > 0 && (
+                          <div className="flex justify-between py-1 border-b border-slate-100">
+                            <span>• Biaya Pokok Jasa Custom / Subcon (HPP Jasa)</span>
+                            <span className="font-semibold text-sky-800">{formatCurrency(plSummary.cogsService ?? 0)}</span>
+                          </div>
+                        )}
                         <div className="flex justify-between py-2 px-3 bg-amber-50/70 rounded-lg font-bold text-amber-900">
                           <span>TOTAL HARGA POKOK PENJUALAN (HPP)</span>
-                          <span className="text-base">-{formatCurrency(plSummary.cogsSparepart)}</span>
+                          <span className="text-base">-{formatCurrency(plSummary.totalCogs ?? (plSummary.cogsSparepart + (plSummary.cogsService ?? 0)))}</span>
                         </div>
                       </div>
                     </div>
@@ -3402,13 +3417,20 @@ export default function ReportClient({ branches, initialData, initialSummary, sh
                     <td colSpan={3} className="py-1 px-2 border border-slate-300 uppercase text-[9px]">2. HARGA POKOK PENJUALAN (HPP / COGS)</td>
                   </tr>
                   <tr>
-                    <td className="py-0.5 px-3 border border-slate-300">• Modal Suku Cadang Terjual (HPP)</td>
+                    <td className="py-0.5 px-3 border border-slate-300">• Modal Suku Cadang Terjual (HPP Sparepart)</td>
                     <td className="py-0.5 px-2 text-right border border-slate-300 font-semibold text-amber-900">-{formatCurrency(plSummary.cogsSparepart)}</td>
                     <td className="py-0.5 px-2 border border-slate-300 text-slate-500 text-[9px]">Σ(Qty Terjual × Harga Beli)</td>
                   </tr>
+                  {(plSummary.cogsService ?? 0) > 0 && (
+                    <tr>
+                      <td className="py-0.5 px-3 border border-slate-300">• Biaya Pokok Jasa Custom (HPP Jasa)</td>
+                      <td className="py-0.5 px-2 text-right border border-slate-300 font-semibold text-sky-900">-{formatCurrency(plSummary.cogsService ?? 0)}</td>
+                      <td className="py-0.5 px-2 border border-slate-300 text-slate-500 text-[9px]">Biaya Jasa Pihak Ketiga / Rekanan</td>
+                    </tr>
+                  )}
                   <tr className="bg-amber-50/70 font-bold">
                     <td className="py-1 px-2 border border-slate-300">TOTAL HARGA POKOK PENJUALAN</td>
-                    <td className="py-1 px-2 text-right border border-slate-300 font-bold text-amber-950">-{formatCurrency(plSummary.cogsSparepart)}</td>
+                    <td className="py-1 px-2 text-right border border-slate-300 font-bold text-amber-950">-{formatCurrency(plSummary.totalCogs ?? (plSummary.cogsSparepart + (plSummary.cogsService ?? 0)))}</td>
                     <td className="py-1 px-2 border border-slate-300"></td>
                   </tr>
 
