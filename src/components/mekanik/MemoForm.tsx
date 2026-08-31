@@ -1179,21 +1179,21 @@ export default function MemoForm({
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                       <div>
                         <label className="block text-[10px] text-slate-500 font-medium mb-0.5">
-                          Jumlah (Qty)
+                          Jumlah (Qty) & Satuan
                         </label>
-                        <div className="flex gap-1">
+                        <div className="flex rounded-lg border border-slate-200 bg-white overflow-hidden focus-within:border-purple-500 focus-within:ring-1 focus-within:ring-purple-200 transition-all">
                           <input
                             type="number"
                             min={1}
                             placeholder="Qty"
-                            className="w-14 text-xs rounded-lg border border-slate-200 p-2 bg-white font-mono text-center"
+                            className="w-12 shrink-0 text-xs p-2 bg-transparent font-mono text-center border-r border-slate-200 outline-none"
                             value={row.quantity || 1}
                             onChange={(e) => updateSparepartRow(idx, 'quantity', parseInt(e.target.value, 10) || 1)}
                           />
                           <input
                             type="text"
-                            placeholder="Satuan"
-                            className="w-16 text-xs rounded-lg border border-slate-200 p-2 bg-white text-center"
+                            placeholder="pcs"
+                            className="w-full min-w-0 text-xs p-2 bg-transparent text-center text-slate-700 outline-none"
                             value={row.unit}
                             onChange={(e) => updateSparepartRow(idx, 'unit', e.target.value)}
                           />
