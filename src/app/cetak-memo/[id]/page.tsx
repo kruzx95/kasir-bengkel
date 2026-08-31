@@ -50,21 +50,20 @@ export default async function CetakMemoPage({
   const brakes = (memo.checklistBrakes as Record<string, boolean>) || {}
   const suspension = (memo.checklistSuspension as Record<string, boolean>) || {}
 
-  // List items in JENIS PEKERJAAN (Keluhan, Diagnosa, & Services)
-  interface WorkItem {
+  // Kolom Kiri: Khusus Keluhan & Diagnosa
+  interface LeftItem {
     name: string
-    estimatedPrice?: number
-    badge?: string
+    isBold?: boolean
   }
 
-  const workItems: WorkItem[] = []
+  const leftItems: LeftItem[] = []
 
   if (memo.complaints && memo.complaints.trim()) {
     const lines = memo.complaints.split('\n').map((l) => l.trim()).filter(Boolean)
     lines.forEach((line, idx) => {
-      workItems.push({
+      leftItems.push({
         name: idx === 0 ? `Keluhan: ${line}` : `  ${line}`,
-        badge: idx === 0 ? 'KELUHAN' : undefined,
+        isBold: idx === 0,
       })
     })
   }
@@ -72,24 +71,44 @@ export default async function CetakMemoPage({
   if (memo.initialDiagnosis && memo.initialDiagnosis.trim()) {
     const lines = memo.initialDiagnosis.split('\n').map((l) => l.trim()).filter(Boolean)
     lines.forEach((line, idx) => {
-      workItems.push({
+      leftItems.push({
         name: idx === 0 ? `Diagnosa: ${line}` : `  ${line}`,
-        badge: idx === 0 ? 'DIAGNOSA' : undefined,
+        isBold: idx === 0,
       })
     })
   }
 
+  // Kolom Kanan: Kebutuhan Sparepart (+ Jasa Pekerjaan)
+  interface RightItem {
+    name: string
+    qtyUnit?: string
+    estimatedPrice?: number
+  }
+
+  const rightItems: RightItem[] = []
+
+  // Spareparts
+  memo.spareparts.forEach((sp) => {
+    rightItems.push({
+      name: sp.name,
+      qtyUnit: `${sp.quantity} ${sp.unit}`,
+      estimatedPrice: sp.estimatedPrice || undefined,
+    })
+  })
+
+  // Jasa / Services
   memo.services.forEach((s) => {
-    workItems.push({
+    rightItems.push({
       name: s.name,
+      qtyUnit: undefined,
       estimatedPrice: s.estimatedPrice || undefined,
     })
   })
 
   // Fill up to minimum 10 rows for tables so lines match
-  const maxRows = Math.max(10, workItems.length, memo.spareparts.length)
-  const serviceRows = Array.from({ length: maxRows }, (_, i) => workItems[i] || null)
-  const sparepartRows = Array.from({ length: maxRows }, (_, i) => memo.spareparts[i] || null)
+  const maxRows = Math.max(10, leftItems.length, rightItems.length)
+  const leftRows = Array.from({ length: maxRows }, (_, i) => leftItems[i] || null)
+  const rightRows = Array.from({ length: maxRows }, (_, i) => rightItems[i] || null)
 
   return (
     <div className="cetak-page">
@@ -204,9 +223,9 @@ export default async function CetakMemoPage({
           </div>
         </div>
 
-        {/* Tabel 1: Jenis Pekerjaan & Tabel 2: Jenis Sparepart Side-by-Side */}
+        {/* Tabel 1: Keluhan & Diagnosa (Kiri) & Tabel 2: Jenis Sparepart + Jasa (Kanan) Side-by-Side */}
         <div className="grid grid-cols-2 gap-2 mb-2">
-          {/* Tabel Kiri: Jenis Pekerjaan */}
+          {/* Tabel Kiri: Keluhan & Diagnosa */}
           <div>
             <table>
               <thead>
@@ -218,21 +237,14 @@ export default async function CetakMemoPage({
                 </tr>
               </thead>
               <tbody>
-                {serviceRows.map((row, idx) => (
+                {leftRows.map((row, idx) => (
                   <tr key={idx} className="h-5">
                     <td className="text-center font-mono text-[8.5pt] font-bold">{idx + 1}</td>
                     <td className="text-[8.5pt] pl-1.5 font-medium">
                       {row ? (
-                        <div className="flex justify-between items-center">
-                          <span className={row.badge ? 'font-semibold text-neutral-900' : ''}>
-                            {row.name}
-                          </span>
-                          {row.estimatedPrice && row.estimatedPrice > 0 ? (
-                            <span className="font-mono text-[7.5pt] text-neutral-600">
-                              Rp {row.estimatedPrice.toLocaleString('id-ID')}
-                            </span>
-                          ) : null}
-                        </div>
+                        <span className={row.isBold ? 'font-semibold text-neutral-900' : ''}>
+                          {row.name}
+                        </span>
                       ) : (
                         ''
                       )}
@@ -243,7 +255,7 @@ export default async function CetakMemoPage({
             </table>
           </div>
 
-          {/* Tabel Kanan: Jenis Sparepart */}
+          {/* Tabel Kanan: Jenis Sparepart & Jasa */}
           <div>
             <table>
               <thead>
@@ -255,20 +267,20 @@ export default async function CetakMemoPage({
                 </tr>
               </thead>
               <tbody>
-                {sparepartRows.map((row, idx) => (
+                {rightRows.map((row, idx) => (
                   <tr key={idx} className="h-5">
                     <td className="text-center font-mono text-[8.5pt] font-bold">{idx + 1}</td>
                     <td className="text-[8.5pt] pl-1.5 font-medium">
                       {row ? (
                         <div className="flex justify-between items-center">
                           <span>
-                            {row.name} ({row.quantity} {row.unit})
+                            {row.name} {row.qtyUnit ? `(${row.qtyUnit})` : ''}
                           </span>
-                          {row.estimatedPrice > 0 && (
+                          {row.estimatedPrice && row.estimatedPrice > 0 ? (
                             <span className="font-mono text-[7.5pt] text-neutral-600">
                               Rp {row.estimatedPrice.toLocaleString('id-ID')}
                             </span>
-                          )}
+                          ) : null}
                         </div>
                       ) : (
                         ''
