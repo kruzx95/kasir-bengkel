@@ -273,6 +273,7 @@ export default function TagihanClient({ corporate, allCustomers, isAdmin = false
       noInvoice: tx.invoiceNumber,
       armada: tx.customer ? `${tx.customer.name} (${tx.customer.plateNumber || '-'})` : '-',
       rincianItem: tx.items
+        .filter((i) => !(corporate.hideServiceOnInvoice && i.itemType === 'SERVICE'))
         .map((i) => {
           const typeLabel = i.itemType === 'SERVICE' ? '[JASA]' : '[BARANG]'
           const priceInfo = i.unitPrice ? `@Rp ${i.unitPrice.toLocaleString('id-ID')} ` : ''
@@ -656,6 +657,7 @@ export default function TagihanClient({ corporate, allCustomers, isAdmin = false
                                 <table className="w-full text-xs">
                                   <tbody>
                                     {tx.items
+                                      .filter((item) => !(corporate.hideServiceOnInvoice && item.itemType === 'SERVICE'))
                                       .map((item, i) => {
                                         const isService = item.itemType === 'SERVICE'
                                         return (

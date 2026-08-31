@@ -183,29 +183,44 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
 
         {/* Items Table */}
         <div className="overflow-x-auto mb-6 sm:mb-8 print:mb-3">
-        <table className="w-full min-w-[400px]">
-          <thead>
-            <tr className="border-b-2 border-slate-200 print:border-b">
-              <th className="text-left py-3 text-sm font-semibold text-slate-500 w-1/2 print:py-1.5 print:text-xs">Deskripsi Item</th>
-              <th className="text-center py-3 text-sm font-semibold text-slate-500 print:py-1.5 print:text-xs">Qty</th>
-              <th className="text-right py-3 text-sm font-semibold text-slate-500 print:py-1.5 print:text-xs">Harga Satuan</th>
-              <th className="text-right py-3 text-sm font-semibold text-slate-500 print:py-1.5 print:text-xs">Jumlah</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {tx.items.map((item) => (
-              <tr key={item.id} className="group">
-                <td className="py-4 print:py-1.5">
-                  <p className="text-sm font-semibold text-slate-900 print:text-xs">{item.itemName}</p>
-                  <p className="text-xs text-slate-400 print:text-[10px]">{item.itemType === 'SERVICE' ? 'Jasa Servis' : 'Sparepart'}</p>
-                </td>
-                <td className="text-center py-4 text-sm text-slate-700 print:py-1.5 print:text-xs">{item.quantity}</td>
-                <td className="text-right py-4 text-sm text-slate-700 print:py-1.5 print:text-xs">{formatCurrency(item.unitPrice)}</td>
-                <td className="text-right py-4 text-sm font-semibold text-slate-900 print:py-1.5 print:text-xs">{formatCurrency(item.subtotal)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        {(() => {
+          const hideService = Boolean(tx.customer?.corporateCustomer?.hideServiceOnInvoice)
+          const displayItems = hideService ? tx.items.filter((it) => it.itemType !== 'SERVICE') : tx.items
+
+          return (
+            <table className="w-full min-w-[400px]">
+              <thead>
+                <tr className="border-b-2 border-slate-200 print:border-b">
+                  <th className="text-left py-3 text-sm font-semibold text-slate-500 w-1/2 print:py-1.5 print:text-xs">Deskripsi Item</th>
+                  <th className="text-center py-3 text-sm font-semibold text-slate-500 print:py-1.5 print:text-xs">Qty</th>
+                  <th className="text-right py-3 text-sm font-semibold text-slate-500 print:py-1.5 print:text-xs">Harga Satuan</th>
+                  <th className="text-right py-3 text-sm font-semibold text-slate-500 print:py-1.5 print:text-xs">Jumlah</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {displayItems.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="py-6 text-center text-sm text-slate-400 italic">
+                      Jasa servis tidak ditampilkan sesuai pengaturan invoice korporat
+                    </td>
+                  </tr>
+                ) : (
+                  displayItems.map((item) => (
+                    <tr key={item.id} className="group">
+                      <td className="py-4 print:py-1.5">
+                        <p className="text-sm font-semibold text-slate-900 print:text-xs">{item.itemName}</p>
+                        <p className="text-xs text-slate-400 print:text-[10px]">{item.itemType === 'SERVICE' ? 'Jasa Servis' : 'Sparepart'}</p>
+                      </td>
+                      <td className="text-center py-4 text-sm text-slate-700 print:py-1.5 print:text-xs">{item.quantity}</td>
+                      <td className="text-right py-4 text-sm text-slate-700 print:py-1.5 print:text-xs">{formatCurrency(item.unitPrice)}</td>
+                      <td className="text-right py-4 text-sm font-semibold text-slate-900 print:py-1.5 print:text-xs">{formatCurrency(item.subtotal)}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          )
+        })()}
         </div>
 
         {/* Totals & Notes */}

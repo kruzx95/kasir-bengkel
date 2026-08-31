@@ -555,7 +555,7 @@ export async function getTransactionDetails(id: string) {
             plateNumber: true,
             vehicleType: true,
             corporateCustomer: {
-              select: { id: true, name: true }
+              select: { id: true, name: true, hideServiceOnInvoice: true }
             }
           }
         },
