@@ -100,7 +100,7 @@ export async function exportDatabaseBackup() {
 }
 
 export async function cleanDatabase(
-  mode: 'ALL_TESTING_DATA' | 'TRANSACTIONS_ONLY' | 'CATALOG_ONLY' | 'FULL_RESET',
+  mode: 'RESET_PRACTICE_TRANSACTIONS' | 'ALL_TESTING_DATA' | 'TRANSACTIONS_ONLY' | 'CATALOG_ONLY' | 'FULL_RESET',
   password: string
 ) {
   try {
@@ -127,57 +127,96 @@ export async function cleanDatabase(
 
     await prisma.$transaction(
       async (tx) => {
-        // Delete all transactional records in FK cascade order
-        await tx.corporatePaymentTransaction.deleteMany()
-        await tx.corporatePayment.deleteMany()
-        await tx.transactionItem.deleteMany()
-        await tx.transaction.deleteMany()
-        await tx.indentOrderItem.deleteMany()
-        await tx.indentOrder.deleteMany()
-        await tx.restockItem.deleteMany()
-        await tx.restock.deleteMany()
-        await tx.stockTransfer.deleteMany()
+        if (mode === 'RESET_PRACTICE_TRANSACTIONS') {
+          // 1. Restore stock deducted by practice transactions before deleting them
+          const txItems = await tx.transactionItem.findMany({
+            where: { itemType: 'SPAREPART', sparepartId: { not: null } },
+            select: { sparepartId: true, quantity: true },
+          })
+          for (const item of txItems) {
+            if (item.sparepartId) {
+              await tx.sparepart.update({
+                where: { id: item.sparepartId },
+                data: { stock: { increment: item.quantity } },
+              })
+            }
+          }
 
-        if (mode === 'ALL_TESTING_DATA') {
-          // Clean all testing master data: Spareparts, Services, Customers, Mechanics, Corporate Customers, Activity Logs
-          // ALL USERS AND BRANCHES ARE 100% PRESERVED
-          await tx.mechanic.deleteMany()
-          await tx.service.deleteMany()
-          await tx.sparepart.deleteMany()
+          // 2. Delete transactional records in FK cascade order
+          await tx.memoServiceItem.deleteMany()
+          await tx.memoSparepartItem.deleteMany()
+          await tx.serviceMemo.deleteMany()
+          await tx.corporatePaymentTransaction.deleteMany()
+          await tx.corporatePayment.deleteMany()
+          await tx.transactionItem.deleteMany()
+          await tx.transaction.deleteMany()
+          await tx.indentOrderItem.deleteMany()
+          await tx.indentOrder.deleteMany()
+          await tx.restockItem.deleteMany()
+          await tx.restock.deleteMany()
+          await tx.stockTransfer.deleteMany()
+
+          // 3. Clean test customers & activity logs
           await tx.customer.deleteMany()
-          await tx.corporateCustomer.deleteMany()
           await tx.activityLog.deleteMany()
-        } else if (mode === 'TRANSACTIONS_ONLY') {
-          // Reset sparepart stock counters to 0
-          await tx.sparepart.updateMany({
-            data: {
-              stock: 0,
-              warehouseStock: 0,
-            },
-          })
-        } else if (mode === 'CATALOG_ONLY') {
-          // Delete Spareparts & Services catalog
-          // Users (Admin, Kasir), Branches, Customers, Mechanics are 100% PRESERVED
-          await tx.sparepart.deleteMany()
-          await tx.service.deleteMany()
-        } else if (mode === 'FULL_RESET') {
-          // Reset master data except current active Super Admin & main branch
-          await tx.mechanic.deleteMany()
-          await tx.service.deleteMany()
-          await tx.sparepart.deleteMany()
-          await tx.customer.deleteMany()
-          await tx.corporateCustomer.deleteMany()
 
-          // Delete all other users except current session user
-          await tx.user.deleteMany({
-            where: { id: { not: session.userId } },
-          })
+          // SPAREPARTS (3,438 items), SERVICES (252 items), MECHANICS, USERS & BRANCHES ARE 100% PRESERVED
+        } else {
+          // Delete all transactional records in FK cascade order
+          await tx.memoServiceItem.deleteMany()
+          await tx.memoSparepartItem.deleteMany()
+          await tx.serviceMemo.deleteMany()
+          await tx.corporatePaymentTransaction.deleteMany()
+          await tx.corporatePayment.deleteMany()
+          await tx.transactionItem.deleteMany()
+          await tx.transaction.deleteMany()
+          await tx.indentOrderItem.deleteMany()
+          await tx.indentOrder.deleteMany()
+          await tx.restockItem.deleteMany()
+          await tx.restock.deleteMany()
+          await tx.stockTransfer.deleteMany()
 
-          // Delete all other branches except current branch (if any)
-          if (session.branchId) {
-            await tx.branch.deleteMany({
-              where: { id: { not: session.branchId } },
+          if (mode === 'ALL_TESTING_DATA') {
+            // Clean all testing master data: Spareparts, Services, Customers, Mechanics, Corporate Customers, Activity Logs
+            // ALL USERS AND BRANCHES ARE 100% PRESERVED
+            await tx.mechanic.deleteMany()
+            await tx.service.deleteMany()
+            await tx.sparepart.deleteMany()
+            await tx.customer.deleteMany()
+            await tx.corporateCustomer.deleteMany()
+            await tx.activityLog.deleteMany()
+          } else if (mode === 'TRANSACTIONS_ONLY') {
+            // Reset sparepart stock counters to 0
+            await tx.sparepart.updateMany({
+              data: {
+                stock: 0,
+                warehouseStock: 0,
+              },
             })
+          } else if (mode === 'CATALOG_ONLY') {
+            // Delete Spareparts & Services catalog
+            // Users (Admin, Kasir), Branches, Customers, Mechanics are 100% PRESERVED
+            await tx.sparepart.deleteMany()
+            await tx.service.deleteMany()
+          } else if (mode === 'FULL_RESET') {
+            // Reset master data except current active Super Admin & main branch
+            await tx.mechanic.deleteMany()
+            await tx.service.deleteMany()
+            await tx.sparepart.deleteMany()
+            await tx.customer.deleteMany()
+            await tx.corporateCustomer.deleteMany()
+
+            // Delete all other users except current session user
+            await tx.user.deleteMany({
+              where: { id: { not: session.userId } },
+            })
+
+            // Delete all other branches except current branch (if any)
+            if (session.branchId) {
+              await tx.branch.deleteMany({
+                where: { id: { not: session.branchId } },
+              })
+            }
           }
         }
       },
@@ -200,7 +239,9 @@ export async function cleanDatabase(
     return {
       success: true,
       message:
-        mode === 'ALL_TESTING_DATA'
+        mode === 'RESET_PRACTICE_TRANSACTIONS'
+          ? 'Data latihan (Transaksi Kasir, Memo Servis, Pelanggan dummy & Log) berhasil dibersihkan! Stok sparepart yang terpotong telah dipulihkan dan seluruh katalog Anda tetap 100% aman.'
+          : mode === 'ALL_TESTING_DATA'
           ? 'Seluruh data testing (transaksi, sparepart, jasa, pelanggan & mekanik) berhasil dibersihkan! Seluruh akun Login Pengguna & Cabang 100% tersimpan aman.'
           : mode === 'TRANSACTIONS_ONLY'
           ? 'Data riwayat transaksi, indent, restock & mutasi berhasil dibersihkan!'
@@ -268,6 +309,9 @@ export async function restoreDatabase(jsonContent: string, password: string) {
     await prisma.$transaction(
       async (tx) => {
         // 1. Delete all existing records
+        await tx.memoServiceItem.deleteMany()
+        await tx.memoSparepartItem.deleteMany()
+        await tx.serviceMemo.deleteMany()
         await tx.corporatePaymentTransaction.deleteMany()
         await tx.corporatePayment.deleteMany()
         await tx.transactionItem.deleteMany()
@@ -634,6 +678,24 @@ export async function deleteDemoDataAction() {
 
     await prisma.$transaction(
       async (tx) => {
+        // 0. Service Memos for Demo Branch
+        const demoMemos = await tx.serviceMemo.findMany({
+          where: { branchId },
+          select: { id: true },
+        })
+        const memoIds = demoMemos.map((m) => m.id)
+        if (memoIds.length > 0) {
+          await tx.memoServiceItem.deleteMany({
+            where: { memoId: { in: memoIds } },
+          })
+          await tx.memoSparepartItem.deleteMany({
+            where: { memoId: { in: memoIds } },
+          })
+          await tx.serviceMemo.deleteMany({
+            where: { id: { in: memoIds } },
+          })
+        }
+
         // 1. Corporate Payments
         const demoPayments = await tx.corporatePayment.findMany({
           where: { branchId },

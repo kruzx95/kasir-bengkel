@@ -5,6 +5,7 @@ import { getSession, getBranchFilter, isDemoUser } from '@/lib/session'
 import { revalidatePath } from 'next/cache'
 import { createActivityLog } from '@/lib/logger'
 import { MemoStatus } from '@/generated/prisma/client'
+import bcrypt from 'bcryptjs'
 
 export interface ChecklistTuneUp {
   busi?: boolean
@@ -357,7 +358,7 @@ export async function updateMemoStatus(id: string, status: MemoStatus) {
   }
 }
 
-export async function deleteMemo(id: string) {
+export async function deleteMemo(id: string, force: boolean = false) {
   try {
     const session = await getSession()
     if (!session) return { success: false, message: 'Unauthorized' }
@@ -369,18 +370,22 @@ export async function deleteMemo(id: string) {
     const memo = await prisma.serviceMemo.findUnique({ where: { id } })
     if (!memo) return { success: false, message: 'Memo tidak ditemukan' }
 
-    if (memo.status === 'CONVERTED') {
+    if (memo.status === 'CONVERTED' && !force && session.role !== 'ADMIN') {
       return { success: false, message: 'Memo yang sudah dikonversi menjadi invoice tidak dapat dihapus.' }
     }
 
-    await prisma.serviceMemo.delete({ where: { id } })
+    await prisma.$transaction(async (tx) => {
+      await tx.memoServiceItem.deleteMany({ where: { memoId: id } })
+      await tx.memoSparepartItem.deleteMany({ where: { memoId: id } })
+      await tx.serviceMemo.delete({ where: { id } })
+    })
 
     await createActivityLog({
       action: 'MEMO_DELETE',
       category: 'MASTER',
       level: 'WARNING',
       description: `Memo Servis ${memo.memoNumber} dihapus oleh ${session.name}`,
-      details: { memoId: id, memoNumber: memo.memoNumber },
+      details: { memoId: id, memoNumber: memo.memoNumber, status: memo.status },
       branchId: memo.branchId,
       userId: session.userId,
       userName: session.name,
@@ -395,6 +400,82 @@ export async function deleteMemo(id: string) {
   } catch (error: unknown) {
     console.error('Delete Memo Error:', error)
     return { success: false, message: error instanceof Error ? error.message : 'Gagal menghapus memo' }
+  }
+}
+
+export async function cleanAllMemos(
+  password: string,
+  mode: 'ALL' | 'UNCONVERTED_ONLY' = 'ALL'
+) {
+  try {
+    const session = await getSession()
+    if (!session || session.role !== 'ADMIN') {
+      return { success: false, message: 'Akses ditolak. Hanya Admin yang dapat membersihkan data memo servis.' }
+    }
+
+    if (isDemoUser(session)) {
+      return { success: false, message: 'Aksi pembersihan dinonaktifkan pada Akun Demo.' }
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: session.userId } })
+    if (!user) return { success: false, message: 'User tidak ditemukan.' }
+
+    const isPasswordValid = await bcrypt.compare(password, user.passwordHash)
+    if (!isPasswordValid) {
+      return { success: false, message: 'Password Admin salah. Pembersihan dibatalkan.' }
+    }
+
+    const whereClause: { status?: { not: MemoStatus } } = {}
+    if (mode === 'UNCONVERTED_ONLY') {
+      whereClause.status = { not: 'CONVERTED' }
+    }
+
+    const count = await prisma.serviceMemo.count({ where: whereClause })
+    if (count === 0) {
+      return { success: true, message: 'Tidak ada data memo servis yang sesuai kriteria pembersihan.' }
+    }
+
+    await prisma.$transaction(async (tx) => {
+      const memos = await tx.serviceMemo.findMany({
+        where: whereClause,
+        select: { id: true },
+      })
+      const ids = memos.map((m) => m.id)
+
+      await tx.memoServiceItem.deleteMany({
+        where: { memoId: { in: ids } },
+      })
+      await tx.memoSparepartItem.deleteMany({
+        where: { memoId: { in: ids } },
+      })
+      await tx.serviceMemo.deleteMany({
+        where: { id: { in: ids } },
+      })
+    })
+
+    await createActivityLog({
+      action: 'MEMO_CLEANUP',
+      category: 'SYSTEM',
+      level: 'WARNING',
+      description: `Pembersihan ${count} data memo servis (${mode === 'ALL' ? 'Semua Memo Latihan' : 'Hanya yang Belum Jadi Nota'}) oleh ${session.name}`,
+      details: { count, mode },
+      branchId: session.branchId || null,
+      userId: session.userId,
+      userName: session.name,
+      userRole: session.role,
+    })
+
+    revalidatePath('/mekanik')
+    revalidatePath('/kasir/memo')
+    revalidatePath('/admin/memo')
+
+    return {
+      success: true,
+      message: `Berhasil membersihkan ${count} data memo servis latihan!`,
+    }
+  } catch (error: unknown) {
+    console.error('Clean All Memos Error:', error)
+    return { success: false, message: error instanceof Error ? error.message : 'Gagal membersihkan data memo' }
   }
 }
 

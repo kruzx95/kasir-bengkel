@@ -58,7 +58,9 @@ export default function DatabaseManagementClient() {
 
   // Clean / Reset State
   const [cleanModalOpen, setCleanModalOpen] = useState(false)
-  const [cleanMode, setCleanMode] = useState<'ALL_TESTING_DATA' | 'TRANSACTIONS_ONLY' | 'CATALOG_ONLY' | 'FULL_RESET'>('ALL_TESTING_DATA')
+  const [cleanMode, setCleanMode] = useState<
+    'RESET_PRACTICE_TRANSACTIONS' | 'ALL_TESTING_DATA' | 'TRANSACTIONS_ONLY' | 'CATALOG_ONLY' | 'FULL_RESET'
+  >('RESET_PRACTICE_TRANSACTIONS')
   const [cleanPassword, setCleanPassword] = useState('')
   const [cleanConfirmText, setCleanConfirmText] = useState('')
   const [cleanError, setCleanError] = useState<string | null>(null)
@@ -173,6 +175,7 @@ export default function DatabaseManagementClient() {
   }
 
   const getExpectedConfirmText = () => {
+    if (cleanMode === 'RESET_PRACTICE_TRANSACTIONS') return 'BERSIHKAN DATA LATIHAN'
     if (cleanMode === 'ALL_TESTING_DATA') return 'BERSIHKAN DATA TESTING'
     if (cleanMode === 'TRANSACTIONS_ONLY') return 'RESET TRANSAKSI'
     if (cleanMode === 'CATALOG_ONLY') return 'RESET KATALOG'
@@ -331,22 +334,22 @@ export default function DatabaseManagementClient() {
 
             {/* Mode selection radio */}
             <div className="space-y-2 pt-1">
-              <label className={`flex items-start gap-2.5 p-2.5 border rounded-xl cursor-pointer transition-colors ${cleanMode === 'ALL_TESTING_DATA' ? 'bg-indigo-50/70 border-indigo-300 ring-1 ring-indigo-400' : 'hover:bg-slate-50 border-slate-200'}`}>
+              <label className={`flex items-start gap-2.5 p-2.5 border rounded-xl cursor-pointer transition-colors ${cleanMode === 'RESET_PRACTICE_TRANSACTIONS' ? 'bg-indigo-50/70 border-indigo-300 ring-1 ring-indigo-400' : 'hover:bg-slate-50 border-slate-200'}`}>
                 <input
                   type="radio"
                   name="cleanMode"
-                  value="ALL_TESTING_DATA"
-                  checked={cleanMode === 'ALL_TESTING_DATA'}
-                  onChange={() => setCleanMode('ALL_TESTING_DATA')}
+                  value="RESET_PRACTICE_TRANSACTIONS"
+                  checked={cleanMode === 'RESET_PRACTICE_TRANSACTIONS'}
+                  onChange={() => setCleanMode('RESET_PRACTICE_TRANSACTIONS')}
                   className="mt-0.5 text-indigo-600 focus:ring-indigo-500"
                 />
                 <div>
                   <p className="text-xs font-bold text-indigo-950 flex items-center gap-1.5">
-                    <span>Bersihkan Semua Data Testing</span>
-                    <span className="text-[10px] bg-indigo-600 text-white font-semibold px-1.5 py-0.5 rounded">Rekomendasi</span>
+                    <span>Bersihkan Data Latihan (Siap Lapangan)</span>
+                    <span className="text-[10px] bg-emerald-600 text-white font-semibold px-1.5 py-0.5 rounded">Rekomendasi Siap Lapangan</span>
                   </p>
                   <p className="text-[11px] text-slate-600 mt-0.5">
-                    Menghapus seluruh Transaksi, Barang Masuk, Indent, Mutasi Stok, Sparepart, Jasa, Pelanggan & Mekanik testing. <b>SEMUA AKUN LOGIN & CABANG 100% UTUH</b>.
+                    Menghapus riwayat Transaksi Kasir, Memo Servis (SA), Pelanggan dummy/latihan & Log Aktivitas. Mengembalikan stok part yang terpotong saat latihan. <b>SELURUH 3.438 STOK SPAREPART, 252 JASA SERVIS & AKUN LOGIN 100% AMAN DAN UTUH</b>.
                   </p>
                 </div>
               </label>
@@ -361,9 +364,28 @@ export default function DatabaseManagementClient() {
                   className="mt-0.5 text-rose-600 focus:ring-rose-500"
                 />
                 <div>
-                  <p className="text-xs font-bold text-slate-900">Reset Transaksi Saja</p>
+                  <p className="text-xs font-bold text-slate-900">Reset Transaksi & Kosongkan Seluruh Stok (Stok = 0)</p>
                   <p className="text-[11px] text-slate-500 mt-0.5">
-                    Menghapus nota kasir & riwayat transaksi testing. Katalog & Seluruh Akun Login <b>TETAP UTUH</b>.
+                    Menghapus nota kasir & Memo Servis, serta me-nol-kan kembali stok sparepart (untuk opname fisik ulang). Katalog & Akun tetap utuh.
+                  </p>
+                </div>
+              </label>
+
+              <label className={`flex items-start gap-2.5 p-2.5 border rounded-xl cursor-pointer transition-colors ${cleanMode === 'ALL_TESTING_DATA' ? 'bg-rose-50/70 border-rose-300 ring-1 ring-rose-400' : 'hover:bg-slate-50 border-slate-200'}`}>
+                <input
+                  type="radio"
+                  name="cleanMode"
+                  value="ALL_TESTING_DATA"
+                  checked={cleanMode === 'ALL_TESTING_DATA'}
+                  onChange={() => setCleanMode('ALL_TESTING_DATA')}
+                  className="mt-0.5 text-rose-600 focus:ring-rose-500"
+                />
+                <div>
+                  <p className="text-xs font-bold text-rose-900 flex items-center gap-1.5">
+                    <span>Hapus Semua Data Termasuk Katalog Sparepart</span>
+                  </p>
+                  <p className="text-[11px] text-rose-700/90 mt-0.5">
+                    ⚠️ <b>Perhatian:</b> Menghapus seluruh Transaksi, Memo Servis, serta <b>MENGHAPUS SEMUA 3.438 DATA SPAREPART & 252 JASA SERVIS</b>. Gunakan hanya jika ingin input ulang katalog dari nol.
                   </p>
                 </div>
               </label>
@@ -489,7 +511,9 @@ export default function DatabaseManagementClient() {
         open={cleanModalOpen}
         onClose={() => setCleanModalOpen(false)}
         title={
-          cleanMode === 'ALL_TESTING_DATA'
+          cleanMode === 'RESET_PRACTICE_TRANSACTIONS'
+            ? 'Konfirmasi Pembersihan Data Latihan (Siap Lapangan)'
+            : cleanMode === 'ALL_TESTING_DATA'
             ? 'Konfirmasi Pembersihan Seluruh Data Testing'
             : cleanMode === 'CATALOG_ONLY'
             ? 'Konfirmasi Reset Katalog Sparepart & Jasa Servis'
@@ -505,9 +529,13 @@ export default function DatabaseManagementClient() {
               <AlertTriangle className="w-4 h-4 text-rose-600" />
               <span>Perhatian Risiko Data!</span>
             </div>
-            {cleanMode === 'ALL_TESTING_DATA' ? (
+            {cleanMode === 'RESET_PRACTICE_TRANSACTIONS' ? (
               <p>
-                Seluruh <b>Transaksi, Barang Masuk, Indent, Mutasi Stok, Katalog Sparepart, Jasa Servis, Pelanggan, Korporat & Mekanik</b> testing akan dihapus bersih. <b>SELURUH AKUN LOGIN PENGGUNA (ADMIN & KASIR) SERTA CABANG DIJAMIN 100% AMAN</b>.
+                Seluruh <b>Transaksi Kasir, Memo Servis (SA), Pelanggan dummy/latihan & Log Aktivitas</b> uji coba akan dihapus bersih. Stok part yang sempat terpotong saat latihan akan otomatis dikembalikan. <b>3.438 DATA SPAREPART, 252 JASA SERVIS, MEKANIK, SERTA SELURUH AKUN LOGIN DIJAMIN 100% AMAN</b>.
+              </p>
+            ) : cleanMode === 'ALL_TESTING_DATA' ? (
+              <p>
+                ⚠️ <b>PERINGATAN SANGAT BERBAHAYA:</b> Seluruh <b>Transaksi, Memo Servis, serta SEMUA 3.438 DATA STOK SPAREPART & 252 JASA SERVIS</b> akan dihapus secara permanen dari database. Gunakan opsi ini hanya jika Anda ingin menginput ulang katalog sparepart dari nol!
               </p>
             ) : cleanMode === 'CATALOG_ONLY' ? (
               <p>
@@ -515,7 +543,7 @@ export default function DatabaseManagementClient() {
               </p>
             ) : cleanMode === 'TRANSACTIONS_ONLY' ? (
               <p>
-                Seluruh nota transaksi kasir, indent, restock supplier, dan mutasi stok uji coba akan dihapus secara permanen. User login, Cabang, dan Katalog Sparepart akan <b>tetap utuh</b>.
+                Seluruh nota transaksi kasir, indent, restock supplier, mutasi stok, dan Memo Servis akan dihapus, serta <b>seluruh angka stok sparepart akan diubah menjadi 0</b>.
               </p>
             ) : (
               <p>
