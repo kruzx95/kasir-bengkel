@@ -32,6 +32,7 @@ export async function exportDatabaseBackup() {
       stockTransfers,
       corporatePayments,
       corporatePaymentTransactions,
+      serviceMemos,
     ] = await Promise.all([
       prisma.branch.findMany(),
       prisma.user.findMany(),
@@ -46,6 +47,7 @@ export async function exportDatabaseBackup() {
       prisma.stockTransfer.findMany(),
       prisma.corporatePayment.findMany(),
       prisma.corporatePaymentTransaction.findMany(),
+      prisma.serviceMemo.findMany({ include: { services: true, spareparts: true } }),
     ])
 
     const shopNameValue = await getShopName()
@@ -68,6 +70,7 @@ export async function exportDatabaseBackup() {
         stockTransfers,
         corporatePayments,
         corporatePaymentTransactions,
+        serviceMemos,
       },
     }
 
@@ -86,9 +89,11 @@ export async function exportDatabaseBackup() {
       summary: {
         branches: branches.length,
         users: users.length,
+        customers: customers.length,
         spareparts: spareparts.length,
         services: services.length,
         transactions: transactions.length,
+        serviceMemos: serviceMemos.length,
         indentOrders: indentOrders.length,
         restocks: restocks.length,
       },

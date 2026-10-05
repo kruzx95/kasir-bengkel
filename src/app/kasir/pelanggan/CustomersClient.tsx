@@ -7,7 +7,9 @@ import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
 import CustomerFormModal from '@/components/kasir/CustomerFormModal'
 import CustomerServiceHistoryModal from '@/components/customer/CustomerServiceHistoryModal'
-import { Plus, Pencil, Users, Search, Bike, Wrench } from 'lucide-react'
+import { exportCustomersAction } from '@/actions/customer'
+import { exportProfessionalExcel } from '@/lib/exportExcel'
+import { Plus, Pencil, Users, Search, Bike, Wrench, Download } from 'lucide-react'
 
 interface CustomerRow {
   id: string
@@ -49,6 +51,7 @@ export default function CustomersClient({ initialCustomers, branchId, totalCount
   // Service History Modal State
   const [historyModalOpen, setHistoryModalOpen] = useState(false)
   const [selectedHistoryCustomer, setSelectedHistoryCustomer] = useState<CustomerRow | null>(null)
+  const [exportLoading, setExportLoading] = useState(false)
   
   const initialSearch = searchParams.get('search') || ''
   const [searchQuery, setSearchQuery] = useState(initialSearch)
@@ -84,6 +87,50 @@ export default function CustomersClient({ initialCustomers, branchId, totalCount
   const handleClose = () => {
     setModalOpen(false)
     setEditData(null)
+  }
+
+  const handleBackupExcel = async () => {
+    setExportLoading(true)
+    try {
+      const res = await exportCustomersAction(branchId || null)
+      if (res.success && res.data.length > 0) {
+        await exportProfessionalExcel({
+          filename: `Backup_Data_Pelanggan_${new Date().toISOString().slice(0, 10)}.xlsx`,
+          sheetName: 'Pelanggan',
+          title: 'BACKUP MASTER DATA PELANGGAN & KENDARAAN',
+          period: 'Cabang Kasir',
+          shopName: 'Irian Motor',
+          columns: [
+            { header: 'No', key: 'no', width: 6, align: 'center' },
+            { header: 'Nama Pelanggan', key: 'name', width: 25, align: 'left' },
+            { header: 'No. HP / WA', key: 'phone', width: 18, align: 'left' },
+            { header: 'No. Polisi (Plat)', key: 'plateNumber', width: 16, align: 'center' },
+            { header: 'Merk Kendaraan', key: 'vehicleBrand', width: 16, align: 'left' },
+            { header: 'Tipe / Model', key: 'vehicleType', width: 20, align: 'left' },
+            { header: 'Warna', key: 'vehicleColor', width: 14, align: 'left' },
+            { header: 'Tahun', key: 'vehicleYear', width: 10, align: 'center' },
+            { header: 'Bahan Bakar', key: 'fuelType', width: 14, align: 'center' },
+            { header: 'Odometer Terakhir', key: 'odometer', width: 18, align: 'right' },
+            { header: 'Alamat', key: 'address', width: 30, align: 'left' },
+            { header: 'Cabang Terdaftar', key: 'branchName', width: 20, align: 'left' },
+            { header: 'Tipe Pelanggan', key: 'corporateName', width: 20, align: 'left' },
+            { header: 'Riwayat Servis', key: 'totalTransactions', width: 15, align: 'center' },
+            { header: 'Tgl Terdaftar', key: 'createdAt', width: 16, align: 'center' },
+          ],
+          rows: res.data as any,
+          summaries: [
+            { label: 'Total Pelanggan Terdaftar', value: `${res.data.length} Orang` },
+          ],
+        })
+      } else {
+        alert(res.message || 'Tidak ada data pelanggan yang dapat dibackup/diekspor.')
+      }
+    } catch (err) {
+      console.error('Backup Pelanggan Error:', err)
+      alert('Terjadi kesalahan saat mengekspor data pelanggan.')
+    } finally {
+      setExportLoading(false)
+    }
   }
 
   const columns = [
@@ -182,16 +229,27 @@ export default function CustomersClient({ initialCustomers, branchId, totalCount
             <div className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 border-2 border-primary-300 border-t-primary-600 rounded-full animate-spin" />
           )}
         </div>
-        <Button
-          icon={Plus}
-          className="w-full sm:w-auto shrink-0"
-          onClick={() => {
-            setEditData(null)
-            setModalOpen(true)
-          }}
-        >
-          Tambah Pelanggan
-        </Button>
+        <div className="flex gap-2 w-full sm:w-auto shrink-0">
+          <Button
+            icon={Download}
+            variant="outline"
+            className="w-full sm:w-auto border-emerald-300 text-emerald-700 hover:bg-emerald-50 hover:border-emerald-400 font-semibold"
+            onClick={handleBackupExcel}
+            loading={exportLoading}
+          >
+            {exportLoading ? 'Mengekspor...' : 'Backup Pelanggan (Excel)'}
+          </Button>
+          <Button
+            icon={Plus}
+            className="w-full sm:w-auto"
+            onClick={() => {
+              setEditData(null)
+              setModalOpen(true)
+            }}
+          >
+            Tambah Pelanggan
+          </Button>
+        </div>
       </div>
 
       {/* Count */}

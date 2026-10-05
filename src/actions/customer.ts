@@ -490,3 +490,66 @@ export async function bulkCreateCustomers(
       : `${created} berhasil, ${failed} gagal.`,
   }
 }
+
+export async function exportCustomersAction(branchId?: string | null) {
+  try {
+    const session = await getSession()
+    if (!session) return { success: false, message: 'Unauthorized', data: [] }
+
+    const where: Record<string, unknown> = {
+      ...getBranchFilter(session, branchId),
+    }
+
+    const customers = await prisma.customer.findMany({
+      where,
+      include: {
+        branch: { select: { id: true, code: true, name: true } },
+        corporateCustomer: { select: { id: true, name: true } },
+        _count: {
+          select: {
+            transactions: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    })
+
+    await createActivityLog({
+      action: 'CUSTOMER_BACKUP_EXPORT',
+      category: 'MASTER',
+      level: 'INFO',
+      description: `Mengekspor backup data pelanggan (${customers.length} data) oleh ${session.name}`,
+      details: { count: customers.length, branchId: branchId || 'ALL' },
+      branchId: session.branchId || null,
+      userId: session.userId,
+      userName: session.name,
+      userRole: session.role,
+    })
+
+    return {
+      success: true,
+      data: customers.map((c, idx) => ({
+        no: idx + 1,
+        id: c.id,
+        name: c.name,
+        phone: c.phone || '-',
+        plateNumber: c.plateNumber || '-',
+        vehicleBrand: c.vehicleBrand || '-',
+        vehicleType: c.vehicleType || '-',
+        vehicleColor: c.vehicleColor || '-',
+        vehicleYear: c.vehicleYear || '-',
+        fuelType: c.fuelType === 'DIESEL' ? 'Diesel' : c.fuelType === 'GASOLINE' ? 'Bensin' : '-',
+        odometer: c.odometer ? `${c.odometer.toLocaleString('id-ID')} KM` : '-',
+        odometerRaw: c.odometer || 0,
+        address: c.address || '-',
+        branchName: c.branch?.name || '-',
+        corporateName: c.corporateCustomer?.name || 'Retail / Pribadi',
+        totalTransactions: c._count.transactions,
+        createdAt: new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium' }).format(new Date(c.createdAt)),
+      })),
+    }
+  } catch (error) {
+    console.error('Export Customers Action Error:', error)
+    return { success: false, message: 'Gagal mengekspor data pelanggan', data: [] }
+  }
+}

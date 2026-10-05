@@ -18,6 +18,8 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { exportDatabaseBackup, restoreDatabase, cleanDatabase, deleteDemoDataAction } from '@/actions/database'
+import { exportCustomersAction } from '@/actions/customer'
+import { exportProfessionalExcel } from '@/lib/exportExcel'
 
 export default function DatabaseManagementClient() {
   const [isPending, startTransition] = useTransition()
@@ -46,7 +48,54 @@ export default function DatabaseManagementClient() {
 
   // Backup State
   const [downloading, setDownloading] = useState(false)
+  const [customerDownloading, setCustomerDownloading] = useState(false)
   const [backupSummary, setBackupSummary] = useState<Record<string, number> | null>(null)
+
+  const handleExportCustomerExcel = async () => {
+    setMessage(null)
+    setCustomerDownloading(true)
+    try {
+      const res = await exportCustomersAction(null)
+      if (res.success && res.data.length > 0) {
+        await exportProfessionalExcel({
+          filename: `Backup_Data_Pelanggan_${new Date().toISOString().slice(0, 10)}.xlsx`,
+          sheetName: 'Pelanggan',
+          title: 'BACKUP MASTER DATA PELANGGAN & KENDARAAN',
+          period: `Semua Cabang - Tanggal ${new Date().toLocaleDateString('id-ID', { dateStyle: 'long' })}`,
+          shopName: 'Irian Motor',
+          columns: [
+            { header: 'No', key: 'no', width: 6, align: 'center' },
+            { header: 'Nama Pelanggan', key: 'name', width: 25, align: 'left' },
+            { header: 'No. HP / WA', key: 'phone', width: 18, align: 'left' },
+            { header: 'No. Polisi (Plat)', key: 'plateNumber', width: 16, align: 'center' },
+            { header: 'Merk Kendaraan', key: 'vehicleBrand', width: 16, align: 'left' },
+            { header: 'Tipe / Model', key: 'vehicleType', width: 20, align: 'left' },
+            { header: 'Warna', key: 'vehicleColor', width: 14, align: 'left' },
+            { header: 'Tahun', key: 'vehicleYear', width: 10, align: 'center' },
+            { header: 'Bahan Bakar', key: 'fuelType', width: 14, align: 'center' },
+            { header: 'Odometer Terakhir', key: 'odometer', width: 18, align: 'right' },
+            { header: 'Alamat', key: 'address', width: 30, align: 'left' },
+            { header: 'Cabang Terdaftar', key: 'branchName', width: 20, align: 'left' },
+            { header: 'Tipe Pelanggan', key: 'corporateName', width: 20, align: 'left' },
+            { header: 'Riwayat Servis', key: 'totalTransactions', width: 15, align: 'center' },
+            { header: 'Tgl Terdaftar', key: 'createdAt', width: 16, align: 'center' },
+          ],
+          rows: res.data as any,
+          summaries: [
+            { label: 'Total Pelanggan Terdaftar', value: `${res.data.length} Orang` },
+          ],
+        })
+        setMessage({ type: 'success', text: `Backup data pelanggan (${res.data.length} orang) berhasil diunduh dalam format Excel!` })
+      } else {
+        setMessage({ type: 'error', text: res.message || 'Tidak ada data pelanggan yang dapat diekspor.' })
+      }
+    } catch (err) {
+      console.error('Backup Pelanggan Error:', err)
+      setMessage({ type: 'error', text: 'Gagal mengekspor data pelanggan.' })
+    } finally {
+      setCustomerDownloading(false)
+    }
+  }
 
   // Restore State
   const [restoreModalOpen, setRestoreModalOpen] = useState(false)
@@ -269,6 +318,9 @@ export default function DatabaseManagementClient() {
                 <p className="font-semibold text-slate-800 border-b border-slate-200 pb-1">Terakhir Di-backup:</p>
                 <div className="flex justify-between"><span>Cabang:</span> <b>{backupSummary.branches}</b></div>
                 <div className="flex justify-between"><span>User:</span> <b>{backupSummary.users}</b></div>
+                {backupSummary.customers !== undefined && (
+                  <div className="flex justify-between"><span>Pelanggan:</span> <b>{backupSummary.customers}</b></div>
+                )}
                 <div className="flex justify-between"><span>Sparepart:</span> <b>{backupSummary.spareparts}</b></div>
                 <div className="flex justify-between"><span>Jasa Servis:</span> <b>{backupSummary.services}</b></div>
                 <div className="flex justify-between"><span>Transaksi:</span> <b>{backupSummary.transactions}</b></div>
@@ -276,14 +328,25 @@ export default function DatabaseManagementClient() {
             )}
           </div>
 
-          <Button
-            onClick={handleExport}
-            loading={downloading}
-            icon={FileJson}
-            className="w-full justify-center bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            {downloading ? 'Mengunduh...' : 'Unduh Backup (.json)'}
-          </Button>
+          <div className="space-y-2 pt-2">
+            <Button
+              onClick={handleExport}
+              loading={downloading}
+              icon={FileJson}
+              className="w-full justify-center bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              {downloading ? 'Mengunduh...' : 'Unduh Backup Database (.json)'}
+            </Button>
+            <Button
+              onClick={handleExportCustomerExcel}
+              loading={customerDownloading}
+              icon={Download}
+              variant="outline"
+              className="w-full justify-center border-emerald-300 text-emerald-700 hover:bg-emerald-50 text-xs font-semibold"
+            >
+              {customerDownloading ? 'Mengekspor...' : 'Backup Khusus Pelanggan (.xlsx)'}
+            </Button>
+          </div>
         </div>
 
         {/* Card 2: Restore Database */}
