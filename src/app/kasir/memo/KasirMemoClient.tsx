@@ -19,15 +19,13 @@ import {
   AlertCircle,
   ArrowRight,
   CheckCircle,
-  AlertTriangle,
 } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
 import Badge from '@/components/ui/Badge'
 import Table from '@/components/ui/Table'
-import Modal from '@/components/ui/Modal'
 import { MEMO_STATUS_MAP } from '@/lib/memo-constants'
-import { deleteMemo, cleanAllMemos } from '@/actions/memo'
+import { deleteMemo } from '@/actions/memo'
 import { MemoStatus } from '@/generated/prisma/client'
 
 interface ServiceMemoItem {
@@ -66,14 +64,6 @@ export default function KasirMemoClient({
   const [search, setSearch] = useState('')
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL')
 
-  // Clean Modal State (Admin Only)
-  const [cleanModalOpen, setCleanModalOpen] = useState(false)
-  const [cleanMode, setCleanMode] = useState<'ALL' | 'UNCONVERTED_ONLY'>('ALL')
-  const [cleanPassword, setCleanPassword] = useState('')
-  const [cleanConfirmText, setCleanConfirmText] = useState('')
-  const [cleanError, setCleanError] = useState<string | null>(null)
-  const [cleanSuccess, setCleanSuccess] = useState<string | null>(null)
-
   const filteredMemos = initialMemos.filter((m) => {
     if (selectedStatus !== 'ALL' && m.status !== selectedStatus) return false
     if (!search.trim()) return true
@@ -98,34 +88,6 @@ export default function KasirMemoClient({
         router.refresh()
       } else {
         alert(res.message)
-      }
-    })
-  }
-
-  const handleCleanMemos = () => {
-    if (!cleanPassword) {
-      setCleanError('Masukkan password Admin Anda.')
-      return
-    }
-    if (cleanConfirmText.trim().toUpperCase() !== 'BERSIHKAN MEMO') {
-      setCleanError('Ketik "BERSIHKAN MEMO" untuk konfirmasi.')
-      return
-    }
-
-    setCleanError(null)
-    startTransition(async () => {
-      const res = await cleanAllMemos(cleanPassword, cleanMode)
-      if (res.success) {
-        setCleanSuccess(res.message)
-        setCleanPassword('')
-        setCleanConfirmText('')
-        setTimeout(() => {
-          setCleanModalOpen(false)
-          setCleanSuccess(null)
-          router.refresh()
-        }, 1200)
-      } else {
-        setCleanError(res.message)
       }
     })
   }
@@ -330,22 +292,6 @@ export default function KasirMemoClient({
         </div>
 
         <div className="flex items-center gap-2">
-          {isAdmin && (
-            <Button
-              variant="outline"
-              icon={Trash2}
-              onClick={() => {
-                setCleanError(null)
-                setCleanSuccess(null)
-                setCleanPassword('')
-                setCleanConfirmText('')
-                setCleanModalOpen(true)
-              }}
-              className="border-rose-200 text-rose-700 hover:bg-rose-50 font-semibold"
-            >
-              Bersihkan Memo Latihan
-            </Button>
-          )}
           <Link href="/mekanik/baru">
             <Button
               variant="primary"
@@ -394,124 +340,6 @@ export default function KasirMemoClient({
       <Card className="overflow-hidden">
         <Table columns={columns} data={filteredMemos} keyExtractor={(row) => row.id} />
       </Card>
-
-      {/* Modal Pembersihan Memo Servis Latihan */}
-      <Modal
-        open={cleanModalOpen}
-        onClose={() => setCleanModalOpen(false)}
-        title="Pembersihan Data Memo Servis (SA)"
-        description="Fitur untuk mengosongkan memo servis hasil uji coba/latihan sebelum aplikasi digunakan di lapangan."
-      >
-        <div className="space-y-4 pt-2">
-          <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 space-y-1">
-            <div className="flex items-center gap-1.5 font-bold">
-              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-              <span>Persiapan Operasional Lapangan</span>
-            </div>
-            <p className="text-amber-800">
-              Aksi ini akan menghapus riwayat memo servis pengujian dari sistem. Seluruh data katalog sparepart, jasa, dan akun login Anda tetap 100% aman dan tidak tersentuh.
-            </p>
-          </div>
-
-          {cleanSuccess && (
-            <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-semibold flex items-center gap-2">
-              <CheckCircle className="w-4 h-4 text-emerald-600" />
-              <span>{cleanSuccess}</span>
-            </div>
-          )}
-
-          {cleanError && (
-            <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs font-medium">
-              {cleanError}
-            </div>
-          )}
-
-          <div className="space-y-2">
-            <p className="text-xs font-semibold text-slate-700">Pilih Cakupan Pembersihan:</p>
-            <label className={`flex items-start gap-2.5 p-2.5 border rounded-xl cursor-pointer transition-colors ${cleanMode === 'ALL' ? 'bg-purple-50/70 border-purple-300 ring-1 ring-purple-400' : 'hover:bg-slate-50 border-slate-200'}`}>
-              <input
-                type="radio"
-                name="memoCleanMode"
-                value="ALL"
-                checked={cleanMode === 'ALL'}
-                onChange={() => setCleanMode('ALL')}
-                className="mt-0.5 text-purple-600 focus:ring-purple-500"
-              />
-              <div>
-                <p className="text-xs font-bold text-slate-900">Hapus Semua Memo Servis ({initialMemos.length} memo)</p>
-                <p className="text-[11px] text-slate-500 mt-0.5">
-                  Menghapus seluruh memo servis (DRAFT, Sedang Dikerjakan, Selesai, maupun yang sudah dikonversi jadi nota kasir).
-                </p>
-              </div>
-            </label>
-
-            <label className={`flex items-start gap-2.5 p-2.5 border rounded-xl cursor-pointer transition-colors ${cleanMode === 'UNCONVERTED_ONLY' ? 'bg-purple-50/70 border-purple-300 ring-1 ring-purple-400' : 'hover:bg-slate-50 border-slate-200'}`}>
-              <input
-                type="radio"
-                name="memoCleanMode"
-                value="UNCONVERTED_ONLY"
-                checked={cleanMode === 'UNCONVERTED_ONLY'}
-                onChange={() => setCleanMode('UNCONVERTED_ONLY')}
-                className="mt-0.5 text-purple-600 focus:ring-purple-500"
-              />
-              <div>
-                <p className="text-xs font-bold text-slate-900">Hapus Memo yang Belum Jadi Nota Saja</p>
-                <p className="text-[11px] text-slate-500 mt-0.5">
-                  Hanya menghapus memo berstatus DRAFT, IN_PROGRESS, atau COMPLETED yang belum pernah dibuatkan faktur kasir.
-                </p>
-              </div>
-            </label>
-          </div>
-
-          <div className="space-y-3 pt-1 border-t border-slate-100">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Ketik <span className="font-mono text-rose-600 font-bold">BERSIHKAN MEMO</span> untuk konfirmasi:
-              </label>
-              <input
-                type="text"
-                placeholder="BERSIHKAN MEMO"
-                value={cleanConfirmText}
-                onChange={(e) => setCleanConfirmText(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono focus:outline-hidden focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Password Akun Admin Anda:
-              </label>
-              <input
-                type="password"
-                placeholder="Masukkan password admin"
-                value={cleanPassword}
-                onChange={(e) => setCleanPassword(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-hidden focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500"
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCleanModalOpen(false)}
-              disabled={isPending}
-            >
-              Batal
-            </Button>
-            <Button
-              variant="danger"
-              size="sm"
-              icon={Trash2}
-              loading={isPending}
-              onClick={handleCleanMemos}
-            >
-              Bersihkan Sekarang
-            </Button>
-          </div>
-        </div>
-      </Modal>
     </div>
   )
 }
