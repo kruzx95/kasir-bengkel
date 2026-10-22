@@ -12,7 +12,6 @@ interface MekanikHeaderProps {
   userRole: string
   branchName: string | null
   shopName: string
-  isDemo?: boolean
 }
 
 export default function MekanikHeader({
@@ -20,7 +19,6 @@ export default function MekanikHeader({
   userRole,
   branchName,
   shopName,
-  isDemo,
 }: MekanikHeaderProps) {
   const pathname = usePathname()
 

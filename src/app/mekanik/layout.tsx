@@ -23,7 +23,6 @@ export default async function MekanikLayout({ children }: { children: React.Reac
         userRole={session.role}
         branchName={session.branchName}
         shopName={shopName}
-        isDemo={session.isDemo}
       />
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 md:p-8 print:p-0 print:max-w-none">
         {children}

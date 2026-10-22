@@ -37,7 +37,6 @@ interface SidebarProps {
   userName: string
   branchName: string | null
   shopName: string
-  isDemo?: boolean
   mobileOpen?: boolean
   onMobileClose?: () => void
   collapsed?: boolean
@@ -100,7 +99,6 @@ export default function Sidebar({
   userName,
   branchName,
   shopName,
-  isDemo = false,
   mobileOpen = false,
   onMobileClose,
   collapsed = false,
@@ -111,10 +109,6 @@ export default function Sidebar({
   const menuItems =
     role === 'ADMIN'
       ? adminMenuItems.filter((item) => {
-          // Sembunyikan 'Log Aktivitas' dan 'Pengguna' untuk akun Demo Admin
-          if (isDemo && ['Log Aktivitas', 'Pengguna'].includes(item.label)) {
-            return false
-          }
           if (['Cabang', 'Pengguna', 'Pengaturan', 'Database', 'Log Aktivitas'].includes(item.label)) {
             return isSuperAdmin
           }

@@ -1,4 +1,4 @@
-import { getSession, isDemoUser } from '@/lib/session'
+import { getSession } from '@/lib/session'
 import { redirect } from 'next/navigation'
 import DashboardShell from '@/components/layout/DashboardShell'
 import { getShopName } from '@/actions/settings'
@@ -12,18 +12,16 @@ export const metadata: Metadata = {
 
 export default async function KasirLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession()
-  if (!session || session.role !== 'KASIR') redirect('/login')
+  if (!session || (session.role !== 'KASIR' && session.role !== 'ADMIN')) redirect('/login')
 
   const shopName = await getShopName()
-  const isDemo = isDemoUser(session)
 
   return (
     <DashboardShell
-      role="KASIR"
+      role={session.role === 'ADMIN' ? 'ADMIN' : 'KASIR'}
       userName={session.name}
       branchName={session.branchName}
       shopName={shopName}
-      isDemo={isDemo}
     >
       {children}
     </DashboardShell>

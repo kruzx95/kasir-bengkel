@@ -1,4 +1,4 @@
-import { getSession, isDemoUser } from '@/lib/session'
+import { getSession } from '@/lib/session'
 import { redirect } from 'next/navigation'
 import DashboardShell from '@/components/layout/DashboardShell'
 import { getShopName } from '@/actions/settings'
@@ -13,7 +13,6 @@ export const metadata: Metadata = {
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession()
   if (!session || session.role !== 'ADMIN') redirect('/login')
-  if (isDemoUser(session)) redirect('/kasir')
 
   const shopName = await getShopName()
 
@@ -23,7 +22,6 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       userName={session.name}
       branchName={session.branchName}
       shopName={shopName}
-      isDemo={false}
     >
       {children}
     </DashboardShell>

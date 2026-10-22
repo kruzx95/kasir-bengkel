@@ -139,6 +139,11 @@ async function cleanupDemo() {
         where: { branchId },
       })
 
+      // 12b. Delete Service Memos for demo branch
+      await tx.serviceMemo.deleteMany({
+        where: { branchId },
+      })
+
       // 13. Delete Demo Branch itself
       await tx.branch.delete({
         where: { id: branchId },
