@@ -10,7 +10,7 @@ import ServiceFormModal from '@/components/admin/ServiceFormModal'
 import ImportServiceModal from '@/components/admin/ImportServiceModal'
 import { deleteService } from '@/actions/service'
 import { formatCurrency } from '@/lib/utils'
-import { Plus, Pencil, Trash2, Wrench, Upload, Search } from 'lucide-react'
+import { Plus, Pencil, Trash2, Wrench, Upload, Search, CheckCircle } from 'lucide-react'
 
 interface Branch {
   id: string
@@ -43,6 +43,7 @@ export default function ServicesClient({ services, branches, totalCount }: Servi
   const [importModalOpen, setImportModalOpen] = useState(false)
   const [editData, setEditData] = useState<ServiceRow | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
 
   const initialSearch = searchParams.get('search') || ''
   const initialBranch = searchParams.get('branch') || ''
@@ -239,8 +240,21 @@ export default function ServicesClient({ services, branches, totalCount }: Servi
         open={importModalOpen}
         onClose={() => setImportModalOpen(false)}
         branches={branches}
-        onSuccess={() => router.refresh()}
+        onSuccess={(msg) => {
+          setImportModalOpen(false)
+          setToastMessage(msg || 'Data jasa servis berhasil diimpor!')
+          router.refresh()
+          setTimeout(() => setToastMessage(null), 4000)
+        }}
       />
+
+      {/* Floating Toast Notification */}
+      {toastMessage && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 px-4 py-3 bg-emerald-600 text-white rounded-xl shadow-lg shadow-emerald-900/20 text-sm font-medium animate-fade-in transition-all">
+          <CheckCircle className="w-5 h-5 text-white shrink-0" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
     </>
   )
 }

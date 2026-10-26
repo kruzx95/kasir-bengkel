@@ -277,6 +277,10 @@ export default function StockClient({ initialSpareparts, branches, totalCount }:
         open={importModalOpen}
         onClose={() => setImportModalOpen(false)}
         branches={branches}
+        onSuccess={() => {
+          setImportModalOpen(false)
+          router.refresh()
+        }}
       />
     </>
   )

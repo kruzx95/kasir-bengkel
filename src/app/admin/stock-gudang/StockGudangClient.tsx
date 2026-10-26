@@ -3,7 +3,7 @@
 import { useTransition, useEffect, useState, useRef, useMemo } from 'react'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Package, AlertTriangle, Warehouse, Upload, Search, SlidersHorizontal, ArrowUp, ArrowDown, ArrowUpDown, ArrowRightLeft, History } from 'lucide-react'
+import { ArrowLeft, Package, AlertTriangle, Warehouse, Upload, Search, SlidersHorizontal, ArrowUp, ArrowDown, ArrowUpDown, ArrowRightLeft, History, CheckCircle } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
 import Table from '@/components/ui/Table'
@@ -51,6 +51,7 @@ export default function StockGudangClient({ initialSpareparts, branches = [], to
   const [importModalOpen, setImportModalOpen] = useState(false)
   const [transferModalOpen, setTransferModalOpen] = useState(false)
   const [selectedTransferSparepart, setSelectedTransferSparepart] = useState<Sparepart | null>(null)
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
 
   const initialSearch = searchParams.get('search') || ''
   const initialSortBy = searchParams.get('sortBy') || 'name'
@@ -344,6 +345,12 @@ export default function StockGudangClient({ initialSpareparts, branches = [], to
         open={importModalOpen}
         onClose={() => setImportModalOpen(false)}
         branches={branches}
+        onSuccess={(msg) => {
+          setImportModalOpen(false)
+          setToastMessage(msg || 'Data stok gudang berhasil diimpor!')
+          router.refresh()
+          setTimeout(() => setToastMessage(null), 4000)
+        }}
       />
 
       {/* Modal Transfer Stok */}
@@ -499,6 +506,13 @@ export default function StockGudangClient({ initialSpareparts, branches = [], to
           </div>
         </div>
       </Card>
+      {/* Floating Toast Notification */}
+      {toastMessage && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 px-4 py-3 bg-emerald-600 text-white rounded-xl shadow-lg shadow-emerald-900/20 text-sm font-medium animate-fade-in transition-all">
+          <CheckCircle className="w-5 h-5 text-white shrink-0" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
     </div>
   )
 }

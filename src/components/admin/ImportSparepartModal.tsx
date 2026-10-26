@@ -16,10 +16,12 @@ interface ImportSparepartModalProps {
   open: boolean
   onClose: () => void
   branches: Branch[]
+  onSuccess?: (message?: string) => void
 }
 
-export default function ImportSparepartModal({ open, onClose, branches }: ImportSparepartModalProps) {
+export default function ImportSparepartModal({ open, onClose, branches, onSuccess }: ImportSparepartModalProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const autoCloseTimer = useRef<NodeJS.Timeout | null>(null)
   const [file, setFile] = useState<File | null>(null)
   const [branchMode, setBranchMode] = useState('all')
   const effectiveBranchMode = branches.length === 1 ? branches[0].id : branchMode
@@ -65,6 +67,15 @@ export default function ImportSparepartModal({ open, onClose, branches }: Import
     })
   }
 
+  const handleClose = () => {
+    if (autoCloseTimer.current) clearTimeout(autoCloseTimer.current)
+    setFile(null)
+    setResult(null)
+    setBranchMode('all')
+    if (fileInputRef.current) fileInputRef.current.value = ''
+    onClose()
+  }
+
   const handleImport = async () => {
     if (!file) return
     setLoading(true)
@@ -82,9 +93,14 @@ export default function ImportSparepartModal({ open, onClose, branches }: Import
         setResult({ success: false, message: data.error || 'Gagal mengimpor', details: data.details })
       } else {
         setResult({ success: true, message: data.message })
-        // Reload page after short delay to show updated list
-        setTimeout(() => {
-          window.location.reload()
+        // Auto close setelah 1.5 detik
+        autoCloseTimer.current = setTimeout(() => {
+          handleClose()
+          if (onSuccess) {
+            onSuccess(data.message)
+          } else {
+            window.location.reload()
+          }
         }, 1500)
       }
     } catch {
@@ -92,14 +108,6 @@ export default function ImportSparepartModal({ open, onClose, branches }: Import
     } finally {
       setLoading(false)
     }
-  }
-
-  const handleClose = () => {
-    setFile(null)
-    setResult(null)
-    setBranchMode('all')
-    if (fileInputRef.current) fileInputRef.current.value = ''
-    onClose()
   }
 
   const isServiceFileName = file?.name.toLowerCase().includes('servis') || file?.name.toLowerCase().includes('service')
@@ -238,15 +246,41 @@ export default function ImportSparepartModal({ open, onClose, branches }: Import
       </div>
 
       <ModalFooter>
-        <Button variant="ghost" onClick={handleClose}>Batal</Button>
-        <Button
-          onClick={handleImport}
-          loading={loading}
-          disabled={!file || !!result?.success}
-          icon={Upload}
-        >
-          Import Sekarang
-        </Button>
+        {result?.success ? (
+          <div className="flex items-center justify-between w-full">
+            <span className="text-xs text-emerald-700 font-medium flex items-center gap-1.5 animate-pulse">
+              <CheckCircle className="w-4 h-4 text-emerald-600" />
+              Berhasil diimpor. Menutup otomatis...
+            </span>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => {
+                if (autoCloseTimer.current) clearTimeout(autoCloseTimer.current)
+                handleClose()
+                if (onSuccess) onSuccess(result.message)
+                else window.location.reload()
+              }}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
+            >
+              Tutup Sekarang
+            </Button>
+          </div>
+        ) : (
+          <>
+            <Button variant="ghost" onClick={handleClose}>
+              {result && !result.success ? 'Tutup' : 'Batal'}
+            </Button>
+            <Button
+              onClick={handleImport}
+              loading={loading}
+              disabled={!file}
+              icon={Upload}
+            >
+              Import Sekarang
+            </Button>
+          </>
+        )}
       </ModalFooter>
     </Modal>
   )

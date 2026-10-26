@@ -9,7 +9,7 @@ import SparepartFormModal from '@/components/admin/SparepartFormModal'
 import ImportSparepartModal from '@/components/admin/ImportSparepartModal'
 import { deleteSparepart } from '@/actions/sparepart'
 import { formatCurrency } from '@/lib/utils'
-import { Plus, Pencil, Trash2, Package, Upload, Search } from 'lucide-react'
+import { Plus, Pencil, Trash2, Package, Upload, Search, CheckCircle } from 'lucide-react'
 import Select from '@/components/ui/Select'
 
 interface Branch {
@@ -50,6 +50,7 @@ export default function SparepartsClient({ spareparts, branches, totalCount }: S
   const [importModalOpen, setImportModalOpen] = useState(false)
   const [editData, setEditData] = useState<SparepartRow | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
   
   const initialSearch = searchParams.get('search') || ''
   const initialBranch = searchParams.get('branch') || ''
@@ -326,7 +327,21 @@ export default function SparepartsClient({ spareparts, branches, totalCount }: S
         open={importModalOpen}
         onClose={() => setImportModalOpen(false)}
         branches={branches}
+        onSuccess={(msg) => {
+          setImportModalOpen(false)
+          setToastMessage(msg || 'Data sparepart berhasil diimpor!')
+          router.refresh()
+          setTimeout(() => setToastMessage(null), 4000)
+        }}
       />
+
+      {/* Floating Toast Notification */}
+      {toastMessage && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 px-4 py-3 bg-emerald-600 text-white rounded-xl shadow-lg shadow-emerald-900/20 text-sm font-medium animate-fade-in transition-all">
+          <CheckCircle className="w-5 h-5 text-white shrink-0" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
     </>
   )
 }
